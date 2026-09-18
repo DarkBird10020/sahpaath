@@ -100,12 +100,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 11015,
+                  "duration": 9134,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:44:55.189Z",
+                  "startTime": "2026-09-18T21:59:43.230Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -120,7 +120,7 @@
         },
         {
           "title": "landing, login and narrow layout accessibility",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -133,18 +133,45 @@
                 {
                   "workerIndex": 0,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 4507,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60334,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts",
+                        "column": 6,
+                        "line": 138
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Open classroom', exact: true })\u001b[22m\n\n\n  136 |   await page\n  137 |     .getByRole(\"button\", { name: \"Open classroom\", exact: true })\n> 138 |     .click();\n      |      ^\n  139 |   await scan(page, \"login\");\n  140 |   await page.setViewportSize({ width: 320, height: 740 });\n  141 |   await scan(page, \"login-mobile\");\n    at C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:138:6"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:06.471Z",
+                  "startTime": "2026-09-18T21:59:52.527Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-landing-login-and-narrow-layout-accessibility\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-landing-login-and-narrow-layout-accessibility\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-e0c16fa0ad393c62d4cb",
@@ -154,7 +181,7 @@
         },
         {
           "title": "teacher repairs, approves, publishes, explores and sends a contextual question",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -165,20 +192,47 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 14409,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60134,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts",
+                        "column": 6,
+                        "line": 35
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Open classroom', exact: true })\u001b[22m\n\n\n  33 |   await page\n  34 |     .getByRole(\"button\", { name: \"Open classroom\", exact: true })\n> 35 |     .click();\n     |      ^\n  36 |   await page.getByLabel(\"Local teacher password\").fill(\"e2e-teacher\");\n  37 |   await page.getByRole(\"button\", { name: \"Enter classroom\" }).click();\n  38 |   await expect(\n    at teacherLogin (C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:35:6)\n    at C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:161:3"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:10.987Z",
+                  "startTime": "2026-09-18T22:00:53.805Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-teacher-repairs--9c3d4-sends-a-contextual-question\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-teacher-repairs--9c3d4-sends-a-contextual-question\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-81f99d1539866b45f798",
@@ -188,7 +242,7 @@
         },
         {
           "title": "API roles, forged approval, races and malicious uploads",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -199,20 +253,47 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 2,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 3246,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60132,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts",
+                        "column": 6,
+                        "line": 35
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Open classroom', exact: true })\u001b[22m\n\n\n  33 |   await page\n  34 |     .getByRole(\"button\", { name: \"Open classroom\", exact: true })\n> 35 |     .click();\n     |      ^\n  36 |   await page.getByLabel(\"Local teacher password\").fill(\"e2e-teacher\");\n  37 |   await page.getByRole(\"button\", { name: \"Enter classroom\" }).click();\n  38 |   await expect(\n    at teacherLogin (C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:35:6)\n    at C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:254:3"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:25.408Z",
+                  "startTime": "2026-09-18T22:01:54.973Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-API-roles-forged-d309d-races-and-malicious-uploads\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-API-roles-forged-d309d-races-and-malicious-uploads\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-afe6f123e13c82eceea3",
@@ -222,7 +303,7 @@
         },
         {
           "title": "keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -233,20 +314,47 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 3,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 8629,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60134,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts",
+                        "column": 6,
+                        "line": 35
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Open classroom', exact: true })\u001b[22m\n\n\n  33 |   await page\n  34 |     .getByRole(\"button\", { name: \"Open classroom\", exact: true })\n> 35 |     .click();\n     |      ^\n  36 |   await page.getByLabel(\"Local teacher password\").fill(\"e2e-teacher\");\n  37 |   await page.getByRole(\"button\", { name: \"Enter classroom\" }).click();\n  38 |   await expect(\n    at teacherLogin (C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:35:6)\n    at C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:344:3"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:28.664Z",
+                  "startTime": "2026-09-18T22:02:56.194Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-keyboard-only-ph-36226-trast-and-no-WebGL-fallback\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-keyboard-only-ph-36226-trast-and-no-WebGL-fallback\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-1a381d0eafd599091398",
@@ -256,7 +364,7 @@
         },
         {
           "title": "manual upload fallback can be reviewed and published without an OCR service",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -267,20 +375,47 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 4,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 5174,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60133,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts",
+                        "column": 6,
+                        "line": 35
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Open classroom', exact: true })\u001b[22m\n\n\n  33 |   await page\n  34 |     .getByRole(\"button\", { name: \"Open classroom\", exact: true })\n> 35 |     .click();\n     |      ^\n  36 |   await page.getByLabel(\"Local teacher password\").fill(\"e2e-teacher\");\n  37 |   await page.getByRole(\"button\", { name: \"Enter classroom\" }).click();\n  38 |   await expect(\n    at teacherLogin (C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:35:6)\n    at C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:398:3"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:37.306Z",
+                  "startTime": "2026-09-18T22:03:57.339Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-manual-upload-fa-211af-shed-without-an-OCR-service\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-manual-upload-fa-211af-shed-without-an-OCR-service\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-00054c036f0349deac81",
@@ -290,7 +425,7 @@
         },
         {
           "title": "caption correction uses the published glossary and retains original text; local storage is private",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -301,20 +436,47 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 5,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 3121,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60141,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts",
+                        "column": 6,
+                        "line": 35
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Open classroom', exact: true })\u001b[22m\n\n\n  33 |   await page\n  34 |     .getByRole(\"button\", { name: \"Open classroom\", exact: true })\n> 35 |     .click();\n     |      ^\n  36 |   await page.getByLabel(\"Local teacher password\").fill(\"e2e-teacher\");\n  37 |   await page.getByRole(\"button\", { name: \"Enter classroom\" }).click();\n  38 |   await expect(\n    at teacherLogin (C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:35:6)\n    at C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:450:3"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:42.495Z",
+                  "startTime": "2026-09-18T22:04:58.407Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-caption-correcti-41600-xt-local-storage-is-private\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-caption-correcti-41600-xt-local-storage-is-private\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-660c5d00c60dfe79d162",
@@ -335,15 +497,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 6,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3025,
+                  "duration": 2941,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:45.625Z",
+                  "startTime": "2026-09-18T22:05:59.543Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -369,15 +531,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 6,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1322,
+                  "duration": 1312,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:48.661Z",
+                  "startTime": "2026-09-18T22:06:02.665Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -392,7 +554,7 @@
         },
         {
           "title": "calm motion setting stops scroll animation and pins nothing",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -403,20 +565,47 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 6,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 3083,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60151,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts",
+                        "column": 70,
+                        "line": 573
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Accessibility settings' })\u001b[22m\n\n\n  571 |   await page.goto(\"/\");\n  572 |   await expect(page.locator(\"html\")).toHaveClass(/motion-on/);\n> 573 |   await page.getByRole(\"button\", { name: \"Accessibility settings\" }).click();\n      |                                                                      ^\n  574 |   await page.getByLabel(\"Calm motion (stop scroll animations)\").check();\n  575 |   await expect(page.locator(\"html\")).not.toHaveClass(/motion-on/);\n  576 |   await expect(page.locator(\".diagram-story\")).toHaveClass(/story-flat/);\n    at C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:573:70"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:49.995Z",
+                  "startTime": "2026-09-18T22:06:03.989Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-calm-motion-sett-d370d--animation-and-pins-nothing\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-calm-motion-sett-d370d--animation-and-pins-nothing\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-57bf4592d9fe5e513f87",
@@ -437,15 +626,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 7,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 6567,
+                  "duration": 6334,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:53.089Z",
+                  "startTime": "2026-09-18T22:07:04.946Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -471,15 +660,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 7,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1789,
+                  "duration": 1827,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:45:59.665Z",
+                  "startTime": "2026-09-18T22:07:11.448Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -505,15 +694,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 7,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3958,
+                  "duration": 3967,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:46:01.465Z",
+                  "startTime": "2026-09-18T22:07:13.286Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -539,15 +728,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 7,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1669,
+                  "duration": 1466,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:46:05.435Z",
+                  "startTime": "2026-09-18T22:07:17.267Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -573,15 +762,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 7,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 932,
+                  "duration": 950,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:46:07.121Z",
+                  "startTime": "2026-09-18T22:07:18.745Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -596,7 +785,7 @@
         },
         {
           "title": "guided demo, flow navigation and live captions with a misheard term",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -607,20 +796,47 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 7,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 17843,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60125,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts",
+                        "column": 6,
+                        "line": 35
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Open classroom', exact: true })\u001b[22m\n\n\n  33 |   await page\n  34 |     .getByRole(\"button\", { name: \"Open classroom\", exact: true })\n> 35 |     .click();\n     |      ^\n  36 |   await page.getByLabel(\"Local teacher password\").fill(\"e2e-teacher\");\n  37 |   await page.getByRole(\"button\", { name: \"Enter classroom\" }).click();\n  38 |   await expect(\n    at teacherLogin (C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:35:6)\n    at C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:745:3"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:46:08.063Z",
+                  "startTime": "2026-09-18T22:07:19.705Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-guided-demo-flow-dce2c-ptions-with-a-misheard-term\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-guided-demo-flow-dce2c-ptions-with-a-misheard-term\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-c5a0f4cfd67512eb03be",
@@ -641,15 +857,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 8,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 93,
+                  "duration": 189,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:46:25.916Z",
+                  "startTime": "2026-09-18T22:08:20.713Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -664,7 +880,7 @@
         },
         {
           "title": "AI helper pages work for students, explain clearly when AI is off, and load subtitles offline",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -675,20 +891,47 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 8,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 5320,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60126,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts",
+                        "column": 65,
+                        "line": 848
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Explain a diagram' })\u001b[22m\n\n\n  846 |   // only \"Open classroom\" asks who you are.\n  847 |   await page.goto(\"/\");\n> 848 |   await page.getByRole(\"button\", { name: \"Explain a diagram\" }).click();\n      |                                                                 ^\n  849 |   await expect(page.getByRole(\"heading\", { name: \"Explain any diagram.\" })).toBeVisible();\n  850 |   await expect(page.getByRole(\"button\", { name: \"Enter classroom\" })).toHaveCount(0);\n  851 |   const picker = page.locator(\".ai-upload input[type=file]\");\n    at C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:848:65"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:46:26.016Z",
+                  "startTime": "2026-09-18T22:08:20.947Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-AI-helper-pages--f1a96--and-load-subtitles-offline\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\classroom-AI-helper-pages--f1a96--and-load-subtitles-offline\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-d51c513c5e68094054b9",
@@ -698,7 +941,7 @@
         },
         {
           "title": "teacher can choose a diagram file without filling the form first",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -709,20 +952,45 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 9,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 3573,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60008,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "message": "Error: apiRequestContext._wrapApiCall: ENOENT: no such file or directory, copyfile 'C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\.playwright-artifacts-9\\traces\\ee123a1e90c2c71e0969-a8533a37253f937f545d-recording1.network' -> 'C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\.playwright-artifacts-9\\traces\\ee123a1e90c2c71e0969-a8533a37253f937f545d-recording1-pwnetcopy-1.network'"
+                    },
+                    {
+                      "message": "Error: browserContext._wrapApiCall: ENOENT: no such file or directory, open 'C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\.playwright-artifacts-9\\traces\\ee123a1e90c2c71e0969-a8533a37253f937f545d.network'"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts",
+                        "column": 6,
+                        "line": 35
+                      },
+                      "message": "Error: locator.click: Test ended.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Open classroom', exact: true })\u001b[22m\n\n\n  33 |   await page.getByRole(\"button\", { name: \"Menu\" }).click();\n  34 |   await page.getByRole(\"dialog\", { name: \"Menu\" }).getByRole(\"button\", { name }).click();\n> 35 | }\n     |  ^\n  36 | async function teacherLogin(page: Page) {\n  37 |   await page.goto(\"/\");\n  38 |   await fromMenu(page, /Open classroom/);\n    at teacherLogin (C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:35:6)\n    at C:\\Users\\Administrator\\Desktop\\fir-comit\\tests\\e2e\\classroom.spec.ts:870:3"
+                    },
+                    {
+                      "message": "Error: ENOENT: no such file or directory, open 'C:\\Users\\Administrator\\Desktop\\fir-comit\\test-results\\.playwright-artifacts-9\\64789ba9de2a2fcfc2928d8c8c2b2c85.zip'"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T21:46:31.348Z",
+                  "startTime": "2026-09-18T22:09:21.975Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-a8533a37253f937f545d",
@@ -735,11 +1003,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-18T21:44:49.989Z",
-    "duration": 105685.68400000001,
-    "expected": 19,
+    "startTime": "2026-09-18T21:59:40.551Z",
+    "duration": 641841.399,
+    "expected": 9,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 10,
     "flaky": 0
   }
 }

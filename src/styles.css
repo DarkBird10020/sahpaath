@@ -255,12 +255,65 @@ legend {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: clamp(12px, 2.5vw, 30px);
+  gap: clamp(14px, 2.5vw, 32px);
   height: 64px;
-  padding: 0 8px 0 10px;
+  padding: 0 14px;
   border-radius: 999px;
   pointer-events: auto;
   transition: background 0.35s ease, box-shadow 0.35s ease, padding 0.35s ease;
+}
+/* Two lines and the name: everything else lives one click away, in the menu. */
+.menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 14px 10px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+}
+.menu-lines {
+  position: relative;
+  width: 26px;
+  height: 10px;
+}
+.menu-lines::before,
+.menu-lines::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  height: 2px;
+  background: currentColor;
+  transition: width 0.3s cubic-bezier(0.2, 0.75, 0.15, 1);
+}
+.menu-lines::before {
+  top: 0;
+  width: 26px;
+}
+.menu-lines::after {
+  bottom: 0;
+  width: 17px;
+}
+.menu-button:hover .menu-lines::after,
+.menu-button:focus-visible .menu-lines::after {
+  width: 26px;
+}
+.menu-word {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.menu-button:hover:not(:disabled) {
+  background: rgba(20, 54, 95, 0.07);
+}
+.site-header.is-dark .menu-button {
+  color: #fffdf8;
+}
+.site-header.is-dark .menu-button:hover:not(:disabled) {
+  background: rgba(255, 253, 248, 0.16);
 }
 /* Frosted while floating: the page keeps showing through, with a rim light rather
    than a flat border so it reads as a pane of glass over the moving page. */
@@ -418,17 +471,73 @@ legend {
 .header-cta:hover:not(:disabled) svg {
   transform: translateX(3px);
 }
+/* A card under the bar, not a block in the page: the header floats over the page,
+   so a panel in the flow ended up underneath it. */
 .settings-panel {
+  position: fixed;
+  top: 92px;
+  right: clamp(14px, 3.5%, 46px);
+  z-index: 70;
+  width: min(430px, calc(100vw - 28px));
+  max-height: calc(100vh - 110px);
+  overflow: auto;
+  padding: 24px 26px;
+  background: rgba(255, 253, 248, 0.96);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid #e5ded1;
+  border-radius: 20px;
+  box-shadow: 0 30px 64px -32px rgba(20, 54, 95, 0.7);
+  animation: settings-in 0.28s cubic-bezier(0.2, 0.75, 0.15, 1) both;
+}
+@keyframes settings-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+:root:not(.motion-on) .settings-panel {
+  animation: none;
+}
+:root[data-contrast="true"] .settings-panel {
   background: #fff;
-  padding: 24px;
-  max-width: 430px;
-  margin: 12px 5.5% 12px auto;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border-color: #38566f;
 }
 .settings-panel h2 {
-  font-size: 1.3rem;
-  margin-bottom: 12px;
+  font-family: "Manrope Variable", Arial, sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+.settings-panel .check-label {
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 12px;
+}
+.settings-panel .check-label:hover {
+  background: rgba(20, 54, 95, 0.05);
+}
+.settings-panel p {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+.settings-panel > button {
+  margin-top: 6px;
+  border-radius: 999px;
+  padding: 10px 20px;
+}
+@media (max-width: 800px) {
+  .settings-panel {
+    top: 86px;
+    right: 4%;
+    left: 4%;
+    width: auto;
+  }
 }
 .hero {
   display: grid;
@@ -3269,13 +3378,17 @@ code {
   color: rgba(255, 253, 248, 0.82);
   transition: color 0.25s ease;
 }
+/* Hover brightens the line itself. The app-wide pale button hover would drop a
+   bright box behind the words, which is exactly what it must not do here. */
+.menu-chapters button:hover:not(:disabled),
+.menu-chapters button:focus-visible {
+  background: none;
+  border-color: transparent;
+  transform: translateX(14px);
+}
 .menu-chapters button:hover .menu-title,
 .menu-chapters button:focus-visible .menu-title {
   color: #fffdf8;
-}
-.menu-chapters button:hover,
-.menu-chapters button:focus-visible {
-  transform: translateX(14px);
 }
 .menu-chapters button:hover .menu-num,
 .menu-chapters button:focus-visible .menu-num {
@@ -3317,22 +3430,34 @@ code {
 }
 .menu-action:hover:not(:disabled),
 .menu-action:focus-visible {
-  background: rgba(255, 253, 248, 0.14);
-  border-color: rgba(255, 253, 248, 0.6);
+  background: rgba(255, 253, 248, 0.1);
+  border-color: rgba(255, 253, 248, 0.85);
+  transform: translateY(-2px);
 }
 .menu-action:hover:not(:disabled) svg:last-child {
   transform: translateX(5px);
 }
+/* The primary is a brighter outline, not a slab of white: a filled card next to
+   these dim ones glares. */
 .menu-action.is-primary {
-  background: #fffdf8;
-  border-color: #fffdf8;
-  color: #14365f;
-}
-.menu-action.is-primary small {
-  color: #40597a;
+  background: rgba(255, 253, 248, 0.12);
+  border-color: rgba(255, 253, 248, 0.75);
 }
 .menu-action.is-primary:hover:not(:disabled) {
-  background: #fff;
+  background: rgba(255, 253, 248, 0.2);
+  border-color: #fffdf8;
+}
+.menu-action[aria-current="page"] {
+  border-color: rgba(255, 253, 248, 0.75);
+  background: rgba(255, 253, 248, 0.14);
+}
+.menu-action[aria-current="page"]::before {
+  content: "";
+  width: 3px;
+  align-self: stretch;
+  margin: -14px 2px -14px -12px;
+  border-radius: 3px;
+  background: #e0a049;
 }
 .menu-foot {
   display: flex;
@@ -3349,6 +3474,10 @@ code {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+.menu-foot-links {
+  gap: 22px;
+  flex-wrap: wrap;
 }
 .menu-link {
   display: inline-flex;

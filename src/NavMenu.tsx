@@ -1,8 +1,11 @@
 import { useEffect, useRef, type CSSProperties } from "react";
-import { ArrowRight, BookOpen, Captions, ScanText, Settings2, X } from "lucide-react";
+import { ArrowRight, BookOpen, Captions, LogOut, ScanText, Settings2, X } from "lucide-react";
 import { goToChapter, storyChapters } from "./DiagramStory";
 
-type Action = { label: string; hint: string; icon: typeof ScanText; run: () => void };
+/** Chapters that the story tells better than a menu entry can. */
+const SKIP = ["Structure", "Shared vocabulary"];
+
+type Action = { label: string; hint: string; icon: typeof ScanText; run: () => void; current?: boolean };
 
 /**
  * The whole site in one panel, opened from the header without leaving the page.
@@ -15,12 +18,14 @@ export default function NavMenu({
   onHome,
   actions,
   settingsOpen,
+  signOut,
 }: {
   open: boolean;
   onClose: () => void;
   onHome: () => boolean;
   actions: Action[];
   settingsOpen: () => void;
+  signOut?: () => void;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const close = useRef<HTMLButtonElement>(null);
@@ -91,25 +96,30 @@ export default function NavMenu({
             Walk through the story
           </p>
           <ol>
-            {storyChapters.map((label, i) => (
-              <li key={label} style={{ "--i": i } as CSSProperties}>
-                <button onClick={() => chapter(i)}>
-                  <span className="menu-num">Chapter {String(i + 1).padStart(2, "0")}</span>
-                  <span className="menu-title">{label}</span>
-                </button>
-              </li>
-            ))}
+            {storyChapters
+              .map((label, index) => ({ label, index }))
+              .filter(({ label }) => !SKIP.includes(label))
+              .map(({ label, index }, i) => (
+                <li key={label} style={{ "--i": i } as CSSProperties}>
+                  <button onClick={() => chapter(index)}>
+                    {/* The story's own number, so the chapter you land on is the one you picked. */}
+                    <span className="menu-num">Chapter {String(index + 1).padStart(2, "0")}</span>
+                    <span className="menu-title">{label}</span>
+                  </button>
+                </li>
+              ))}
           </ol>
         </nav>
 
         <div className="menu-side">
-          <p className="menu-kicker">Use it now</p>
+          <p className="menu-kicker">{signOut ? "Your classroom" : "Use it now"}</p>
           {actions.map((action, i) => {
             const Icon = action.icon;
             return (
               <button
                 key={action.label}
-                className={`menu-action${i === actions.length - 1 ? " is-primary" : ""}`}
+                aria-current={action.current ? "page" : undefined}
+                className={`menu-action${!signOut && i === actions.length - 1 ? " is-primary" : ""}`}
                 style={{ "--i": i } as CSSProperties}
                 onClick={() => {
                   onClose();
@@ -132,15 +142,28 @@ export default function NavMenu({
         <span>
           <Captions size={14} aria-hidden="true" /> Runs on this computer. Nothing leaves the classroom.
         </span>
-        <button
-          className="menu-link"
-          onClick={() => {
-            onClose();
-            settingsOpen();
-          }}
-        >
-          <Settings2 size={15} aria-hidden="true" /> Accessibility settings
-        </button>
+        <span className="menu-foot-links">
+          <button
+            className="menu-link"
+            onClick={() => {
+              onClose();
+              settingsOpen();
+            }}
+          >
+            <Settings2 size={15} aria-hidden="true" /> Accessibility settings
+          </button>
+          {signOut && (
+            <button
+              className="menu-link"
+              onClick={() => {
+                onClose();
+                signOut();
+              }}
+            >
+              <LogOut size={15} aria-hidden="true" /> Leave classroom
+            </button>
+          )}
+        </span>
       </div>
     </div>
   );
