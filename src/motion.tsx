@@ -87,45 +87,82 @@ export function useScrollSteps(ref: RefObject<HTMLElement | null>, steps: number
   useEffect(() => {
     const el = ref.current;
     if (!enabled || !el) {
+      el?.style.setProperty("--progress", "1");
       setState({ progress: 1, step: steps - 1, pinned: false });
       return;
     }
-    let frame = 0;
+    let pinned = false;
+    let tallest = 0;
+    let queued = false;
     let last = "";
-    const tick = () => {
-      // Pin only when the content fits on screen; otherwise its bottom would be hidden.
-      // Measured from the content itself, so pinned padding and min-height do not matter.
+    // The scroll value is written on the one element that reads it where there is
+    // one: setting a custom property on the whole section re-styles everything in
+    // it on every frame.
+    const painted = el.querySelector<HTMLElement>("[data-progress]") ?? el;
+
+    /**
+     * Pin only when the content fits on screen; otherwise its bottom would be hidden.
+     * The decision uses the tallest content seen at this window size and is never
+     * reversed except by a resize: pinning changes the page height, so a decision
+     * that reacted to the current step's height made the page jump up and down.
+     */
+    const decide = () => {
+      if (!pin) return;
       const inner = el.firstElementChild as HTMLElement | null;
-      let contentHeight = 0;
       if (inner && inner.children.length) {
         const boxes = [...inner.children].map((c) => c.getBoundingClientRect());
-        contentHeight = Math.max(...boxes.map((r) => r.bottom)) - Math.min(...boxes.map((r) => r.top));
+        tallest = Math.max(tallest, Math.max(...boxes.map((r) => r.bottom)) - Math.min(...boxes.map((r) => r.top)));
       }
-      const pinned = pin && innerWidth > 900 && contentHeight + 100 <= innerHeight;
+      const next = pin && innerWidth > 900 && tallest + 140 <= innerHeight;
+      if (next !== pinned) {
+        pinned = next;
+        read();
+      }
+    };
+    const read = () => {
+      queued = false;
       const rect = el.getBoundingClientRect();
       const raw = pinned
         ? -rect.top / Math.max(1, rect.height - innerHeight)
         : (innerHeight * 0.85 - rect.top) / Math.max(1, rect.height * 0.9);
       // A little dwell at both ends, so the first and last steps are readable.
       const progress = Math.min(1, Math.max(0, (raw - 0.04) / 0.9));
-      const q = Math.round(progress * 200) / 200;
-      const step = Math.min(steps - 1, Math.floor(q * steps));
-      const key = `${q}|${pinned}`;
+      // The smooth part of the motion is a custom property the CSS reads, so
+      // following the scroll costs no React render.
+      painted.style.setProperty("--progress", progress.toFixed(4));
+      const step = Math.min(steps - 1, Math.floor(progress * steps));
+      // Half-step granularity: enough for the wordmark and the dots, few enough
+      // renders that a heavy section still scrolls at frame rate.
+      const q = Math.round(progress * steps * 2) / (steps * 2);
+      const key = `${q}|${step}|${pinned}`;
       if (key !== last) {
         last = key;
         setState({ progress: q, step, pinned });
       }
-      frame = requestAnimationFrame(tick);
     };
-    const io = new IntersectionObserver(([entry]) => {
-      cancelAnimationFrame(frame);
-      if (entry.isIntersecting) frame = requestAnimationFrame(tick);
-    });
-    io.observe(el);
-    frame = requestAnimationFrame(tick);
+    const onScroll = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(read);
+    };
+    const onResize = () => {
+      tallest = 0;
+      decide();
+      onScroll();
+    };
+    // Late web fonts and taller steps change the content height; re-measuring keeps
+    // the decision honest, and the running maximum keeps it from oscillating.
+    const ro = new ResizeObserver(() => decide());
+    if (pin && el.firstElementChild) ro.observe(el.firstElementChild);
+    decide();
+    read();
+    addEventListener("scroll", onScroll, { passive: true });
+    addEventListener("resize", onResize);
     return () => {
-      cancelAnimationFrame(frame);
-      io.disconnect();
+      ro.disconnect();
+      removeEventListener("scroll", onScroll);
+      removeEventListener("resize", onResize);
+      painted.style.removeProperty("--progress");
     };
   }, [ref, steps, enabled, pin]);
   return state;

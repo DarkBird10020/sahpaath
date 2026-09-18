@@ -582,6 +582,47 @@ test("calm motion setting stops scroll animation and pins nothing", async ({ pag
   await scan(page, "landing-calm");
 });
 
+test("scrolling the landing page never fights the reader", async ({ page }) => {
+  // A laptop-sized window: this height used to sit on the pinning threshold, so the
+  // sections pinned and unpinned dozens of times and the page jumped up and down.
+  await page.setViewportSize({ width: 1440, height: 780 });
+  await page.goto("/");
+  await page.evaluate(() => {
+    const w = window as unknown as { report: { pins: number; back: number } };
+    w.report = { pins: 0, back: 0 };
+    const seen = new Map<Element, boolean>();
+    const check = () =>
+      document.querySelectorAll(".scroll-pin").forEach((el) => {
+        const pinned = el.classList.contains("is-pinned");
+        if (seen.has(el) && seen.get(el) !== pinned) w.report.pins++;
+        seen.set(el, pinned);
+      });
+    check();
+    new MutationObserver(check).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
+    let previous = scrollY;
+    let direction = 0;
+    addEventListener(
+      "scroll",
+      () => {
+        const delta = scrollY - previous;
+        // Ignore the clamp at the very bottom of the page.
+        if (direction > 0 && delta < -2 && scrollY < document.documentElement.scrollHeight - innerHeight - 2) w.report.back++;
+        if (delta !== 0) direction = delta;
+        previous = scrollY;
+      },
+      { passive: true },
+    );
+  });
+  await page.mouse.move(720, 400);
+  for (let i = 0; i < 60; i++) {
+    await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(25);
+  }
+  const report = await page.evaluate(() => (window as unknown as { report: { pins: number; back: number } }).report);
+  expect(report.pins).toBe(0);
+  expect(report.back).toBe(0);
+});
+
 test("guided demo, flow navigation and live captions with a misheard term", async ({
   page,
   playwright,
