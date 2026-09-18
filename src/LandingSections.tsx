@@ -54,7 +54,7 @@ export default function LandingSections({
     <>
       <Playground motion={motion} />
       <TrustPipeline motion={motion} />
-      <section className="finale" aria-labelledby="finale-heading">
+      <section className="finale" data-nav="dark" aria-labelledby="finale-heading">
         <div className="finale-grid" data-drift style={{ "--py": 120 } as CSSProperties} aria-hidden="true" />
         <p className="finale-kicker" data-reveal="wipe">
           SahPaath
@@ -93,7 +93,7 @@ function Wordmark({ motion }: { motion: boolean }) {
   const lit = motion ? Math.round(progress * WORD.length) : WORD.length;
   const dot = Math.min(2, Math.floor((lit / WORD.length) * 3 - 0.001));
   return (
-    <section ref={root} className="wordmark" aria-label="SahPaath">
+    <section ref={root} className="wordmark" data-nav="dark" aria-label="SahPaath">
       <div className="wordmark-dots" aria-hidden="true">
         {[0, 1, 2].map((i) => (
           <span key={i} className={i === Math.max(0, dot) ? "is-on" : ""} />
