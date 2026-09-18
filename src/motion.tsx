@@ -48,7 +48,7 @@ export function useMotion(calm: boolean) {
  * the way entirely while you scroll down through the animated sections. Scrolling
  * back up brings it straight back, and so does moving focus into it with a keyboard.
  */
-export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boolean) {
+export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boolean, pinned = false) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -56,14 +56,10 @@ export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boo
       el.classList.remove("is-floating", "is-hidden", "is-dark");
       return;
     }
-    let previous = scrollY;
     let queued = false;
     const read = () => {
       queued = false;
       const y = scrollY;
-      const down = y > previous + 4;
-      const up = y < previous - 4;
-      if (down || up) previous = y;
       el.classList.toggle("is-floating", y > 40);
       // The bar takes the colour of whatever it is locked over: light sections give
       // an ink bar on frosted paper, dark ones give a cream bar on frosted ink.
@@ -76,9 +72,11 @@ export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boo
         }
       }
       el.classList.toggle("is-dark", dark);
-      // Never hide it over the first screen, and never while it holds focus.
-      if (down && y > 260 && !el.contains(document.activeElement)) el.classList.add("is-hidden");
-      else if (up || y <= 260) el.classList.remove("is-hidden");
+      // Away from the top the bar is gone, in either direction: scrolling back up
+      // should not keep pulling it over the page. Pinning is how a visitor asks to
+      // keep it, and focus always brings it back for the keyboard.
+      const keep = pinned || y <= 60 || el.contains(document.activeElement);
+      el.classList.toggle("is-hidden", !keep);
     };
     const onScroll = () => {
       if (queued) return;
@@ -94,7 +92,7 @@ export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boo
       el.removeEventListener("focusin", onFocus);
       el.classList.remove("is-floating", "is-hidden", "is-dark");
     };
-  }, [ref, enabled]);
+  }, [ref, enabled, pinned]);
 }
 
 /**
