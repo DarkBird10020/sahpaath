@@ -26,6 +26,22 @@ import {
   type Audit,
 } from "../shared/schema";import { items, validateMap, itemGrounded } from "../shared/domain";
 import { fixtures } from "../shared/catalog";
+
+const searchResultSchema = z.object({
+  results: z.array(
+    z.object({
+      title: z.string(),
+      thumbUrl: z.string(),
+      imageUrl: z.string().nullable(),
+      mime: z.string(),
+      width: z.number().nullable(),
+      height: z.number().nullable(),
+      licenseName: z.string(),
+      sourceUrl: z.string(),
+    }),
+  ),
+});
+type SearchResult = z.infer<typeof searchResultSchema>["results"][number];
 import { Diagram, Empty, Status, SurfaceList } from "./components";
 
 type Props = {
@@ -57,11 +73,16 @@ export default function Teacher({
   const [tab, setTab] = useState<"review" | "pipeline" | "inbox">("review");
   const [editor, setEditor] = useState(false);
   const [focusItem, setFocusItem] = useState("");
+  const [notePromptFor, setNotePromptFor] = useState("");
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [questions, setQuestions] = useState<Question[]>([]);
   const [audit, setAudit] = useState<Audit[]>([]);
   const [engine, setEngine] = useState<{ ocr: string; model: string; standIn: boolean } | null>(null);
   const [analysing, setAnalysing] = useState(false);
+  const [search, setSearch] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
+  const [fetching, setFetching] = useState<string | null>(null);
   useEffect(() => {
     void api(
       "/health",
@@ -92,15 +113,22 @@ export default function Teacher({
         (i) => !["teacher_approved", "rejected"].includes(i.state),
       ).length
     : 0;
-  async function run(action: () => Promise<unknown>, message: string | (() => string)) {
+  async function run(
+    action: () => Promise<unknown>,
+    message: string | (() => string),
+    onError?: (error: Error) => void,
+  ) {
     setBusy(true);
     setError("");
     try {
       await action();
       await onChange();
+      setNotePromptFor("");
       report(typeof message === "string" ? message : message());
     } catch (e) {
-      setError((e as Error).message);
+      const error = e as Error;
+      onError?.(error);
+      setError(error.message);
     } finally {
       setBusy(false);
     }
@@ -110,8 +138,7 @@ export default function Teacher({
     setFocusItem("");
     setNotes({});
     setError("");
-  }, [selected]);
-  useEffect(() => {
+  }, [selected]);  useEffect(() => {
     if (!selected || tab !== "inbox") return;
     let cancelled = false;
     const load = async () => {
@@ -142,6 +169,64 @@ export default function Teacher({
       });
       onSelect(created.id);
     }, "Lesson created. Review the proposed map before publishing.");
+  async function runSearch(q: string) {
+    const query = q.trim();
+    if (!query) return;
+    setSearching(true);
+    setError("");
+    try {
+      const data = await api(
+        `/diagram-search?q=${encodeURIComponent(query)}`,
+        searchResultSchema,
+      );
+      setSearchResults(data.results);
+      if (!data.results.length)
+        setError(`No PNG or JPEG diagrams found for “${query}”. Try different words or upload a file.`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSearching(false);
+    }
+  }
+  async function useSearchResult(r: SearchResult) {
+    setFetching(r.imageUrl ?? r.thumbUrl);
+    setError("");
+    try {
+      const image = await api(
+        "/diagram-search/fetch",
+        z.object({ mime: z.enum(["image/png", "image/jpeg"]), base64: z.string() }),
+        "POST",
+        { imageUrl: r.imageUrl ?? r.thumbUrl },
+      );
+      let uploaded = "Original uploaded. Add visible labels in the manual map editor.";
+      if (engine) setAnalysing(true);
+      await run(async () => {
+        const created = await api("/upload", lessonSchema, "POST", {
+          title: title.trim() || r.title.slice(0, 140) || "Diagram",
+          mime: image.mime,
+          base64: image.base64,
+          license: {
+            sourceUrl: r.sourceUrl,
+            licenseName: r.licenseName,
+            attribution: "",
+            sourceType: "open_license" as const,
+          },
+        });
+        onSelect(created.id);
+        const proposed = created.map.parts.length > 0;
+        setEditor(!proposed);
+        if (proposed)
+          uploaded = `Analysis ready: ${created.map.parts.length} proposed parts from ${created.map.labels.length} OCR labels. Review every item.`;
+        else if (created.map.labels.length)
+          uploaded = "OCR labels found, but no proposal. Build the map in the manual editor.";
+      }, () => uploaded);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setFetching(null);
+      setAnalysing(false);
+    }
+  }
   return (
     <div className="workspace">
       <div className="page-heading">
@@ -351,14 +436,72 @@ export default function Teacher({
               {engine && " To run the AI on a diagram, upload an image below."}
             </p>
           </form>
+          <form
+            className="create-lesson diagram-search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void runSearch(search);
+            }}
+          >
+            <h3>Search for a diagram</h3>
+            <label>
+              Diagram or structure
+              <input
+                value={search}
+                maxLength={120}
+                placeholder="e.g. heart, water cycle, cell organelles"
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
+            <button className="primary" disabled={busy || searching || !search.trim()}>
+              <Plus size={17} aria-hidden="true" />
+              {searching ? "Searching…" : "Search diagrams"}
+            </button>
+            {searchResults && (
+              <div className="search-results" role="list">
+                {searchResults.map((r) => (
+                  <button
+                    key={r.thumbUrl}
+                    role="listitem"
+                    type="button"
+                    className="search-result"
+                    disabled={fetching !== null || busy}
+                    onClick={() => void useSearchResult(r)}
+                    title={`${r.title} · ${r.licenseName}`}
+                  >
+                    <img
+                      src={r.thumbUrl}
+                      alt={`Diagram result: ${r.title}`}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                    <span className="search-result-meta">
+                      <strong>{r.title}</strong>
+                      <small>
+                        {fetching === (r.imageUrl ?? r.thumbUrl)
+                          ? "Fetching & analysing…"
+                          : `${r.licenseName}${r.width ? ` · ${r.width}×${r.height}` : ""}`}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="small">
+              Search finds openly licensed diagrams and uploads your pick
+              straight into review — the same pipeline as a file upload.
+            </p>
+          </form>
         </aside>
         <section className="lesson-main" aria-label="Lesson review">
           {error && (
             <div className="error" role="alert">
               {error}
-              <button onClick={() => void run(onChange, "Lesson reloaded.")}>
-                Reload lesson
-              </button>
+              {/reload/i.test(error) && (
+                <button onClick={() => void run(onChange, "Lesson reloaded.")}>
+                  Reload lesson
+                </button>
+              )}
             </div>
           )}
           {!lesson ? (
@@ -698,6 +841,11 @@ export default function Teacher({
                                       aria-label={`Review note for ${label}`}
                                       value={notes[item.id] ?? item.reviewNote}
                                       maxLength={1000}
+                                      className={
+                                        notePromptFor === item.id
+                                          ? "note-required"
+                                          : undefined
+                                      }
                                       onChange={(e) =>
                                         setNotes({
                                           ...notes,
@@ -733,6 +881,25 @@ export default function Teacher({
                                               },
                                             ),
                                           `${label} approved.`,
+                                          (e) => {
+                                            // The server refuses approvals of
+                                            // flagged items without a note;
+                                            // put the cursor in the field.
+                                            if (!/review note/i.test(e.message))
+                                              return;
+                                            setNotePromptFor(item.id);
+                                            requestAnimationFrame(() => {
+                                              const input = [
+                                                ...document.querySelectorAll<HTMLInputElement>("input"),
+                                              ].find(
+                                                (i) =>
+                                                  i.getAttribute("aria-label") ===
+                                                  `Review note for ${label}`,
+                                              );
+                                              input?.scrollIntoView({ block: "center", behavior: "smooth" });
+                                              input?.focus();
+                                            });
+                                          },
                                         )
                                       }
                                     >
