@@ -660,6 +660,53 @@ test("stepped sections lock in place first, then move one point at a time", asyn
   await expect(page.locator(".trust-steps li.is-reached")).toHaveCount(4);
 });
 
+test("the menu opens over the page, travels the story and hands focus back", async ({ page }) => {
+  await page.goto("/");
+  // A value on the window proves the page never reloaded.
+  await page.evaluate(() => ((window as unknown as { kept: number }).kept = 7));
+  const trigger = page.getByRole("button", { name: "Menu" });
+  await trigger.click();
+  const menu = page.getByRole("dialog", { name: "Menu" });
+  await expect(menu).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close menu" })).toBeFocused();
+  await scan(page, "menu");
+  // Escape closes it and focus goes back to the button that opened it.
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  // A chapter closes the menu and travels the story, still without a reload.
+  await trigger.click();
+  await page.getByRole("button", { name: /Chapter 05/ }).click();
+  await expect(menu).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "05 Captions", exact: true })).toHaveAttribute("aria-current", "step", { timeout: 10000 });
+  expect(await page.evaluate(() => (window as unknown as { kept: number }).kept)).toBe(7);
+  // The learner tools open from the menu without a sign-in form.
+  await trigger.click();
+  await menu.getByRole("button", { name: /Explain a diagram/ }).click();
+  await expect(page.getByRole("heading", { name: "Explain any diagram." })).toBeVisible();
+});
+
+test("the header takes the colour of the section it is locked over", async ({ page }) => {
+  await page.goto("/");
+  const bar = page.locator(".header-bar");
+  const paper = await bar.evaluate((el) => getComputedStyle(el).backgroundColor);
+  // Down to the dark closing sections, then back up so the header comes in.
+  await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
+  await page.mouse.move(700, 400);
+  for (let i = 0; i < 3; i++) {
+    await page.mouse.wheel(0, -120);
+    await page.waitForTimeout(60);
+  }
+  await expect(page.locator(".site-header")).toHaveClass(/is-dark/);
+  const ink = await bar.evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(ink).not.toBe(paper);
+  // Cream lettering over the dark bar.
+  expect(await page.locator(".site-header .brand").evaluate((el) => getComputedStyle(el).color)).toBe("rgb(255, 253, 248)");
+  // Back at the top it is light again.
+  await page.evaluate(() => scrollTo(0, 0));
+  await expect(page.locator(".site-header")).not.toHaveClass(/is-dark/);
+});
+
 test("the scanning beam belongs to the chapter that is reading labels", async ({ page }) => {
   await page.goto("/");
   const beam = async (through: number) =>

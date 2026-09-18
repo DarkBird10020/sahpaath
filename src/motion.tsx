@@ -53,7 +53,7 @@ export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boo
     const el = ref.current;
     if (!el) return;
     if (!enabled) {
-      el.classList.remove("is-floating", "is-hidden");
+      el.classList.remove("is-floating", "is-hidden", "is-dark");
       return;
     }
     let previous = scrollY;
@@ -65,6 +65,17 @@ export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boo
       const up = y < previous - 4;
       if (down || up) previous = y;
       el.classList.toggle("is-floating", y > 40);
+      // The bar takes the colour of whatever it is locked over: light sections give
+      // an ink bar on frosted paper, dark ones give a cream bar on frosted ink.
+      let dark = false;
+      for (const section of document.querySelectorAll<HTMLElement>("[data-nav='dark']")) {
+        const r = section.getBoundingClientRect();
+        if (r.top <= 44 && r.bottom >= 44) {
+          dark = true;
+          break;
+        }
+      }
+      el.classList.toggle("is-dark", dark);
       // Never hide it over the first screen, and never while it holds focus.
       if (down && y > 260 && !el.contains(document.activeElement)) el.classList.add("is-hidden");
       else if (up || y <= 260) el.classList.remove("is-hidden");
@@ -81,7 +92,7 @@ export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boo
     return () => {
       removeEventListener("scroll", onScroll);
       el.removeEventListener("focusin", onFocus);
-      el.classList.remove("is-floating", "is-hidden");
+      el.classList.remove("is-floating", "is-hidden", "is-dark");
     };
   }, [ref, enabled]);
 }

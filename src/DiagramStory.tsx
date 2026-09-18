@@ -54,6 +54,12 @@ const surfaces = [
 const sentence =
   "Today we are following blood from the Right ventricle to the Pulmonary artery. The Pulmonary artery carries blood toward the Lungs.";
 
+/** Asks the story to travel to a chapter; see goToChapter below. */
+export const CHAPTER_EVENT = "sahpaath:chapter";
+export function goToChapter(index: number) {
+  dispatchEvent(new CustomEvent(CHAPTER_EVENT, { detail: index }));
+}
+
 const chapters = [
   {
     label: "One lesson",
@@ -91,6 +97,9 @@ const chapters = [
     body: "Approve “Pulmonary artery” once. It becomes the explorer node, the glossary entry, the caption highlight, the audio description and the question anchor.",
   },
 ];
+
+/** Chapter names, in order, for anything that offers the story as a list. */
+export const storyChapters = chapters.map((c) => c.label);
 const last = chapters.length - 1;
 const pad = (n: number) => String(n).padStart(2, "0");
 const clamp = (x: number) => Math.min(1, Math.max(0, x));
@@ -231,6 +240,13 @@ export default function DiagramStory({
       }
     };
   }, [flat]);
+
+  // The menu (and anything else on the page) can ask for a chapter by name.
+  useEffect(() => {
+    const onJump = (e: Event) => jump((e as CustomEvent<number>).detail);
+    addEventListener(CHAPTER_EVENT, onJump);
+    return () => removeEventListener(CHAPTER_EVENT, onJump);
+  }, [flat]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function jump(index: number) {
     const target = Math.max(0, Math.min(last, index));
