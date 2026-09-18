@@ -1,4 +1,5 @@
 import { diagramPrompt, diagramTool, runDiagramPipeline } from "./diagram-pipeline";
+import type { AnalysisEngine } from "./local-ai";
 import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
 import { fixtureMap, fixtures } from "../shared/fixtures";
@@ -68,6 +69,15 @@ export async function analyzeWithAws(
     });
   } finally { textract.destroy(); bedrock.destroy(); }
 }
+/** Real AWS engine: Textract OCR + Bedrock Converse. */
+export function awsEngine(config: AwsConfig): AnalysisEngine {
+  return {
+    ocrName: "Textract DetectDocumentText",
+    modelName: `Bedrock ${config.bedrockModelId}`,
+    note: "",
+    run: (image) => analyzeWithAws(config, image),
+  };
+}
 export function awsEnabled(env: NodeJS.ProcessEnv): AwsConfig | null {
   return readAwsConfig(env);
 }
@@ -95,7 +105,7 @@ export async function createLesson(
   title?: string,
   image?: string,
   imageBytes?: Buffer,
-  awsConfig?: AwsConfig | null,
+  engine?: AnalysisEngine | null,
   license?: License | null,
 ): Promise<Lesson> {
   const stages: Stage[] = [];
@@ -126,14 +136,15 @@ export async function createLesson(
         : "Self-created schematic selected from local fixtures.",
     ),
   );
-  // Real AWS path only for genuine uploads with AWS fully configured.
+  // Automated analysis only for genuine uploads with an engine configured.
   const mime = imageBytes ? imageType(imageBytes) : null;
-  const useAws = !!imageBytes && !!awsConfig && !fixtureId && !!mime;
+  const useEngine = !!imageBytes && !!engine && !fixtureId && !!mime;
   let map: DiagramMap | null = null;
-  if (useAws) {
-    const config = awsConfig!;
+  if (useEngine) {
+    const e = engine!;
+    const note = e.note ? ` ${e.note}` : "";
     try {
-      const result = await analyzeWithAws(config, {
+      const result = await e.run({
         bytes: imageBytes!,
         mime: mime!,
       });
@@ -146,7 +157,7 @@ export async function createLesson(
             "OCR labels",
             "completed",
             false,
-            `Textract DetectDocumentText returned ${result.labels.length} LINE labels.`,
+            `${e.ocrName} returned ${result.labels.length} text lines.${note}`,
             round(result.durations.ocrMs),
           ),
         );
@@ -155,7 +166,7 @@ export async function createLesson(
             "Analysis",
             "completed",
             false,
-            `Bedrock ${config.bedrockModelId} proposal grounded against ${result.labels.length} OCR labels; ${map.parts.length} proposed parts; ${result.issues.length} validation findings. Teacher review required.`,
+            `${e.modelName} proposal grounded against ${result.labels.length} OCR labels; ${map.parts.length} proposed parts; ${result.issues.length} validation findings. Teacher review required.${note}`,
             round(result.durations.modelMs),
             result.retries,
           ),
@@ -168,7 +179,7 @@ export async function createLesson(
             "OCR labels",
             result.failedStage === "ocr" ? "fallback" : "completed",
             false,
-            result.failedStage === "ocr" ? result.reason : `Textract DetectDocumentText returned ${result.labels.length} LINE labels.`,
+            result.failedStage === "ocr" ? result.reason : `${e.ocrName} returned ${result.labels.length} text lines.${note}`,
             round(result.durations.ocrMs),
           ),
         );
@@ -184,13 +195,13 @@ export async function createLesson(
         );
       }
     } catch (error) {
-      const reason = "AWS pipeline initialization failed. Check server configuration.";
+      const reason = `${e.ocrName} could not start: ${(error as Error).message}`.slice(0, 500);
       stages.push(
         stage(
           "OCR labels",
           "fallback",
           false,
-          "Textract failed. Add labels manually.",
+          "OCR failed. Add labels manually.",
           null,
           0,
           reason,
@@ -201,7 +212,7 @@ export async function createLesson(
           "Analysis",
           "fallback",
           false,
-          "Bedrock analysis skipped after OCR failure. Use the manual map editor.",
+          "Analysis skipped after OCR failure. Use the manual map editor.",
         ),
       );
     }

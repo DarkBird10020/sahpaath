@@ -15,7 +15,9 @@ import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { z } from "zod";
 import { Store } from "./store";
-import { createLesson, imageType } from "./providers";
+import { awsEngine, createLesson, imageType } from "./providers";
+import { GeminiProposalAdapter, LocalOcrAdapter, localOcrLines, localTestEngine, readGeminiConfig } from "./local-ai";
+import { answerFromLesson, explainDiagram, explainWord, transcribeMedia } from "./tutor";
 import { readAwsConfig } from "./aws";
 import { AudioService, pollySynthesizer, readPollyConfig } from "./audio";
 import { demoState, resetDemo, startDemo } from "./demo";
@@ -34,6 +36,7 @@ import {
   questionSchema,
   captionSourceSchema,
   segmentInput,
+  licenseSchema,
   id,
   type Caption,
   type Question,
@@ -68,6 +71,27 @@ const audio = new AudioService(
   polly ? `${polly.voiceId}:${polly.engine}:${polly.languageCode}` : "none",
 );
 const hash = (value: string) => createHash("sha256").update(value).digest();
+// Diagram analysis: AWS when configured; otherwise, with GEMINI_API_KEY set,
+// local OCR + Gemini as a clearly labelled test stand-in; otherwise manual.
+const awsConfig = readAwsConfig(process.env);
+const gemini = awsConfig ? null : readGeminiConfig(process.env);
+const ocrCacheDir = resolve(root, "tesseract");
+const analysisEngine = awsConfig ? awsEngine(awsConfig) : gemini ? localTestEngine(gemini, ocrCacheDir) : null;
+// The learner AI helper uses Gemini even when AWS handles lesson analysis.
+const tutor = readGeminiConfig(process.env);
+function needTutor() {
+  if (!tutor) throw new HttpError(503, "AI help is not configured. Add GEMINI_API_KEY to the .env file and restart.");
+  return tutor;
+}
+// Our own wording only; provider error text can contain account details.
+function aiFailure(error: unknown): never {
+  if (error instanceof HttpError) throw error;
+  const safe = (error as { userMessage?: unknown } | null)?.userMessage;
+  if (error instanceof z.ZodError || error instanceof SyntaxError)
+    throw new HttpError(502, "The AI answer was incomplete. Please try again.");
+  throw new HttpError(502, typeof safe === "string" ? safe : "AI help is unavailable right now. Please try again.");
+}
+const mediaTypes = ["video/mp4", "video/webm", "video/quicktime", "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg", "audio/aac", "audio/flac", "audio/mp4", "audio/x-m4a"] as const;
 // Interim (non-final) caption text is display-only and never stored.
 const partials = new Map<string, string>();
 const counters = new Map<string, { count: number; until: number }>();
@@ -99,15 +123,15 @@ function json(res: ServerResponse, value: unknown, status = 200) {
   });
   res.end(JSON.stringify(value));
 }
-async function body(req: IncomingMessage): Promise<unknown> {
+async function body(req: IncomingMessage, maxBytes = 7_000_000): Promise<unknown> {
   if (!req.headers["content-type"]?.startsWith("application/json"))
     throw new HttpError(415, "Send JSON with application/json content type.");
   let length = 0;
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
     length += chunk.length;
-    if (length > 7_000_000)
-      throw new HttpError(413, "Image too large. Use PNG or JPEG below 5 MB.");
+    if (length > maxBytes)
+      throw new HttpError(413, maxBytes > 7_000_000 ? "File too large. Use a recording below 10 MB." : "Image too large. Use PNG or JPEG below 5 MB.");
     chunks.push(chunk);
   }
   try {
@@ -167,10 +191,10 @@ const presign = createPresignedProvider(config);
 // AND the account primitives exist; otherwise the honest local fallback runs.
 const textract = config.textractEnabled && config.awsRegion
   ? new TextractAdapter(config.awsRegion)
-  : null;
+  : gemini ? new LocalOcrAdapter(ocrCacheDir) : null;
 const bedrock = config.bedrockEnabled && config.bedrockModelId && config.awsRegion
   ? new BedrockProposalAdapter(config.bedrockModelId, config.awsRegion)
-  : null;
+  : gemini ? new GeminiProposalAdapter(gemini) : null;
 const senseService = new DiagramSenseService(repos, storage, textract, bedrock, config, logger.child({ component: "diagram-sense" }));
 const uploadService = new DiagramUploadService(
   repos,
@@ -235,6 +259,10 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       mode: "local",
       awsConfigured: cloudConfig(process.env) !== null || readAwsConfig(process.env) !== null,
       pollyConfigured: audio.enabled,
+      tutor: tutor ? { model: tutor.model } : null,
+      analysis: analysisEngine
+        ? { ocr: analysisEngine.ocrName, model: analysisEngine.modelName, standIn: !awsConfig }
+        : null,
     });
   if (path === "/api/session" && method === "POST") {
     limited(`login:${req.socket.remoteAddress}`, 20);
@@ -351,7 +379,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
           input.title,
           name,
           bytes,
-          readAwsConfig(process.env),
+          analysisEngine,
           input.license,
         ),
       ),
@@ -446,7 +474,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     return res.end(data);
   }
   const lessonRoute = path.match(
-    /^\/api\/lessons\/([\w-]+)(?:\/(map|decision|publish|version|audit|questions|captions|processing-status))?$/,
+    /^\/api\/lessons\/([\w-]+)(?:\/(map|decision|publish|version|audit|questions|captions|processing-status|license))?$/,
   );
   if (lessonRoute) {
     const lessonId = id.parse(lessonRoute[1]);
@@ -548,6 +576,16 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       }
       return json(res, snapshot);
     }
+    if (action === "license" && method === "PUT") {
+      const input = z.object({ revision: z.number().int().nonnegative(), license: licenseSchema }).strict().parse(await body(req));
+      const lesson = store.get(lessonId);
+      if (lesson.status === "published")
+        throw new HttpError(409, "Create a new version before changing the license.");
+      lesson.license = input.license;
+      const saved = store.save(lesson, input.revision);
+      store.audit(lessonId, "license_recorded", `License recorded: ${input.license.licenseName}.`);
+      return json(res, saved);
+    }
     if (action === "version" && method === "POST") {
       const input = revisionSchema.parse(await body(req));
       return json(res, store.newVersion(lessonId, input.revision));
@@ -592,6 +630,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       sessionCode: s.code,
       createdAt: new Date().toISOString(),
       status: "queued",
+      aiAnswer: null,
     };
     store.addRecord("questions", record);
     store.audit(
@@ -637,6 +676,72 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       res,
       store.correctCaption(id.parse(correction[1]), input.heard, input.termId),
     );
+  }
+  // Learner AI help. Works without a teacher; every answer is labelled as AI.
+  if (path === "/api/ai/explain-diagram" && method === "POST") {
+    const s = session(req);
+    limited(`ai-diagram:${s.code}`, 10);
+    const input = z.object({
+      mime: z.enum(["image/png", "image/jpeg"]),
+      base64: z.string().min(1).max(6_700_000),
+      question: z.string().trim().max(300).nullable().default(null),
+    }).strict().parse(await body(req));
+    const bytes = Buffer.from(input.base64, "base64");
+    if (imageType(bytes) !== input.mime) throw new HttpError(400, "Choose a PNG or JPEG image below 5 MB.");
+    const config = needTutor();
+    try {
+      return json(res, { ...(await explainDiagram(config, { bytes, mime: input.mime }, () => localOcrLines(bytes, ocrCacheDir), input.question || null)), model: config.model });
+    } catch (error) { aiFailure(error); }
+  }
+  if (path === "/api/ai/ask" && method === "POST") {
+    const s = session(req);
+    limited(`ai-ask:${s.code}`, 20);
+    const input = questionInput.parse(await body(req));
+    const published = store.published(input.lessonId, input.version);
+    if (input.conceptId && !published.vocabulary.some((t) => t.id === input.conceptId))
+      throw new HttpError(400, "Choose a concept from this approved lesson version.");
+    const config = needTutor();
+    let answer;
+    try { answer = await answerFromLesson(config, published, input.text, input.conceptId); }
+    catch (error) { aiFailure(error); }
+    // The question and the AI's answer both go to the teacher's queue.
+    const record: Question = {
+      ...input,
+      id: randomUUID(),
+      sessionCode: s.code,
+      createdAt: new Date().toISOString(),
+      status: "queued",
+      aiAnswer: { answer: answer.answer, outsideLesson: answer.outsideLesson, model: config.model },
+    };
+    store.addRecord("questions", record);
+    store.audit(input.lessonId, "ai_answer_given", `AI tutor answered session ${s.code}${answer.outsideLesson ? " (beyond the lesson)" : ""}. Queued for the teacher.`, `student-${s.code}`);
+    return json(res, { question: record, conceptIds: answer.conceptIds }, 201);
+  }
+  if (path === "/api/ai/explain-word" && method === "POST") {
+    const s = session(req);
+    limited(`ai-word:${s.code}`, 30);
+    const input = z.object({
+      word: z.string().trim().min(1).max(80),
+      context: z.string().trim().max(600).nullable().default(null),
+      lessonId: id.nullable().default(null),
+    }).strict().parse(await body(req));
+    let published = null;
+    if (input.lessonId) { try { published = store.published(input.lessonId); } catch { published = null; } }
+    try { return json(res, await explainWord(tutor, input.word, input.context, published)); }
+    catch (error) {
+      if (!tutor) throw new HttpError(503, "AI help is not configured. Add GEMINI_API_KEY to the .env file and restart.");
+      aiFailure(error);
+    }
+  }
+  if (path === "/api/ai/transcribe" && method === "POST") {
+    const s = session(req);
+    limited(`ai-media:${s.code}`, 5);
+    const input = z.object({ mime: z.enum(mediaTypes), base64: z.string().min(1).max(14_000_000) }).strict().parse(await body(req, 14_500_000));
+    const bytes = Buffer.from(input.base64, "base64");
+    if (!bytes.length || bytes.length > 10_000_000) throw new HttpError(413, "File too large. Use a recording below 10 MB.");
+    const config = needTutor();
+    try { return json(res, { ...(await transcribeMedia(config, { bytes, mime: input.mime })), model: config.model }); }
+    catch (error) { aiFailure(error); }
   }
   // ClassCaption: live sessions of timed final segments on a published version.
   if (path === "/api/caption-sessions" && method === "POST") {
@@ -820,6 +925,6 @@ const server = createServer(async (req, res) => {
 });
 server.listen(port, "127.0.0.1", () =>
   console.log(
-    `SahPaath local classroom: http://127.0.0.1:${port}\n${cloudConfig(process.env) ? "Step Functions processing configured (live verification required)." : readAwsConfig(process.env) ? "Direct AWS processing configured (live verification required)." : "AWS is not connected."} Local teacher password: ${process.env.SAHPAATH_TEACHER_PASSWORD ? "(configured in environment)" : "sahpaath-local"}`,
+    `SahPaath local classroom: http://127.0.0.1:${port}\n${cloudConfig(process.env) ? "Step Functions processing configured (live verification required)." : readAwsConfig(process.env) ? "Direct AWS processing configured (live verification required)." : analysisEngine ? `AWS is not connected. Diagram analysis test stand-in: ${analysisEngine.ocrName} + ${analysisEngine.modelName}.` : "AWS is not connected."} Local teacher password: ${process.env.SAHPAATH_TEACHER_PASSWORD ? "(configured in environment)" : "sahpaath-local"}`,
   ),
 );

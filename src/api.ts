@@ -25,3 +25,12 @@ export async function api<T>(
   return schema.parse(data);
 }
 export const okSchema = z.object({ ok: z.boolean() });
+/** Base64 of a file without the "data:...;base64," prefix. */
+export function fileBase64(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+    reader.onerror = () => reject(new Error("Could not read the file. Choose it again."));
+    reader.readAsDataURL(file);
+  });
+}

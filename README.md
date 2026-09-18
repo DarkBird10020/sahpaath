@@ -6,6 +6,8 @@ This is a working **local classroom application**, with an optional real Diagram
 
 A second, versioned backend lives under `/api/v1` (layered services, SQLite/memory/DynamoDB repositories, signed upload grants, Textract/Bedrock adapters). It runs alongside the classroom API and shares its login. See the [API contract](docs/API_CONTRACT.md), [v1 diagram pipeline](docs/DIAGRAM_PIPELINE.md), [DynamoDB layout](docs/DYNAMODB.md) and [backend audit](docs/BACKEND_AUDIT.md).
 
+Without AWS, diagram analysis can be tested with a clearly labelled stand-in: local OCR (tesseract.js) plus the Gemini API free tier. See [local AI test stand-in](docs/LOCAL_AI.md).
+
 ## Run locally
 
 Requires Node.js 24 or newer.

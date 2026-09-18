@@ -33,6 +33,10 @@ export interface TextractDetections {
 
 export interface TextractClientPort {
   detect(input: { imageBytes: Buffer }): Promise<TextractDetections>;
+  /** Where the labels come from; local stand-ins must not be recorded as Textract. */
+  readonly labelSource?: "textract" | "local_ocr";
+  /** Human-readable engine name for stage details. */
+  readonly engine?: string;
 }
 
 export class TextractAdapter implements TextractClientPort {
