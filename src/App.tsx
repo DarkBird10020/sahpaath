@@ -17,6 +17,7 @@ import { useMotion, useStickyHeader } from "./motion";
 import NavMenu from "./NavMenu";
 import Teacher from "./Teacher";
 import Student from "./Student";
+import TeacherInbox from "./TeacherInbox";
 import ExplainDiagram from "./ExplainDiagram";
 import WatchListen from "./WatchListen";
 
@@ -523,7 +524,7 @@ export default function App() {
             }}
           />
         )}
-        {studentPage && session && (
+        {studentPage && session && !(page === "communicate" && session.role === "teacher") && (
           <Student
             lessons={published}
             lessonId={studentId}
@@ -534,6 +535,9 @@ export default function App() {
             report={setAnnouncement}
             spatial={preferences.spatial}
           />
+        )}
+        {page === "communicate" && session?.role === "teacher" && (
+          <TeacherInbox report={setAnnouncement} />
         )}
         {page === "diagram" && session && <ExplainDiagram report={setAnnouncement} />}
         {page === "watch" && session && <WatchListen report={setAnnouncement} />}

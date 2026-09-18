@@ -1686,6 +1686,90 @@ input.note-required {
 .student-top h1 {
   font-size: 2rem;
 }
+/* Teacher Communicate page: cross-lesson question inbox. */
+.inbox-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.inbox-header h1 {
+  font-size: 2rem;
+}
+.inbox-header .small {
+  max-width: 480px;
+}
+.inbox-stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #eef3f7;
+  color: #1d3a54;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.inbox-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 8px 0 16px;
+}
+.inbox-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.inbox-thread article {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.inbox-row-main {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.inbox-row-meta {
+  font-size: 0.75rem;
+  color: #53677a;
+  margin-bottom: 6px;
+}
+.inbox-lesson {
+  font-weight: 700;
+  color: #1d3a54;
+}
+.inbox-concept {
+  color: #1d3a54;
+}
+.inbox-text {
+  font-size: 0.95rem;
+  margin: 2px 0 8px;
+  overflow-wrap: anywhere;
+}
+.inbox-footnote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
 .lesson-picker {
   min-width: 230px;
   max-width: 330px;

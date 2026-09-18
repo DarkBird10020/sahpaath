@@ -235,6 +235,17 @@ test("teacher repairs, approves, publishes, explores and sends a contextual ques
     .first()
     .click();
   await scan(page, "captions");
+  // Asking is the student's side of this page; a teacher sees the inbox instead.
+  await page.getByRole("button", { name: "See questions about this" }).click();
+  await expect(page.getByRole("heading", { name: "Every question, one desk." })).toBeVisible();
+  await page.getByRole("button", { name: "Leave classroom", exact: true }).click();
+  await fromMenu(page, /Open classroom/);
+  await page.getByLabel("I’m a student").check();
+  await page.getByRole("button", { name: "Enter classroom" }).click();
+  await page.getByRole("button", { name: "Captions", exact: true }).click();
+  // Students pick the term from the class glossary; loading a transcript is the
+  // teacher's control.
+  await page.getByRole("button", { name: "Pulmonary artery", exact: true }).first().click();
   await page.getByRole("button", { name: "Ask about this" }).click();
   await expect(page.getByLabel("Approved concept")).toHaveValue("part-1");
   await scan(page, "communication");
@@ -242,7 +253,11 @@ test("teacher repairs, approves, publishes, explores and sends a contextual ques
     .getByRole("button", { name: "I don’t understand what this does" })
     .click();
   await expect(page.locator(".sent-message")).toContainText("Sent:");
-  await page.getByRole("button", { name: "Teacher workspace", exact: true }).click();
+  // Back as the teacher, the question is waiting in the workspace.
+  await page.getByRole("button", { name: "Leave classroom", exact: true }).click();
+  await fromMenu(page, /Open classroom/);
+  await page.getByLabel("Local teacher password").fill("e2e-teacher");
+  await page.getByRole("button", { name: "Enter classroom" }).click();
   await page.getByRole("button", { name: "Questions & activity" }).click();
   await expect(page.locator(".inbox")).toContainText(
     "Ask about Pulmonary artery",
@@ -369,6 +384,17 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  await page.getByRole("button", { name: "Communicate", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Every question, one desk." }),
+  ).toBeVisible();
+  // Teachers see the inbox on the Communicate page; the phrase flow is the
+  // student's view, so switch sessions through the login form. Leaving the
+  // classroom returns to the landing page, where the menu is the way in.
+  await page.getByRole("button", { name: "Leave classroom", exact: true }).click();
+  await fromMenu(page, /Open classroom/);
+  await page.getByLabel("I’m a student").check();
+  await page.getByRole("button", { name: "Enter classroom" }).click();
   await page.getByRole("button", { name: "Communicate", exact: true }).click();
   await page
     .getByRole("button", { name: "Please repeat", exact: true })

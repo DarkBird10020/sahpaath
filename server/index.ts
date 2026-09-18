@@ -34,6 +34,7 @@ import {
   uploadSchema,
   questionInput,
   questionSchema,
+  inboxRowSchema,
   captionSourceSchema,
   segmentInput,
   licenseSchema,
@@ -760,6 +761,24 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
         .records<Question>("questions", lessonId)
         .filter((q) => q.sessionCode === s.code),
     );
+  }
+  if (path === "/api/inbox" && method === "GET") {
+    teacher(req);
+    const rows = store.list().flatMap((lesson) => {
+      const title = lesson.title;
+      const partName = (partId: string | null) =>
+        partId
+          ? lesson.map.parts.find((p) => p.id === partId)?.name ?? partId
+          : null;
+      return store
+        .records<Question>("questions", lesson.id)
+        .map((q) => ({
+          ...q,
+          lessonTitle: title,
+          conceptName: partName(q.conceptId),
+        }));
+    });
+    return json(res, inboxRowSchema.array().parse(rows));
   }
   const statusMatch = path.match(/^\/api\/questions\/([\w-]+)\/status$/);
   if (statusMatch && method === "POST") {
