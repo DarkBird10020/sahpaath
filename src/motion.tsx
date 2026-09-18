@@ -43,6 +43,61 @@ export function useMotion(calm: boolean) {
 }
 
 /**
+ * The header follows the scroll the way the rest of the page does: flat and part of
+ * the page at the top, a compact floating bar once you are into the page, and out of
+ * the way entirely while you scroll down through the animated sections. Scrolling
+ * back up brings it straight back, and so does moving focus into it with a keyboard.
+ */
+export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boolean) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!enabled) {
+      el.classList.remove("is-floating", "is-hidden", "is-dark");
+      return;
+    }
+    let previous = scrollY;
+    let queued = false;
+    const read = () => {
+      queued = false;
+      const y = scrollY;
+      const down = y > previous + 4;
+      const up = y < previous - 4;
+      if (down || up) previous = y;
+      el.classList.toggle("is-floating", y > 40);
+      // The bar takes the colour of whatever it is locked over: light sections give
+      // an ink bar on frosted paper, dark ones give a cream bar on frosted ink.
+      let dark = false;
+      for (const section of document.querySelectorAll<HTMLElement>("[data-nav='dark']")) {
+        const r = section.getBoundingClientRect();
+        if (r.top <= 44 && r.bottom >= 44) {
+          dark = true;
+          break;
+        }
+      }
+      el.classList.toggle("is-dark", dark);
+      // Never hide it over the first screen, and never while it holds focus.
+      if (down && y > 260 && !el.contains(document.activeElement)) el.classList.add("is-hidden");
+      else if (up || y <= 260) el.classList.remove("is-hidden");
+    };
+    const onScroll = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(read);
+    };
+    const onFocus = () => el.classList.remove("is-hidden");
+    read();
+    addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("focusin", onFocus);
+    return () => {
+      removeEventListener("scroll", onScroll);
+      el.removeEventListener("focusin", onFocus);
+      el.classList.remove("is-floating", "is-hidden", "is-dark");
+    };
+  }, [ref, enabled]);
+}
+
+/**
  * Splits text into words that each animate on their own. Assistive technology reads the
  * plain sentence from the visually hidden copy; the animated words are aria-hidden.
  * `timed` plays on mount (for pinned content), otherwise the words follow the scroll.
@@ -87,45 +142,92 @@ export function useScrollSteps(ref: RefObject<HTMLElement | null>, steps: number
   useEffect(() => {
     const el = ref.current;
     if (!enabled || !el) {
+      el?.style.setProperty("--progress", "1");
       setState({ progress: 1, step: steps - 1, pinned: false });
       return;
     }
-    let frame = 0;
+    let pinned = false;
+    let tallest = 0;
+    let fit = 1;
+    let queued = false;
     let last = "";
-    const tick = () => {
-      // Pin only when the content fits on screen; otherwise its bottom would be hidden.
-      // Measured from the content itself, so pinned padding and min-height do not matter.
+    // The scroll value is written on the one element that reads it where there is
+    // one: setting a custom property on the whole section re-styles everything in
+    // it on every frame.
+    const painted = el.querySelector<HTMLElement>("[data-progress]") ?? el;
+
+    /**
+     * A pinned section locks in place and then moves through its steps, so on a
+     * desktop it always pins; content taller than the window is scaled down to fit
+     * rather than left to overflow. The decision uses the tallest content seen at
+     * this window size and is never reversed except by a resize: pinning changes the
+     * page height, so a decision that reacted to the current step made the page jump.
+     */
+    const decide = () => {
+      if (!pin) return;
       const inner = el.firstElementChild as HTMLElement | null;
-      let contentHeight = 0;
       if (inner && inner.children.length) {
         const boxes = [...inner.children].map((c) => c.getBoundingClientRect());
-        contentHeight = Math.max(...boxes.map((r) => r.bottom)) - Math.min(...boxes.map((r) => r.top));
+        // Undo the scale already applied, so this is the natural height.
+        const measured = (Math.max(...boxes.map((r) => r.bottom)) - Math.min(...boxes.map((r) => r.top))) / fit;
+        tallest = Math.max(tallest, measured);
       }
-      const pinned = pin && innerWidth > 900 && contentHeight + 100 <= innerHeight;
+      // Below this the text would be too small to read; such a window scrolls normally.
+      // The reserved space covers the floating header and a margin under the content.
+      const wanted = Math.min(1, (innerHeight - 150) / Math.max(1, tallest));
+      const next = innerWidth > 900 && wanted >= 0.72;
+      if (next !== pinned || (next && Math.abs(wanted - fit) > 0.005)) {
+        pinned = next;
+        fit = next ? wanted : 1;
+        el.style.setProperty("--fit", fit.toFixed(3));
+        read();
+      }
+    };
+    const read = () => {
+      queued = false;
       const rect = el.getBoundingClientRect();
       const raw = pinned
         ? -rect.top / Math.max(1, rect.height - innerHeight)
         : (innerHeight * 0.85 - rect.top) / Math.max(1, rect.height * 0.9);
       // A little dwell at both ends, so the first and last steps are readable.
       const progress = Math.min(1, Math.max(0, (raw - 0.04) / 0.9));
-      const q = Math.round(progress * 200) / 200;
-      const step = Math.min(steps - 1, Math.floor(q * steps));
-      const key = `${q}|${pinned}`;
+      // The smooth part of the motion is a custom property the CSS reads, so
+      // following the scroll costs no React render.
+      painted.style.setProperty("--progress", progress.toFixed(4));
+      const step = Math.min(steps - 1, Math.floor(progress * steps));
+      // Half-step granularity: enough for the wordmark and the dots, few enough
+      // renders that a heavy section still scrolls at frame rate.
+      const q = Math.round(progress * steps * 2) / (steps * 2);
+      const key = `${q}|${step}|${pinned}`;
       if (key !== last) {
         last = key;
         setState({ progress: q, step, pinned });
       }
-      frame = requestAnimationFrame(tick);
     };
-    const io = new IntersectionObserver(([entry]) => {
-      cancelAnimationFrame(frame);
-      if (entry.isIntersecting) frame = requestAnimationFrame(tick);
-    });
-    io.observe(el);
-    frame = requestAnimationFrame(tick);
+    const onScroll = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(read);
+    };
+    const onResize = () => {
+      tallest = 0;
+      decide();
+      onScroll();
+    };
+    // Late web fonts and taller steps change the content height; re-measuring keeps
+    // the decision honest, and the running maximum keeps it from oscillating.
+    const ro = new ResizeObserver(() => decide());
+    if (pin && el.firstElementChild) ro.observe(el.firstElementChild);
+    decide();
+    read();
+    addEventListener("scroll", onScroll, { passive: true });
+    addEventListener("resize", onResize);
     return () => {
-      cancelAnimationFrame(frame);
-      io.disconnect();
+      ro.disconnect();
+      removeEventListener("scroll", onScroll);
+      removeEventListener("resize", onResize);
+      painted.style.removeProperty("--progress");
+      el.style.removeProperty("--fit");
     };
   }, [ref, steps, enabled, pin]);
   return state;
