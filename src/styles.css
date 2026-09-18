@@ -1,7 +1,9 @@
 :root {
   font-family: "DM Sans Variable", Arial, sans-serif;
   color: #213449;
-  background: #f8fafb;
+  /* A hair of warmth, so the workspace, the header and the landing's paper read as
+     one family instead of a cream bar over a cold grey page. */
+  background: #f7f6f2;
   font-synthesis: none;
   --ink: #163b69;
   --muted: #53677a;
@@ -222,20 +224,32 @@ legend {
 .skip-link:focus {
   top: 10px;
 }
+/* The header sits above the landing page's warm paper, so it shares that palette
+   and its rounded, pill-shaped controls rather than the cooler workspace chrome. */
 .site-header {
-  height: 88px;
+  --head-paper: #fffdf8;
+  --head-line: #e5ded1;
+  --head-link: #4b5f72;
+  --head-wash: #f3eee5;
+  height: 84px;
   display: flex;
   align-items: center;
-  padding: 0 5.5%;
-  border-bottom: 1px solid var(--line);
-  gap: 30px;
-  background: #fff;
+  padding: 0 5%;
+  border-bottom: 1px solid var(--head-line);
+  gap: clamp(16px, 3vw, 40px);
+  background: var(--head-paper);
+}
+:root[data-contrast="true"] .site-header {
+  --head-paper: #fff;
+  --head-line: #6a8091;
+  --head-link: #253d52;
+  --head-wash: #e3edf6;
 }
 .brand {
   font-family: "Manrope Variable", Arial, sans-serif;
-  font-size: 1.7rem;
+  font-size: 1.55rem;
   font-weight: 800;
-  letter-spacing: -1px;
+  letter-spacing: -0.035em;
   display: flex;
   align-items: center;
   text-decoration: none;
@@ -247,18 +261,25 @@ legend {
   color: #b07922;
 }
 .brand-mark {
-  width: 38px;
-  height: 38px;
-  border: 1px solid #94aabe;
-  border-radius: 10px 3px 10px 3px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 13px;
   display: grid;
   place-items: center;
-  margin-right: 9px;
-  transform: rotate(-5deg);
+  background: var(--ink);
+  color: #fffdf8;
+  /* A margin, not a flex gap: the brand's full stop must stay against the word. */
+  margin-right: 12px;
+  box-shadow: 0 10px 20px -12px rgba(20, 54, 95, 0.85);
+  transition: transform 0.25s cubic-bezier(0.2, 0.75, 0.15, 1);
+}
+.brand:hover .brand-mark {
+  transform: translateY(-2px) rotate(-4deg);
 }
 .site-header nav {
   display: flex;
-  gap: 8px;
+  gap: 2px;
   margin: auto;
   align-items: center;
 }
@@ -266,24 +287,57 @@ legend {
 .site-header nav a {
   border: 0;
   background: none;
-  font-size: 0.85rem;
-  padding: 12px;
-  color: #425970;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 11px 16px;
+  border-radius: 999px;
+  color: var(--head-link);
   text-decoration: none;
   white-space: nowrap;
   min-height: 44px;
+  transition: background 0.18s ease, color 0.18s ease;
 }
+.site-header nav button:hover:not(:disabled),
+.site-header nav a:hover {
+  background: var(--head-wash);
+  color: var(--ink);
+  border-color: transparent;
+}
+/* The current page is marked by weight and a filled pill, not by colour alone. */
 .site-header nav [aria-current="page"] {
   color: var(--ink);
-  box-shadow: inset 0 -3px var(--ink);
+  font-weight: 750;
+  background: var(--head-wash);
+  box-shadow: inset 0 0 0 1px var(--head-line);
 }
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
 }
+.site-header .icon-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border-color: var(--head-line);
+  background: var(--head-paper);
+}
+.site-header .icon-button:hover:not(:disabled) {
+  background: var(--head-wash);
+  border-color: #c9bfab;
+}
 .header-cta {
-  font-size: 0.82rem;
+  font-size: 0.92rem;
+  padding: 12px 22px;
+  border-radius: 999px;
+  box-shadow: 0 16px 30px -20px rgba(20, 54, 95, 0.95);
+}
+.header-cta svg {
+  transition: transform 0.2s cubic-bezier(0.2, 0.75, 0.15, 1);
+}
+.header-cta:hover:not(:disabled) svg {
+  transform: translateX(3px);
 }
 .settings-panel {
   background: #fff;
@@ -612,15 +666,24 @@ legend {
   margin: 12px 0 24px;
 }
 .site-footer {
-  padding: 28px 5.5%;
-  border-top: 1px solid var(--line);
+  padding: 28px 5%;
+  border-top: 1px solid #e5ded1;
   display: flex;
   align-items: center;
   gap: 28px;
-  background: white;
+  background: #fffdf8;
+}
+:root[data-contrast="true"] .site-footer {
+  border-top-color: #6a8091;
+  background: #fff;
 }
 .site-footer .brand {
   font-size: 1.2rem;
+}
+.site-footer .brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 11px;
 }
 .site-footer p,
 .site-footer > span {
@@ -1819,9 +1882,10 @@ code {
   .site-header nav {
     gap: 0;
   }
-  .site-header nav button {
-    font-size: 0.75rem;
-    padding: 10px;
+  .site-header nav button,
+  .site-header nav a {
+    font-size: 0.85rem;
+    padding: 10px 11px;
   }
   .hero {
     padding: 45px 4%;
@@ -2170,7 +2234,8 @@ code {
   .brand-mark {
     width: 32px;
     height: 32px;
-    margin-right: 6px;
+    border-radius: 11px;
+    margin-right: 8px;
   }
   .header-actions {
     gap: 5px;
