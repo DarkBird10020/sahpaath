@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/",
-  "timestamp": "2026-09-18T22:11:01.450Z",
+  "timestamp": "2026-09-18T22:19:11.874Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -21,6 +21,7 @@
     "form-field-multiple-labels",
     "html-has-lang",
     "html-lang-valid",
+    "label",
     "link-name",
     "list",
     "listitem",
