@@ -795,12 +795,12 @@ test("one login and one logout cover both the classroom API and the v1 backend",
 });
 
 test("AI helper pages work for students, explain clearly when AI is off, and load subtitles offline", async ({ page }) => {
-  // A logged-out visitor picks "Explain a diagram" and lands there after logging in.
+  // A logged-out visitor picks "Explain a diagram" and is taken straight there:
+  // only "Open classroom" asks who you are.
   await page.goto("/");
   await page.getByRole("button", { name: "Explain a diagram" }).click();
-  await expect(page.getByLabel("I’m a student")).toBeChecked();
-  await page.getByRole("button", { name: "Enter classroom" }).click();
   await expect(page.getByRole("heading", { name: "Explain any diagram." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Enter classroom" })).toHaveCount(0);
   const picker = page.locator(".ai-upload input[type=file]");
   await expect(picker).toBeEnabled();
   await picker.setInputFiles("docs/samples/heart-flow-test.png");

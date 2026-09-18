@@ -43,6 +43,50 @@ export function useMotion(calm: boolean) {
 }
 
 /**
+ * The header follows the scroll the way the rest of the page does: flat and part of
+ * the page at the top, a compact floating bar once you are into the page, and out of
+ * the way entirely while you scroll down through the animated sections. Scrolling
+ * back up brings it straight back, and so does moving focus into it with a keyboard.
+ */
+export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boolean) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!enabled) {
+      el.classList.remove("is-floating", "is-hidden");
+      return;
+    }
+    let previous = scrollY;
+    let queued = false;
+    const read = () => {
+      queued = false;
+      const y = scrollY;
+      const down = y > previous + 4;
+      const up = y < previous - 4;
+      if (down || up) previous = y;
+      el.classList.toggle("is-floating", y > 40);
+      // Never hide it over the first screen, and never while it holds focus.
+      if (down && y > 260 && !el.contains(document.activeElement)) el.classList.add("is-hidden");
+      else if (up || y <= 260) el.classList.remove("is-hidden");
+    };
+    const onScroll = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(read);
+    };
+    const onFocus = () => el.classList.remove("is-hidden");
+    read();
+    addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("focusin", onFocus);
+    return () => {
+      removeEventListener("scroll", onScroll);
+      el.removeEventListener("focusin", onFocus);
+      el.classList.remove("is-floating", "is-hidden");
+    };
+  }, [ref, enabled]);
+}
+
+/**
  * Splits text into words that each animate on their own. Assistive technology reads the
  * plain sentence from the visually hidden copy; the animated words are aria-hidden.
  * `timed` plays on mount (for pinned content), otherwise the words follow the scroll.
@@ -118,7 +162,8 @@ export function useScrollSteps(ref: RefObject<HTMLElement | null>, steps: number
         tallest = Math.max(tallest, measured);
       }
       // Below this the text would be too small to read; such a window scrolls normally.
-      const wanted = Math.min(1, (innerHeight - 96) / Math.max(1, tallest));
+      // The reserved space covers the floating header and a margin under the content.
+      const wanted = Math.min(1, (innerHeight - 150) / Math.max(1, tallest));
       const next = innerWidth > 900 && wanted >= 0.72;
       if (next !== pinned || (next && Math.abs(wanted - fit) > 0.005)) {
         pinned = next;
