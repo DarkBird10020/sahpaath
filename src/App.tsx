@@ -13,7 +13,7 @@ import {
 import { summarySchema, type Summary } from "../shared/evaluation";
 import DiagramStory from "./DiagramStory";
 import LandingSections from "./LandingSections";
-import { useMotion } from "./motion";
+import { useMotion, useStickyHeader } from "./motion";
 import Teacher from "./Teacher";
 import Student from "./Student";
 import ExplainDiagram from "./ExplainDiagram";
@@ -52,7 +52,9 @@ export default function App() {
     }
   });
   const main = useRef<HTMLElement>(null);
+  const header = useRef<HTMLElement>(null);
   const motion = useMotion(preferences.calm);
+  useStickyHeader(header, motion);
   useEffect(() => {
     document.documentElement.dataset.contrast = String(preferences.contrast);
     document.documentElement.dataset.large = String(preferences.large);
@@ -144,13 +146,36 @@ export default function App() {
     setLoginRole("teacher");
     go(session?.role === "teacher" ? "teacher" : "login");
   };
+  /**
+   * The learner tools open straight away. Only "Open classroom" asks who you are:
+   * a visitor who wants a diagram explained gets a student session in the
+   * background instead of a login form in the way.
+   */
+  async function openTool(next: string) {
+    setError("");
+    if (!session) {
+      try {
+        setSession(await api("/session", sessionSchema, "POST", { role: "student" }));
+      } catch (e) {
+        // Only if that fails does the visitor see the sign-in page.
+        setLoginRole("student");
+        setAfterLogin(next);
+        setPage("login");
+        setError((e as Error).message);
+        return;
+      }
+    }
+    setPage(next);
+    setTimeout(() => main.current?.focus(), 0);
+  }
   const studentPage = ["explore", "captions", "communicate"].includes(page);
   return (
     <>
       <a className="skip-link" href="#main">
         Skip to main content
       </a>
-      <header className="site-header">
+      <header className="site-header" ref={header}>
+       <div className="header-bar">
         <a
           className="brand"
           href="#"
@@ -212,22 +237,8 @@ export default function App() {
               <a href="#how-it-works" onClick={() => setPage("home")}>
                 How it works
               </a>
-              <button
-                onClick={() => {
-                  setLoginRole("student");
-                  go("diagram");
-                }}
-              >
-                Explain a diagram
-              </button>
-              <button
-                onClick={() => {
-                  setLoginRole("student");
-                  go("watch");
-                }}
-              >
-                Watch &amp; listen
-              </button>
+              <button onClick={() => void openTool("diagram")}>Explain a diagram</button>
+              <button onClick={() => void openTool("watch")}>Watch &amp; listen</button>
               <button onClick={() => go("evaluation")}>Our approach</button>
             </>
           )}
@@ -265,6 +276,7 @@ export default function App() {
             </button>
           )}
         </div>
+       </div>
       </header>
       {settings && (
         <section className="settings-panel" aria-label="Accessibility settings">
@@ -297,7 +309,9 @@ export default function App() {
       <div className="sr-only" role="status" aria-live="polite">
         {announcement}
       </div>
-      <main id="main" ref={main} tabIndex={-1}>
+      {/* The landing runs under the header, so its own colour reaches the top of the
+          window; every other page starts below the bar. */}
+      <main id="main" ref={main} tabIndex={-1} className={page === "home" ? "under-header" : ""}>
         {error && page !== "login" && (
           <div className="error global-error" role="alert">
             {error}
@@ -314,21 +328,8 @@ export default function App() {
         )}
         {page === "home" && (
           <>
-            <DiagramStory
-              calm={!motion}
-              onExplore={() => {
-                setLoginRole("student");
-                go("explore");
-              }}
-            />
-            <LandingSections
-              motion={motion}
-              onExplore={() => {
-                setLoginRole("student");
-                go("explore");
-              }}
-              onTeacher={openTeacher}
-            />
+            <DiagramStory calm={!motion} onExplore={() => void openTool("explore")} />
+            <LandingSections motion={motion} onExplore={() => void openTool("explore")} onTeacher={openTeacher} />
           </>
         )}
         {page === "login" && (
