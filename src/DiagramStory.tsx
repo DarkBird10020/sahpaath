@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import {
   AlertTriangle,
   ArrowDown,
@@ -117,7 +117,8 @@ export default function DiagramStory({
   const root = useRef<HTMLElement>(null);
   const tiltRef = useRef<HTMLDivElement>(null);
   const [chapter, setChapter] = useState(0);
-  // Progress inside the current chapter, quantised so React re-renders ~40x per chapter, not per frame.
+  // Progress inside the current chapter. Quantised, and the illustration only
+  // re-renders when one of the things it draws actually changes (see storyFrame).
   const [local, setLocal] = useState(1);
   const [flat, setFlat] = useState(false);
   const [announcement, setAnnouncement] = useState("");
@@ -134,6 +135,7 @@ export default function DiagramStory({
   useEffect(() => {
     const el = root.current;
     if (flat || !el) {
+      root.current?.style.setProperty("--story-progress", "1");
       setLocal(1);
       return;
     }
@@ -151,6 +153,21 @@ export default function DiagramStory({
     };
     if (finePointer) addEventListener("pointermove", onPointer, { passive: true });
 
+    /**
+     * The scroll-linked values go on the few elements that read them, not on the
+     * whole story: a custom property set on the section invalidates the style of
+     * every element inside it, once per frame, which is what made scrolling the
+     * story feel heavy. React can replace these nodes, so each is looked up again
+     * once it leaves the document.
+     */
+    const targets: Record<string, HTMLElement | null> = {};
+    const target = (selector: string) => {
+      const found = targets[selector];
+      if (found?.isConnected) return found;
+      return (targets[selector] = el.querySelector<HTMLElement>(selector));
+    };
+    const set = (selector: string, name: string, value: string) => target(selector)?.style.setProperty(name, value);
+
     const tick = () => {
       if (!running) return;
       const rect = el.getBoundingClientRect();
@@ -161,6 +178,9 @@ export default function DiagramStory({
       const q = Math.round(within * 40) / 40;
       if (index !== lastIndex) setChapter((lastIndex = index));
       if (q !== lastLocal) setLocal((lastLocal = q));
+      // The progress bar follows the scroll through a custom property, so the whole
+      // story does not re-render on every frame of it.
+      set(".story-progress span", "--story-progress", ((index + within) / chapters.length).toFixed(4));
 
       // Hold each chapter's camera pose, then travel to the next one over the last 35% of the chapter.
       const t = index < last ? ease(clamp((within - 0.65) / 0.35)) : 0;
@@ -175,9 +195,10 @@ export default function DiagramStory({
         tilt.style.opacity = String(m(6));
       }
       // The diagram "comes alive" across the Teacher review → Explore hand-off.
-      el.style.setProperty("--alive", clamp((scaled - 2.6) / 0.5).toFixed(3));
-      el.style.setProperty("--cp", within.toFixed(3));
-
+      set(".living-layer", "--alive", clamp((scaled - 2.6) / 0.5).toFixed(3));
+      const cp = within.toFixed(3);
+      set(".story-copy", "--cp", cp);
+      set(".story-numeral", "--cp", cp);
 
       frame = requestAnimationFrame(tick);
     };
@@ -196,7 +217,11 @@ export default function DiagramStory({
         tiltRef.current.style.transform = "";
         tiltRef.current.style.opacity = "";
       }
-      el.style.removeProperty("--alive");
+      for (const node of Object.values(targets)) {
+        node?.style.removeProperty("--alive");
+        node?.style.removeProperty("--cp");
+        node?.style.removeProperty("--story-progress");
+      }
     };
   }, [flat]);
 
@@ -214,12 +239,12 @@ export default function DiagramStory({
     } else {
       setChapter(target);
       setLocal(1);
+      root.current?.style.setProperty("--story-progress", String((target + 1) / chapters.length));
     }
   }
 
   const c = chapters[chapter];
   const p = flat ? 1 : local;
-
 
   return (
     <section
@@ -229,7 +254,7 @@ export default function DiagramStory({
     >
       <div className="story-stage" data-chapter={chapter}>
         <div className="story-progress" aria-hidden="true">
-          <span style={{ transform: `scaleX(${(chapter + p) / chapters.length})` }} />
+          <span />
         </div>
         <span key={`n${chapter}`} className="story-numeral" aria-hidden="true">
           {pad(chapter + 1)}
@@ -326,8 +351,31 @@ export default function DiagramStory({
   );
 }
 
+/**
+ * What the illustration shows at this point in the story. Everything it draws comes
+ * from these few values, so the canvas can skip a re-render while the scroll moves
+ * between two thresholds.
+ */
+function storyFrame(chapter: number, p: number) {
+  const step = chapter === 3 ? Math.min(4, Math.floor(p * 5)) : -1;
+  return {
+    scanned: chapter === 1 ? Math.floor(p * 6) : chapter > 1 ? 5 : 0,
+    structured: chapter >= 1 && (chapter > 1 || p > 0.55),
+    approved: chapter > 2 || (chapter === 2 && p > 0.55),
+    step,
+    focus: chapter >= 4 ? 1 : step,
+    typed: chapter === 4 ? Math.floor(clamp(p / 0.6) * sentence.length) : sentence.length,
+    defined: chapter === 4 && p > 0.62,
+    sent: chapter === 5 && p > 0.5,
+    alive: chapter >= 3,
+  };
+}
+const sameFrame = (a: { chapter: number; p: number }, b: { chapter: number; p: number }) =>
+  a.chapter === b.chapter &&
+  JSON.stringify(storyFrame(a.chapter, a.p)) === JSON.stringify(storyFrame(b.chapter, b.p));
+
 /** Decorative, aria-hidden illustration; the text equivalent lives in DiagramStory. */
-function StoryCanvas({
+const StoryCanvas = memo(function StoryCanvas({
   chapter,
   p,
   tiltRef,
@@ -336,15 +384,7 @@ function StoryCanvas({
   p: number;
   tiltRef: RefObject<HTMLDivElement | null>;
 }) {
-  const scanned = chapter === 1 ? Math.floor(p * 6) : chapter > 1 ? 5 : 0;
-  const structured = chapter >= 1 && (chapter > 1 || p > 0.55);
-  const approved = chapter > 2 || (chapter === 2 && p > 0.55);
-  const step = chapter === 3 ? Math.min(4, Math.floor(p * 5)) : -1;
-  const focus = chapter >= 4 ? 1 : step;
-  const typed = chapter === 4 ? Math.floor(clamp(p / 0.6) * sentence.length) : sentence.length;
-  const defined = chapter === 4 && p > 0.62;
-  const sent = chapter === 5 && p > 0.5;
-  const alive = chapter >= 3;
+  const { scanned, structured, approved, step, focus, typed, defined, sent, alive } = storyFrame(chapter, p);
 
   return (
     <div className={`story-canvas ch-${chapter} ${alive ? "is-alive" : ""}`} aria-hidden="true">
@@ -603,7 +643,7 @@ function StoryCanvas({
       </div>
     </div>
   );
-}
+}, sameFrame);
 
 function CaptionText({ text }: { text: string }) {
   const pieces = text.split(/(Pulmonary artery)/g);

@@ -226,6 +226,10 @@
   font-size: 15px;
   line-height: 1.55;
   border-left: 4px solid var(--ld-blue);
+  /* Room for the longest part description, so changing part keeps the panel the
+     same height: a panel that grows mid-scroll moves the page under the reader. */
+  min-height: calc(3 * 1.55em + 28px);
+  box-sizing: border-box;
 }
 .explore-actions,
 .term-actions {
@@ -713,6 +717,11 @@
 
 
 /* ---------- Scroll-pinned sections: scrolling moves through the steps ---------- */
+.scroll-pin {
+  /* The browser must not "helpfully" re-anchor the scroll when the pinned content
+     changes height; that reads as the page nudging itself up and down. */
+  overflow-anchor: none;
+}
 .scroll-pin.is-pinned {
   height: calc(100vh + var(--steps) * 45vh);
 }
@@ -758,7 +767,10 @@
   inset: 0;
   background: var(--ld-ink);
   transform-origin: left center;
-  transform: scaleX(var(--fill, 1));
+  /* The hook writes --progress on the section every frame; scaling a composited
+     layer keeps the line filling smoothly without a React render. */
+  transform: scaleX(var(--progress, 1));
+  will-change: transform;
 }
 .trust-steps li.is-reached::before {
   background: var(--ld-ink);
