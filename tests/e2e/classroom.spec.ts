@@ -653,3 +653,32 @@ test("guided demo, flow navigation and live captions with a misheard term", asyn
   const after = await (await page.request.get("/api/demo/state")).json();
   expect(after.steps.find((s: { id: string }) => s.id === "captions").status).toBe("done");
 });
+
+test("one login and one logout cover both the classroom API and the v1 backend", async ({ playwright }) => {
+  const base = { baseURL: "http://127.0.0.1:5174" };
+  // Log in through the v1 backend, then use a classroom route.
+  const v1 = await playwright.request.newContext(base);
+  expect((await v1.post("/api/v1/session", { data: { role: "teacher", password: "e2e-teacher" } })).ok()).toBe(true);
+  expect((await v1.get("/api/lessons")).ok()).toBe(true);
+  expect((await v1.get("/api/v1/lessons")).ok()).toBe(true);
+  expect((await v1.post("/api/v1/session", { data: { role: "teacher", password: "wrong" } })).status()).toBe(403);
+  await v1.delete("/api/v1/session");
+  expect((await v1.get("/api/session")).status()).toBe(401);
+  expect((await v1.get("/api/v1/lessons")).status()).toBe(401);
+  await v1.dispose();
+
+  // Log in through the classroom route, then use a v1 route.
+  const legacy = await playwright.request.newContext(base);
+  expect((await legacy.post("/api/session", { data: { role: "teacher", password: "e2e-teacher" } })).ok()).toBe(true);
+  expect((await legacy.get("/api/v1/lessons")).ok()).toBe(true);
+  await legacy.delete("/api/session");
+  expect((await legacy.get("/api/v1/lessons")).status()).toBe(401);
+  expect((await legacy.get("/api/lessons")).status()).toBe(401);
+  await legacy.dispose();
+
+  // Students cannot use teacher-only v1 routes.
+  const student = await playwright.request.newContext(base);
+  await student.post("/api/session", { data: { role: "student" } });
+  expect((await student.post("/api/v1/lessons", { data: { title: "Nope" } })).status()).toBe(403);
+  await student.dispose();
+});
