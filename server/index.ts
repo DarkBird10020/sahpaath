@@ -39,6 +39,21 @@ import {
   type Question,
   type Session,
 } from "../shared/schema";
+import { loadConfig } from "./core/config";
+import { Logger } from "./core/logger";
+import { sha256Hex } from "./core/ids";
+import { createRepos } from "./repositories";
+import { createStorage } from "./core/storage";
+import { createPresignedProvider } from "./core/presign";
+import { DiagramSenseService } from "./services/diagram-sense-service";
+import { TextractAdapter } from "./providers/textract";
+import { BedrockProposalAdapter } from "./providers/bedrock";
+import { LessonService } from "./services/lesson-service";
+import { ClassroomService } from "./services/classroom-service";
+import { DiagramUploadService } from "./services/diagram-upload-service";
+import { Router } from "./http/router";
+import { registerRoutes } from "./http/routes";
+import { toErrorResponse } from "./http/router";
 
 if (existsSync(".env")) loadEnvFile(".env");
 const production = process.argv.includes("--production");
@@ -124,6 +139,83 @@ function teacher(req: IncomingMessage) {
   return s;
 }
 
+/* ----------------------------- Core backend -------------------------------- */
+
+const config = loadConfig({
+  ...process.env,
+  // Local server defaults: keep dev ergonomics without weakening config rules.
+  SAHPAATH_TEACHER_PASSWORD: process.env.SAHPAATH_TEACHER_PASSWORD || password,
+  // Local loopback development uses an unpredictable process-only signing key.
+  // Unfinished upload grants expire on restart; cloud mode requires configuration.
+  SAHPAATH_UPLOAD_TOKEN_SECRET: process.env.SAHPAATH_UPLOAD_TOKEN_SECRET ||
+    (!process.env.SAHPAATH_S3_BUCKET && process.env.SAHPAATH_STORE !== "dynamodb"
+      ? randomBytes(32).toString("hex") : undefined),
+});
+const logger = new Logger(undefined, config.logLevel, { service: "sahpaath" });
+const router = new Router(logger.child({ component: "http" }));
+
+const repos = await createRepos(config);
+const storage = createStorage({
+  s3Bucket: config.s3Bucket,
+  awsRegion: config.awsRegion,
+  localUploadsDir: resolve(config.dataDir, "uploads"),
+});
+const lessonService = new LessonService(repos, logger.child({ component: "lesson" }));
+const classroomService = new ClassroomService(repos, logger.child({ component: "classroom" }));
+const presign = createPresignedProvider(config);
+// DiagramSense providers: real Textract/Bedrock only when explicitly enabled
+// AND the account primitives exist; otherwise the honest local fallback runs.
+const textract = config.textractEnabled && config.awsRegion
+  ? new TextractAdapter(config.awsRegion)
+  : null;
+const bedrock = config.bedrockEnabled && config.bedrockModelId && config.awsRegion
+  ? new BedrockProposalAdapter(config.bedrockModelId, config.awsRegion)
+  : null;
+const senseService = new DiagramSenseService(repos, storage, textract, bedrock, config, logger.child({ component: "diagram-sense" }));
+const uploadService = new DiagramUploadService(
+  repos,
+  presign,
+  senseService,
+  storage,
+  config,
+  logger.child({ component: "diagram-upload" }),
+);
+registerRoutes(router, {
+  lessons: lessonService,
+  classroom: classroomService,
+  uploads: uploadService,
+  sense: senseService,
+  auth: async (token) => {
+    const resolved = await classroomService.resolveSession(token);
+    if (!resolved) return null;
+    return { actor: { userId: resolved.userId, role: resolved.role }, classCode: resolved.classCode };
+  },
+  // Local bridge: the existing frontend logs in via legacy /api/session,
+  // whose cookie lives in the legacy store. Accept it on v1 routes so no
+  // second login is required. The legacy row stores role+code directly.
+  legacyAuth: async (token) => {
+    if (!token) return null;
+    const row = store.db
+      .prepare("SELECT role,code,expires FROM sessions WHERE token=?")
+      .get(sha256Hex(token)) as { role: "teacher" | "student"; code: string; expires: number } | undefined;
+    if (!row || row.expires < Date.now()) return null;
+    return {
+      actor: { userId: row.role === "teacher" ? "teacher-local" : `student-${token.slice(0, 8)}`, role: row.role },
+      classCode: row.code,
+    };
+  },
+  teacherPasswordHash: sha256Hex(config.teacherPassword),
+  mirrorSession: (token, role, code) => {
+    store.db.prepare("INSERT OR REPLACE INTO sessions VALUES (?, ?, ?, ?)")
+      .run(sha256Hex(token), role, code, Date.now() + 12 * 60 * 60 * 1000);
+  },
+  revokeLegacySession: (token) => {
+    store.db.prepare("DELETE FROM sessions WHERE token=?").run(sha256Hex(token));
+  },
+  storage,
+  config,
+});
+
 async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
   const method = req.method || "GET";
   const path = url.pathname;
@@ -135,6 +227,9 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     if (req.headers["sec-fetch-site"] === "cross-site")
       throw new HttpError(403, "Cross-site changes are not allowed.");
   }
+  // Core backend routes first (versioned contract in docs/API_CONTRACT.md).
+  const handled = await router.dispatch(req, res, url);
+  if (handled) return;
   if (path === "/api/health")
     return json(res, {
       mode: "local",
@@ -183,10 +278,12 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       .map((v) => v.trim())
       .find((v) => v.startsWith("sahpaath="))
       ?.slice(9);
-    if (token)
+    if (token) {
+      await classroomService.destroySession(token);
       store.db
         .prepare("DELETE FROM sessions WHERE token=?")
         .run(hash(token).toString("hex"));
+    }
     res.setHeader(
       "Set-Cookie",
       "sahpaath=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
@@ -682,26 +779,32 @@ const server = createServer(async (req, res) => {
       res.end(contents);
     }
   } catch (error) {
-    const status =
-      error instanceof HttpError
-        ? error.status
-        : error instanceof z.ZodError
-          ? 400
-          : 409;
-    json(
-      res,
-      {
-        error:
-          error instanceof z.ZodError
-            ? error.issues
-                .map((i) => `${i.path.join(".")}: ${i.message}`)
-                .join("; ")
-            : error instanceof Error
-              ? error.message
-              : "Request failed. Retry or reload the lesson.",
-      },
-      status,
-    );
+    // Core backend errors carry structured codes; legacy routes keep the old shape.
+    if (error instanceof Error && error.name === "AppError") {
+      const mapped = toErrorResponse(error);
+      json(res, mapped.body, mapped.status);
+    } else {
+      const status =
+        error instanceof HttpError
+          ? error.status
+          : error instanceof z.ZodError
+            ? 400
+            : 409;
+      json(
+        res,
+        {
+          error:
+            error instanceof z.ZodError
+              ? error.issues
+                  .map((i) => `${i.path.join(".")}: ${i.message}`)
+                  .join("; ")
+              : error instanceof Error
+                ? error.message
+                : "Request failed. Retry or reload the lesson.",
+        },
+        status,
+      );
+    }
   } finally {
     if (req.url?.startsWith("/api/"))
       console.log(
