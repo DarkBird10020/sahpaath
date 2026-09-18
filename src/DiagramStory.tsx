@@ -111,7 +111,7 @@ export default function DiagramStory({
   calm = false,
 }: {
   onExplore: () => void;
-  /** Calm motion (setting or OS reduced motion): no pinned scroll, no depth. */
+  /** Calm motion setting: no pinned scroll, no depth. */
   calm?: boolean;
 }) {
   const root = useRef<HTMLElement>(null);
@@ -123,7 +123,8 @@ export default function DiagramStory({
   const [announcement, setAnnouncement] = useState("");
 
   useEffect(() => {
-    const media = matchMedia("(prefers-reduced-motion: reduce), (max-width: 700px)");
+    // Phones keep the simple layout; motion itself follows the Calm motion setting.
+    const media = matchMedia("(max-width: 700px)");
     const sync = () => setFlat(calm || media.matches);
     sync();
     media.addEventListener("change", sync);
@@ -208,7 +209,7 @@ export default function DiagramStory({
       scrollTo({
         // Land two-thirds into the chapter so its animation has visibly played.
         top: top + (el.offsetHeight - innerHeight) * ((target + 0.66) / chapters.length),
-        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+        behavior: "smooth",
       });
     } else {
       setChapter(target);

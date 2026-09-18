@@ -2,19 +2,15 @@ import { Fragment, useEffect, useState, type CSSProperties, type RefObject } fro
 import "./motion.css";
 
 /**
- * Turns scroll motion on for the whole app unless the visitor asked for calm motion
- * (in settings or through the OS reduced-motion setting). Motion CSS is scoped to
- * `:root.motion-on`, so with it off every element renders in its final, static state.
+ * Turns scroll motion on for the whole app unless the visitor chose calm motion in
+ * the accessibility settings. Motion CSS is scoped to `:root.motion-on`, so with it
+ * off every element renders in its final, static state.
  */
 export function useMotion(calm: boolean) {
-  const [reduced, setReduced] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
-  useEffect(() => {
-    const media = matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setReduced(media.matches);
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
-  const on = !calm && !reduced;
+  // Motion is on by default, even when the operating system asks for reduced
+  // motion (many machines have Windows animations off by default). The visitor
+  // turns it off here with the "Calm motion" setting instead.
+  const on = !calm;
 
   useEffect(() => {
     const root = document.documentElement;
