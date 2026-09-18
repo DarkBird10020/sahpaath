@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/",
-  "timestamp": "2026-09-18T09:39:43.951Z",
+  "timestamp": "2026-09-18T14:04:04.344Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -17,6 +17,7 @@
     "bypass",
     "color-contrast",
     "document-title",
+    "duplicate-id-aria",
     "form-field-multiple-labels",
     "html-has-lang",
     "html-lang-valid",

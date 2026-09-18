@@ -417,27 +417,80 @@
   font-size: clamp(38px, 4.6vw, 72px);
   max-width: 18ch;
 }
+.trust-track {
+  position: relative;
+  margin: 64px 0 40px;
+}
+/* The line runs through the centre of each step's dot. */
+.trust-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--ld-ink);
+}
 .trust-steps {
   list-style: none;
   padding: 0;
-  margin: 64px 0 40px;
+  margin: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  counter-reset: none;
 }
 .trust-steps li {
   position: relative;
   padding: 28px 28px 0 0;
-  border-top: 2px solid var(--ld-ink);
+}
+.trust-step-card {
+  display: grid;
+  width: 100%;
+  min-height: 230px;
+  padding: 0 22px 22px 0;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ld-ink);
+  text-align: left;
+  align-items: start;
+  justify-content: start;
+  transition: background 220ms ease, border-color 220ms ease, transform 220ms ease;
+}
+.trust-step-card:hover:not(:disabled),
+.trust-step-card.is-selected {
+  background: #f5f8fb;
+  border-color: var(--ld-line);
+  transform: translateY(-4px);
+}
+.trust-step-card:focus-visible {
+  outline-offset: 5px;
+}
+.trust-step-card .step-index,
+.trust-step-card .pipe-chip,
+.trust-step-copy {
+  margin-left: 16px;
+}
+.trust-step-copy {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+.trust-step-copy strong {
+  font-family: "Manrope Variable", sans-serif;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+.trust-step-copy span {
+  color: #33495d;
+  line-height: 1.6;
 }
 .trust-steps li::before {
   content: "";
   position: absolute;
-  top: -8px;
+  top: -7px;
   left: 0;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
   border-radius: 50%;
   background: var(--ld-paper);
   border: 3px solid var(--ld-ink);
@@ -488,6 +541,34 @@
   margin: 18px 0 10px;
   color: var(--ld-ink);
 }
+.pipeline-inspector {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 18px;
+  align-items: center;
+  max-width: 780px;
+  margin: 12px 0 30px;
+  padding: 18px 20px;
+  border: 1px solid var(--ld-line);
+  border-radius: 14px;
+  background: #f7fafc;
+}
+.pipeline-inspector strong {
+  font-family: "Manrope Variable", sans-serif;
+  font-size: 20px;
+}
+.pipeline-inspector p,
+.pipeline-inspector-note {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.pipeline-inspector p {
+  color: #33495d;
+}
+.pipeline-inspector-note {
+  color: var(--ld-soft);
+  font-size: 13px;
+}
 .trust-steps p {
   margin: 0;
   color: #33495d;
@@ -511,10 +592,9 @@
   color: #fff;
   text-align: center;
 }
-.finale::before {
-  content: "";
+.finale-grid {
   position: absolute;
-  inset: 0;
+  inset: -20% 0;
   background-image:
     linear-gradient(#ffffff0d 1px, transparent 1px),
     linear-gradient(90deg, #ffffff0d 1px, transparent 1px);
@@ -522,7 +602,7 @@
   mask-image: radial-gradient(ellipse 60% 70% at 50% 45%, #000 20%, transparent 75%);
   pointer-events: none;
 }
-.finale > * {
+.finale > :not(.finale-grid) {
   position: relative;
 }
 .finale-kicker {
@@ -532,6 +612,9 @@
   text-transform: uppercase;
   color: #ffd98a;
   margin: 0 0 24px;
+}
+.finale-row {
+  display: block;
 }
 .finale h2 {
   color: #fff;
@@ -610,6 +693,12 @@
     grid-column: auto;
   }
   .trust-steps {
+    grid-template-columns: 1fr;
+  }
+  .trust-step-card {
+    min-height: 0;
+  }
+  .pipeline-inspector {
     grid-template-columns: 1fr;
   }
   .finale {

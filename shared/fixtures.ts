@@ -78,6 +78,48 @@ const definitions = [
   },
 ];
 export { fixtures } from "./catalog";
+// Ground truth for evaluation runs (see server/evaluation-runs.ts). Self-created schematics.
+export const groundTruth = [
+  {
+    fixtureId: "heart",
+    expectedLabels: ["Right ventricle", "Pulmonary artery", "Lungs", "Pulmonary veins", "Left atrium"],
+    expectedRelations: [
+      "Right ventricle -> Pulmonary artery",
+      "Pulmonary artery -> Lungs",
+      "Lungs -> Pulmonary veins",
+      "Pulmonary veins -> Left atrium",
+    ],
+    expectedFlow: ["Right ventricle", "Pulmonary artery", "Lungs", "Pulmonary veins", "Left atrium"],
+  },
+  {
+    fixtureId: "water",
+    expectedLabels: ["Collection", "Evaporation", "Condensation", "Precipitation"],
+    expectedRelations: [
+      "Collection -> Evaporation",
+      "Evaporation -> Condensation",
+      "Condensation -> Precipitation",
+    ],
+    expectedFlow: ["Collection", "Evaporation", "Condensation", "Precipitation"],
+  },
+  {
+    fixtureId: "plant",
+    expectedLabels: ["Roots", "Stem", "Leaves"],
+    expectedRelations: ["Roots -> Stem", "Stem -> Leaves"],
+    expectedFlow: ["Roots", "Stem", "Leaves"],
+  },
+  {
+    fixtureId: "circuit",
+    expectedLabels: ["Battery", "Switch", "Lamp"],
+    expectedRelations: ["Battery - Switch", "Switch - Lamp"],
+    expectedFlow: ["Battery", "Switch", "Lamp"],
+  },
+  {
+    fixtureId: "pump",
+    expectedLabels: ["Tank A", "Pump", "Tank B"],
+    expectedRelations: ["Tank A -> Pump", "Pump -> Tank B"],
+    expectedFlow: ["Tank A", "Pump", "Tank B"],
+  },
+] as const;
 export function fixtureMap(fixtureId: string, injectReview = true): DiagramMap {
   const f = definitions.find((f) => f.id === fixtureId);
   if (!f) throw new Error("Unknown fixture.");
@@ -94,6 +136,9 @@ export function fixtureMap(fixtureId: string, injectReview = true): DiagramMap {
     name,
     labelId: labels[i].id,
     description: f.descriptions[i],
+    aliases:
+      f.id === "heart" && name === "Pulmonary artery" ? ["Pulmonary trunk"] : [],
+    modelConfidence: null,
     state: "ai_proposed" as const,
     reviewNote: "",
   }));
@@ -105,6 +150,7 @@ export function fixtureMap(fixtureId: string, injectReview = true): DiagramMap {
       to: parts[i + 1].id,
       kind: f.relation,
       evidence: injectReview && i === 1 ? [] : [labels[i].id, labels[i + 1].id],
+      modelConfidence: null,
       state: "ai_proposed" as const,
       reviewNote: "",
     }));

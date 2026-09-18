@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import "./diagram-story.css";
 import { Anatomy, DiagramDefs, parts, VESSELS } from "./heartDiagram";
+import { Words } from "./motion";
+
+
 
 const flowName = "Blood through the pulmonary circuit";
 // Printed label positions on the source sheet (x = text anchor start).
@@ -103,7 +106,14 @@ const POSES: number[][] = [
   [0, 0, 0, 0, -4, 0.7, 0.28],
 ];
 
-export default function DiagramStory({ onExplore }: { onExplore: () => void }) {
+export default function DiagramStory({
+  onExplore,
+  calm = false,
+}: {
+  onExplore: () => void;
+  /** Calm motion (setting or OS reduced motion): no pinned scroll, no depth. */
+  calm?: boolean;
+}) {
   const root = useRef<HTMLElement>(null);
   const tiltRef = useRef<HTMLDivElement>(null);
   const [chapter, setChapter] = useState(0);
@@ -114,11 +124,11 @@ export default function DiagramStory({ onExplore }: { onExplore: () => void }) {
 
   useEffect(() => {
     const media = matchMedia("(prefers-reduced-motion: reduce), (max-width: 700px)");
-    const sync = () => setFlat(media.matches);
+    const sync = () => setFlat(calm || media.matches);
     sync();
     media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
-  }, []);
+  }, [calm]);
 
   useEffect(() => {
     const el = root.current;
@@ -165,6 +175,9 @@ export default function DiagramStory({ onExplore }: { onExplore: () => void }) {
       }
       // The diagram "comes alive" across the Teacher review → Explore hand-off.
       el.style.setProperty("--alive", clamp((scaled - 2.6) / 0.5).toFixed(3));
+      el.style.setProperty("--cp", within.toFixed(3));
+
+
       frame = requestAnimationFrame(tick);
     };
     // Only animate while the story is on screen.
@@ -205,6 +218,8 @@ export default function DiagramStory({ onExplore }: { onExplore: () => void }) {
 
   const c = chapters[chapter];
   const p = flat ? 1 : local;
+
+
   return (
     <section
       ref={root}
@@ -215,6 +230,9 @@ export default function DiagramStory({ onExplore }: { onExplore: () => void }) {
         <div className="story-progress" aria-hidden="true">
           <span style={{ transform: `scaleX(${(chapter + p) / chapters.length})` }} />
         </div>
+        <span key={`n${chapter}`} className="story-numeral" aria-hidden="true">
+          {pad(chapter + 1)}
+        </span>
         <div className="story-top">
           <span className="story-kicker">
             <ScanText size={16} aria-hidden="true" /> A real diagram, step by step
@@ -227,9 +245,14 @@ export default function DiagramStory({ onExplore }: { onExplore: () => void }) {
         <div className="story-copy">
           {chapter === 0 ? (
             <h1 className="story-hero">
-              SAME LESSON.
-              <br />
-              <span>YOUR WAY IN.</span>
+              <span className="sr-only">Same lesson. Your way in.</span>
+              <span aria-hidden="true">
+                <Words text="SAME LESSON." timed />
+                <br />
+                <span className="hero-accent">
+                  <Words text="YOUR WAY IN." timed delay={2} />
+                </span>
+              </span>
             </h1>
           ) : (
             <>
@@ -237,10 +260,14 @@ export default function DiagramStory({ onExplore }: { onExplore: () => void }) {
               <span className="story-count" aria-hidden="true">
                 {pad(chapter + 1)} — {c.label}
               </span>
-              <h2 key={chapter} className="story-title">{c.title}</h2>
+              <h2 key={chapter} className="story-title">
+                <Words text={c.title} timed />
+              </h2>
             </>
           )}
-          <p className="story-body">{c.body}</p>
+          <p key={`b${chapter}`} className="story-body">
+            <Words text={c.body} timed />
+          </p>
           {chapter === 0 || chapter === last ? (
             <div className="story-actions">
               <button className="primary" onClick={onExplore}>

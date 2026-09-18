@@ -6,13 +6,22 @@ import {
   lessonSchema,
   publishedSchema,
   captionSchema,
+  questionSchema,
   type Lesson,
   type Published,
   type Audit,
   type Question,
   type Caption,
 } from "../shared/schema";
-import { correctVocabulary } from "../shared/vocabulary";
+import { correctVocabulary, matchCaptionTerms } from "../shared/vocabulary";
+import {
+  captionSessionSchema,
+  segmentSchema,
+  type CaptionSession,
+  type CaptionSource,
+  type Segment,
+} from "../shared/schema";
+import { evaluate, runSchema } from "../shared/evaluation";
 import {
   publishSnapshot,
   revalidate,
@@ -32,6 +41,10 @@ export class Store {
       CREATE TABLE IF NOT EXISTS audit (id TEXT PRIMARY KEY, lesson_id TEXT, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS questions (id TEXT PRIMARY KEY, lesson_id TEXT NOT NULL, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS captions (id TEXT PRIMARY KEY, lesson_id TEXT NOT NULL, body TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS evaluation_runs (id TEXT PRIMARY KEY, fixture_id TEXT NOT NULL, body TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS caption_sessions (id TEXT PRIMARY KEY, lesson_id TEXT NOT NULL, body TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS caption_segments (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, lesson_id TEXT NOT NULL, body TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS demo (key TEXT PRIMARY KEY, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, role TEXT NOT NULL, code TEXT NOT NULL, expires INTEGER NOT NULL);`);
   }
   list(): Lesson[] {
@@ -175,12 +188,19 @@ export class Store {
     action: string,
     detail: string,
     actor = "local-teacher",
+    approval?: {
+      itemId: string;
+      decision: "approve" | "reject";
+      previousState: string;
+      newState: string;
+    },
   ) {
     const event: Audit = {
       id: randomUUID(),
       lessonId,
       action,
       detail,
+      ...(approval ?? {}),
       actor,
       createdAt: new Date().toISOString(),
     };
@@ -236,15 +256,154 @@ export class Store {
     );
     return next;
   }
-  acknowledge(id: string) {
+  setQuestionStatus(questionId: string, status: "seen" | "answered" | "dismissed") {
     const row = this.db
       .prepare("SELECT body FROM questions WHERE id=?")
-      .get(id) as { body: string } | undefined;
+      .get(questionId) as { body: string } | undefined;
     if (!row) throw new Error("Question not found.");
-    const question = JSON.parse(row.body) as Question;
-    question.acknowledged = true;
+    const question = questionSchema.parse({
+      ...JSON.parse(row.body),
+      status,
+    });
     this.db
       .prepare("UPDATE questions SET body=? WHERE id=?")
-      .run(JSON.stringify(question), id);
+      .run(JSON.stringify(question), questionId);
+    this.audit(
+      question.lessonId,
+      `question_${status}`,
+      `Question from session ${question.sessionCode} marked ${status}.`,
+    );
+    return question;
+  }
+  /** One live session per lesson: starting again returns the live one. */
+  startCaptionSession(lessonId: string, source: CaptionSource): CaptionSession {
+    const live = this.captionSessions(lessonId).find((s) => s.status === "live");
+    if (live) return live;
+    const published = this.published(lessonId);
+    const session = captionSessionSchema.parse({
+      id: randomUUID(),
+      lessonId,
+      version: published.version,
+      source,
+      status: "live",
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+    });
+    this.db
+      .prepare("INSERT INTO caption_sessions VALUES (?, ?, ?)")
+      .run(session.id, lessonId, JSON.stringify(session));
+    this.audit(lessonId, "caption_session_started", `Caption session ${session.id} started (${source}) on version ${published.version}.`);
+    return session;
+  }
+  captionSession(id: string): CaptionSession {
+    const row = this.db
+      .prepare("SELECT body FROM caption_sessions WHERE id=?")
+      .get(id) as { body: string } | undefined;
+    if (!row) throw new Error("Caption session not found.");
+    return captionSessionSchema.parse(JSON.parse(row.body));
+  }
+  captionSessions(lessonId: string): CaptionSession[] {
+    return (
+      this.db
+        .prepare("SELECT body FROM caption_sessions WHERE lesson_id=? ORDER BY rowid")
+        .all(lessonId) as { body: string }[]
+    ).map((r) => captionSessionSchema.parse(JSON.parse(r.body)));
+  }
+  endCaptionSession(id: string): CaptionSession {
+    const session = this.captionSession(id);
+    if (session.status === "ended") return session;
+    const ended = { ...session, status: "ended" as const, endedAt: new Date().toISOString() };
+    this.db
+      .prepare("UPDATE caption_sessions SET body=? WHERE id=?")
+      .run(JSON.stringify(ended), id);
+    this.audit(session.lessonId, "caption_session_ended", `Caption session ${id} ended with ${this.segments(id).length} final segment(s).`);
+    return ended;
+  }
+  /** Stores a final line exactly as heard, with approved-term hits beside it. */
+  addSegment(sessionId: string, text: string, startMs?: number, endMs?: number): Segment {
+    const session = this.captionSession(sessionId);
+    if (session.status !== "live") throw new Error("This caption session has ended. Start a new one.");
+    const published = this.published(session.lessonId, session.version);
+    const elapsed = Math.max(0, Date.now() - Date.parse(session.startedAt));
+    const start = startMs ?? elapsed;
+    const segment = segmentSchema.parse({
+      id: randomUUID(),
+      sessionId,
+      lessonId: session.lessonId,
+      version: session.version,
+      text,
+      startMs: start,
+      endMs: Math.max(start, endMs ?? elapsed),
+      isFinal: true,
+      matchedTerms: matchCaptionTerms(text, published.vocabulary),
+      createdAt: new Date().toISOString(),
+    });
+    this.db
+      .prepare("INSERT INTO caption_segments VALUES (?, ?, ?, ?)")
+      .run(segment.id, sessionId, session.lessonId, JSON.stringify(segment));
+    return segment;
+  }
+  segments(sessionId: string): Segment[] {
+    return (
+      this.db
+        .prepare("SELECT body FROM caption_segments WHERE session_id=? ORDER BY rowid")
+        .all(sessionId) as { body: string }[]
+    ).map((r) => segmentSchema.parse(JSON.parse(r.body)));
+  }
+  lessonSegments(lessonId: string, version: number): Segment[] {
+    return (
+      this.db
+        .prepare("SELECT body FROM caption_segments WHERE lesson_id=? ORDER BY rowid")
+        .all(lessonId) as { body: string }[]
+    )
+      .map((r) => segmentSchema.parse(JSON.parse(r.body)))
+      .filter((s) => s.version === version);
+  }
+  demo(): { lessonId: string; initialFindings: number } | null {
+    const row = this.db.prepare("SELECT body FROM demo WHERE key='current'").get() as { body: string } | undefined;
+    return row ? JSON.parse(row.body) : null;
+  }
+  setDemo(value: { lessonId: string; initialFindings: number } | null) {
+    this.db.prepare("DELETE FROM demo WHERE key='current'").run();
+    if (value) this.db.prepare("INSERT INTO demo VALUES ('current', ?)").run(JSON.stringify(value));
+  }
+  addEvaluationRun(run: unknown) {
+    const record = runSchema.parse(run);
+    this.db
+      .prepare("INSERT INTO evaluation_runs VALUES (?, ?, ?)")
+      .run(record.runId, "run", JSON.stringify(record));
+  }
+  evaluationRuns(): unknown[] {
+    return (
+      this.db
+        .prepare("SELECT body FROM evaluation_runs ORDER BY rowid")
+        .all() as { body: string }[]
+    ).map((r) => JSON.parse(r.body));
+  }
+  /** Aggregate summary from recorded actual runs only; null when never measured. */
+  evaluationSummary() {
+    const metrics = this.evaluationRuns().map((r) => evaluate(r));
+    const average = (pick: (m: ReturnType<typeof evaluate>) => number | null) => {
+      const values = metrics
+        .map(pick)
+        .filter((v): v is number => v !== null);
+      return values.length
+        ? values.reduce((sum, v) => sum + v, 0) / values.length
+        : null;
+    };
+    return {
+      runs: metrics.length,
+      source: "actual_run" as const,
+      labelRecall: average((m) => m.labelRecall),
+      relationPrecision: average((m) => m.relationshipPrecision),
+      relationRecall: average((m) => m.relationshipRecall),
+      flowAccuracy: average((m) => m.flowAccuracy),
+      groundingRate: average((m) => m.groundingRate),
+      teacherCorrectionRate: average((m) => m.teacherCorrectionRate),
+      processingMs: average((m) => m.processingMs),
+      captionWordErrorRate: average((m) => m.captionWordErrorRate),
+      technicalTermAccuracy: average((m) => m.technicalTermAccuracy),
+      timeToPhraseMs: average((m) => m.timeToPhraseMs),
+    };
   }
 }

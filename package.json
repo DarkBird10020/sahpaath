@@ -13,9 +13,17 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "evaluate": "tsx scripts/evaluate.ts"
+    "evaluate": "tsx scripts/evaluate.ts",
+    "build:pipeline": "tsx scripts/build-pipeline.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1135.0",
+    "@aws-sdk/client-dynamodb": "^3.1135.0",
+    "@aws-sdk/client-polly": "^3.1135.0",
+    "@aws-sdk/client-s3": "^3.1135.0",
+    "@aws-sdk/client-sfn": "^3.1135.0",
+    "@aws-sdk/client-textract": "^3.1135.0",
+    "@aws-sdk/lib-dynamodb": "^3.1135.0",
     "@fontsource-variable/dm-sans": "^5.3.0",
     "@fontsource-variable/manrope": "^5.3.0",
     "lucide-react": "^1.47.0",
@@ -32,6 +40,7 @@
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "esbuild": "^0.28.2",
     "prettier": "^3.9.8",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",

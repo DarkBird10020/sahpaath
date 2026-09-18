@@ -18,7 +18,10 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       PORT: "5174",
-      SAHPAATH_DATA_DIR: ".data/e2e",
+      SAHPAATH_DATA_DIR: process.env.SAHPAATH_E2E_DATA_DIR || ".data/e2e",
+      SAHPAATH_PIPELINE_MODE: "local",
+      SAHPAATH_AWS_USE_ROLE: "false",
+      AWS_BEDROCK_MODEL_ID: "",
       SAHPAATH_TEACHER_PASSWORD: "e2e-teacher",
     },
     timeout: 60000,

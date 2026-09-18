@@ -10,7 +10,7 @@ import {
   ArrowUpRight,
   Network,
 } from "lucide-react";
-import type { DiagramMap, Published } from "../shared/schema";
+import type { DiagramMap, Published, TermSurfaces } from "../shared/schema";
 
 export function Status({ state }: { state: string }) {
   const info: Record<string, [string, typeof Check]> = {
@@ -20,6 +20,10 @@ export function Status({ state }: { state: string }) {
     needs_review: ["Needs review", AlertTriangle],
     rejected: ["Rejected", X],
     published: ["Published", Check],
+    question_queued: ["Waiting for teacher", Circle],
+    question_seen: ["Teacher saw this", Check],
+    question_answered: ["Teacher answered", Check],
+    question_dismissed: ["Dismissed", X],
   };
   const [label, Icon] = info[state] || [state, Circle];
   return (
@@ -225,33 +229,66 @@ export function Pathways({ compact = false }: { compact?: boolean }) {
 export function SurfaceList({
   term,
   published,
+  surfaces,
 }: {
   term: string;
   published: boolean;
+  surfaces?: TermSurfaces;
 }) {
+  const rows: [string, typeof Check, string][] = [
+    [
+      "Explorer & glossary",
+      surfaces ? (surfaces.explorer && surfaces.glossary ? Check : Circle) : Check,
+      surfaces
+        ? surfaces.explorer && surfaces.glossary
+          ? "Available"
+          : "Missing from this version"
+        : published
+          ? "Available"
+          : "Ready on publish",
+    ],
+    [
+      "Caption highlighter",
+      surfaces ? (surfaces.captions ? Check : Circle) : Check,
+      surfaces
+        ? surfaces.captions
+          ? "Found in this transcript"
+          : "No transcript yet"
+        : published
+          ? "Available"
+          : "Ready on publish",
+    ],
+    [
+      "Question anchor",
+      surfaces
+        ? surfaces.communicationAnchor
+          ? Check
+          : Circle
+        : Check,
+      surfaces
+        ? surfaces.communicationAnchor
+          ? "Available"
+          : "Not available"
+        : published
+          ? "Available"
+          : "Ready on publish",
+    ],
+    [
+      "Audio description",
+      surfaces ? (surfaces.audio ? AudioLines : Circle) : AudioLines,
+      surfaces ? (surfaces.audio ? "Text / browser speech" : "No description") : "Text / browser speech",
+    ],
+  ];
   return (
     <div className="surfaces">
       <p className="small">“{term}” connects across your lesson</p>
       <ul>
-        <li>
-          <Check aria-hidden="true" />
-          Explorer & glossary{" "}
-          <span>{published ? "Available" : "Ready on publish"}</span>
-        </li>
-        <li>
-          <Check aria-hidden="true" />
-          Caption highlighter{" "}
-          <span>{published ? "Available" : "Ready on publish"}</span>
-        </li>
-        <li>
-          <Check aria-hidden="true" />
-          Question anchor{" "}
-          <span>{published ? "Available" : "Ready on publish"}</span>
-        </li>
-        <li>
-          <AudioLines aria-hidden="true" />
-          Audio description <span>Text / browser speech</span>
-        </li>
+        {rows.map(([label, Icon, status]) => (
+          <li key={label}>
+            <Icon aria-hidden="true" />
+            {label} <span>{status}</span>
+          </li>
+        ))}
         <li>
           <Circle aria-hidden="true" />
           Recognition vocabulary <span>AWS deferred</span>

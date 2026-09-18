@@ -10,9 +10,11 @@ import {
   LockKeyhole,
   ChevronRight,
   CircleCheck,
+  AlertTriangle,
 } from "lucide-react";
-import { api, okSchema } from "./api";
+import { api } from "./api";
 import MapEditor from "./MapEditor";
+import DemoGuide from "./DemoGuide";
 import {
   auditSchema,
   lessonSchema,
@@ -22,8 +24,7 @@ import {
   type Lesson,
   type Question,
   type Audit,
-} from "../shared/schema";
-import { items, validateMap } from "../shared/domain";
+} from "../shared/schema";import { items, validateMap, itemGrounded } from "../shared/domain";
 import { fixtures } from "../shared/catalog";
 import { Diagram, Empty, Status, SurfaceList } from "./components";
 
@@ -46,6 +47,12 @@ export default function Teacher({
   const [busy, setBusy] = useState(false);
   const [fixture, setFixture] = useState("heart");
   const [title, setTitle] = useState("");
+  const [source, setSource] = useState({
+    sourceUrl: "",
+    licenseName: "",
+    attribution: "",
+    sourceType: "open_license" as "self_created" | "open_license" | "ncert_section_52",
+  });
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"review" | "pipeline" | "inbox">("review");
   const [editor, setEditor] = useState(false);
@@ -54,6 +61,21 @@ export default function Teacher({
   const [questions, setQuestions] = useState<Question[]>([]);
   const [audit, setAudit] = useState<Audit[]>([]);
   const lesson = lessons.find((l) => l.id === selected);
+  const processing = lesson?.stages.some((s) => s.name === "Analysis" && s.status === "waiting");
+  useEffect(() => {
+    if (!selected || !processing) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        await api(`/lessons/${selected}/processing-status`, lessonSchema);
+        if (!cancelled) await onChange();
+      } catch (e) { if (!cancelled) setError((e as Error).message); }
+      if (!cancelled) timer = setTimeout(() => void poll(), 3000);
+    };
+    timer = setTimeout(() => void poll(), 1000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [selected, processing, onChange]);
   const issues = lesson ? validateMap(lesson.map) : [];
   const pending = lesson
     ? items(lesson.map).filter(
@@ -148,6 +170,7 @@ export default function Teacher({
               </button>
             ))}
           </div>
+          <DemoGuide onOpen={onSelect} onChange={onChange} report={report} />
           <form
             className="create-lesson"
             onSubmit={(e) => {
@@ -198,7 +221,11 @@ export default function Teacher({
               <input
                 type="file"
                 accept="image/png,image/jpeg"
-                disabled={busy || !title.trim()}
+                disabled={
+                  busy ||
+                  !title.trim() ||
+                  !source.licenseName.trim()
+                }
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
@@ -216,6 +243,7 @@ export default function Teacher({
                       title,
                       mime: file.type,
                       base64: btoa(binary),
+                      license: source,
                     });
                     onSelect(created.id);
                     setEditor(true);
@@ -223,6 +251,65 @@ export default function Teacher({
                 }}
               />
             </label>
+            <div className="editor-grid source-fields">
+              <label>
+                Source URL or reference
+                <input
+                  value={source.sourceUrl}
+                  maxLength={500}
+                  placeholder="Where the diagram came from"
+                  onChange={(e) =>
+                    setSource({ ...source, sourceUrl: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                License (required)
+                <input
+                  value={source.licenseName}
+                  maxLength={120}
+                  placeholder="e.g. CC BY 4.0, Self-created"
+                  required
+                  onChange={(e) =>
+                    setSource({ ...source, licenseName: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Attribution
+                <input
+                  value={source.attribution}
+                  maxLength={300}
+                  placeholder="Who made it / how to credit"
+                  onChange={(e) =>
+                    setSource({ ...source, attribution: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Source type
+                <select
+                  value={source.sourceType}
+                  onChange={(e) =>
+                    setSource({
+                      ...source,
+                      sourceType: e.target
+                        .value as typeof source.sourceType,
+                    })
+                  }
+                >
+                  <option value="self_created">Self-created</option>
+                  <option value="open_license">Openly licensed</option>
+                  <option value="ncert_section_52">
+                    NCERT · Copyright Act s.52(1)(zb)
+                  </option>
+                </select>
+              </label>
+              <p className="small">
+                Publishing is blocked until source and license information is
+                recorded.
+              </p>
+            </div>
             <p className="small">
               OCR is not connected. You can add labels, parts, relationships and
               reading order by hand.
@@ -425,6 +512,12 @@ export default function Teacher({
                             (i) => i.itemId === item.id,
                           );
                           const isPart = "description" in item;
+                          const grounded = itemGrounded(lesson.map, item.id);
+                          const sourceLabel = isPart
+                            ? lesson.map.labels.find(
+                                (l) => l.id === item.labelId,
+                              )
+                            : null;
                           const label = isPart
                             ? item.name
                             : "from" in item
@@ -446,6 +539,34 @@ export default function Teacher({
                                 <Status state={item.state} />
                               </div>
                               <h4>{label}</h4>
+                              <div className="grounding-line">
+                                <span
+                                  className={`grounded ${grounded ? "ok" : "warn"}`}
+                                >
+                                  {grounded ? (
+                                    <Check size={13} aria-hidden="true" />
+                                  ) : (
+                                    <AlertTriangle size={13} aria-hidden="true" />
+                                  )}
+                                  {grounded ? "Grounded" : "Not grounded"}
+                                </span>
+                                {sourceLabel && (
+                                  <span className="small">
+                                    OCR confidence:{" "}
+                                    {sourceLabel.confidence === null
+                                      ? "Not measured yet."
+                                      : `${sourceLabel.confidence}%`}
+                                  </span>
+                                )}
+                                {"modelConfidence" in item && (
+                                  <span className="small">
+                                    Model confidence:{" "}
+                                    {item.modelConfidence === null
+                                      ? "Not provided."
+                                      : `${item.modelConfidence}% (the model’s own estimate)`}
+                                  </span>
+                                )}
+                              </div>
                               {isPart ? (
                                 <p>{item.description}</p>
                               ) : "from" in item ? (
@@ -702,10 +823,11 @@ export default function Teacher({
                     <p>No questions yet.</p>
                   ) : (
                     questions.map((q) => (
-                      <article key={q.id}>
+                      <article key={q.id} data-status={q.status}>
                         <div>
                           <span className="small">
-                            Session {q.sessionCode} · version {q.version}
+                            Session {q.sessionCode} · version {q.version} ·{" "}
+                            {q.status}
                           </span>
                           <p>{q.text}</p>
                           {q.conceptId && (
@@ -717,28 +839,42 @@ export default function Teacher({
                             </small>
                           )}
                         </div>
-                        <button
-                          disabled={q.acknowledged || busy}
-                          onClick={() =>
-                            void run(async () => {
-                              await api(
-                                `/questions/${q.id}/acknowledge`,
-                                okSchema,
-                                "POST",
-                                {},
-                              );
-                              setQuestions((v) =>
-                                v.map((x) =>
-                                  x.id === q.id
-                                    ? { ...x, acknowledged: true }
-                                    : x,
-                                ),
-                              );
-                            }, "Question acknowledged.")
-                          }
-                        >
-                          {q.acknowledged ? "Acknowledged" : "Acknowledge"}
-                        </button>
+                        <div className="button-row">
+                          {q.status === "queued" || q.status === "seen" ? (
+                            (
+                              [
+                                ["seen", "Mark seen"],
+                                ["answered", "Mark answered"],
+                                ["dismissed", "Dismiss"],
+                              ] as const
+                            )
+                              .filter(([status]) => status !== q.status)
+                              .map(([status, label]) => (
+                                <button
+                                  key={status}
+                                  className={status === "answered" ? "approve" : undefined}
+                                  disabled={busy}
+                                  onClick={() =>
+                                    void run(async () => {
+                                      const updated = await api(
+                                        `/questions/${q.id}/status`,
+                                        questionSchema,
+                                        "POST",
+                                        { status },
+                                      );
+                                      setQuestions((v) =>
+                                        v.map((x) => (x.id === q.id ? updated : x)),
+                                      );
+                                    }, `Question marked ${status}.`)
+                                  }
+                                >
+                                  {label}
+                                </button>
+                              ))
+                          ) : (
+                            <Status state={`question_${q.status}`} />
+                          )}
+                        </div>
                       </article>
                     ))
                   )}

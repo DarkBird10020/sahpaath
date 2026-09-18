@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Anatomy, DiagramDefs, parts } from "./heartDiagram";
 import "./landing.css";
+import { Words } from "./motion";
 
 const transcript =
   "Today we are following blood from the Right ventricle to the Pulmonary artery. The Pulmonary artery carries blood toward the Lungs. After gas exchange, blood returns through the Pulmonary veins to the Left atrium.";
@@ -51,14 +52,23 @@ export default function LandingSections({
       <Playground />
       <TrustPipeline />
       <section className="finale" aria-labelledby="finale-heading">
-        <p className="finale-kicker">SahPaath</p>
+        <div className="finale-grid" data-drift style={{ "--py": 120 } as CSSProperties} aria-hidden="true" />
+        <p className="finale-kicker" data-reveal="wipe">
+          SahPaath
+        </p>
         <h2 id="finale-heading">
-          One lesson.
-          <br />
-          Multiple ways in.
+          <span className="sr-only">One lesson. Multiple ways in.</span>
+          <span className="finale-row" data-drift style={{ "--px": -70, "--py": 0 } as CSSProperties} aria-hidden="true">
+            <Words text="One lesson." />
+          </span>
+          <span className="finale-row" data-drift style={{ "--px": 70, "--py": 0 } as CSSProperties} aria-hidden="true">
+            <Words text="Multiple ways in." />
+          </span>
         </h2>
-        <p className="finale-line">No student left outside the lesson.</p>
-        <div className="finale-actions">
+        <p className="finale-line">
+          <Words text="No student left outside the lesson." />
+        </p>
+        <div className="finale-actions" data-reveal="pop">
           <button className="finale-primary" onClick={onExplore}>
             Explore a lesson <ArrowRight size={18} aria-hidden="true" />
           </button>
@@ -125,11 +135,14 @@ function Playground() {
   return (
     <section id="try-it" className="playground" aria-labelledby="try-heading">
       <div className="play-intro">
-        <p className="land-kicker">Hands on · runs in your browser</p>
-        <h2 id="try-heading">Try the three ways in.</h2>
+        <p className="land-kicker" data-reveal="wipe">
+          Hands on · runs in your browser
+        </p>
+        <h2 id="try-heading">
+          <Words text={"Try the three\nways in."} />
+        </h2>
         <p>
-          One illustrative heart lesson, three pathways. Open a word in the captions and follow it into
-          the diagram or a question. That link is the shared vocabulary.
+          <Words text="One illustrative heart lesson, three pathways. Open a word in the captions and follow it into the diagram or a question. That link is the shared vocabulary." />
         </p>
         <div className="play-tabs" role="tablist" aria-label="Pathways">
           {tabs.map(({ id, label, icon: Icon }, i) => (
@@ -143,6 +156,8 @@ function Playground() {
               aria-selected={tab === id}
               aria-controls={`panel-${id}`}
               tabIndex={tab === id ? 0 : -1}
+              data-reveal="pop"
+              style={{ "--d": i } as CSSProperties}
               onClick={() => setTab(id)}
               onKeyDown={(e) => onTabKey(e, i)}
             >
@@ -153,7 +168,7 @@ function Playground() {
         </div>
       </div>
 
-      <div className="play-stage">
+      <div className="play-stage" data-reveal="scale">
         {tab === "explore" && (
           <div role="tabpanel" id="panel-explore" aria-labelledby="tab-explore" className="play-panel explore-panel">
             <svg viewBox="80 50 480 440" className="play-diagram" aria-hidden="true">
@@ -335,29 +350,54 @@ const pipeline = [
 ];
 
 function TrustPipeline() {
+  const [selected, setSelected] = useState(0);
+  const active = pipeline[selected];
+  const ActiveIcon = active.icon;
   return (
     <section id="how-it-works" className="trust-pipeline" aria-labelledby="pipeline-heading">
-      <p className="land-kicker">How it works</p>
+      <p className="land-kicker" data-reveal="wipe">
+        How it works
+      </p>
       <h2 id="pipeline-heading">
-        Nothing reaches a student
-        <br />
-        until a teacher says so.
+        <Words text={"Nothing reaches a student\nuntil a teacher says so."} />
       </h2>
-      <ol className="trust-steps">
-        {pipeline.map(({ icon: Icon, chip, cls, title, text }, i) => (
-          <li key={title}>
-            <span className="step-index" aria-hidden="true">
-              {String(i + 1).padStart(2, "0")}
-            </span>
-            <span className={`pipe-chip ${cls}`}>
-              <Icon size={14} aria-hidden="true" /> {chip}
-            </span>
-            <h3>{title}</h3>
-            <p>{text}</p>
-          </li>
-        ))}
-      </ol>
-      <p className="trust-note">
+      <div className="trust-track">
+        <span className="trust-line" data-reveal="draw" aria-hidden="true" />
+        <ol className="trust-steps">
+           {pipeline.map(({ icon: Icon, chip, cls, title, text }, i) => (
+             <li key={title} data-reveal="up" style={{ "--d": i } as CSSProperties}>
+               <button
+                 className={`trust-step-card ${selected === i ? "is-selected" : ""}`}
+                 type="button"
+                 aria-pressed={selected === i}
+                 onClick={() => setSelected(i)}
+               >
+                 <span className="step-index" aria-hidden="true">
+                   {String(i + 1).padStart(2, "0")}
+                 </span>
+                 <span className={`pipe-chip ${cls}`}>
+                   <Icon size={14} aria-hidden="true" /> {chip}
+                 </span>
+                 <span className="trust-step-copy">
+                   <strong>{title}</strong>
+                   <span>{text}</span>
+                 </span>
+               </button>
+             </li>
+           ))}
+         </ol>
+       </div>
+       <aside className="pipeline-inspector" aria-live="polite" aria-label="Selected pipeline stage">
+         <span className={`pipe-chip ${active.cls}`}>
+           <ActiveIcon size={14} aria-hidden="true" /> Stage {selected + 1} · {active.chip}
+         </span>
+         <strong>{active.title}</strong>
+         <p>{active.text}</p>
+         <span className="pipeline-inspector-note">
+           {selected < 2 ? "Demo simulation · cloud processing is not connected" : "Runs locally · visible in the classroom workspace"}
+         </span>
+       </aside>
+       <p className="trust-note" data-reveal="up">
         In this local edition, the OCR and AI stages run as a labelled demo simulation. Validation, review,
         publishing and the shared vocabulary run for real. AWS is not connected yet.
       </p>

@@ -3,13 +3,16 @@ import { z } from "zod";
 import { ArrowRight, MessageCircle, Search, Download } from "lucide-react";
 import { api } from "./api";
 import CaptionCorrection from "./CaptionCorrection";
+import LiveCaptions from "./LiveCaptions";
 import {
   captionSchema,
+  termSurfacesSchema,
   type Caption,
   type Published,
   type Session,
+  type TermSurfaces,
 } from "../shared/schema";
-import { vocabularyPattern } from "../shared/vocabulary";
+import { highlightSegments } from "../shared/vocabulary";
 import { Empty, Status, SurfaceList } from "./components";
 
 export default function Captions({
@@ -32,11 +35,29 @@ export default function Captions({
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [surfaces, setSurfaces] = useState<TermSurfaces | null>(null);
   const demoTranscript = lesson.map.parts
     .map((p) => `${p.name}: ${p.description}`)
     .join(" ");
   const term =
     lesson.vocabulary.find((t) => t.id === selected) || lesson.vocabulary[0];
+  useEffect(() => {
+    let active = true;
+    if (!term) return;
+    void api(
+      `/published/${lesson.lessonId}/vocabulary/${term.id}/surfaces`,
+      termSurfacesSchema,
+    )
+      .then((s) => {
+        if (active) setSurfaces(s);
+      })
+      .catch(() => {
+        if (active) setSurfaces(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [lesson.lessonId, lesson.version, term?.id]);
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -86,18 +107,12 @@ export default function Captions({
   const filtered = captions.filter((c) =>
     c.text.toLowerCase().includes(query.toLowerCase()),
   );
-  const matcher = vocabularyPattern(lesson.vocabulary.map((t) => t.name));
   return (
     <div className="captions-layout">
       <section className="transcript-panel">
         <div className="panel-heading">
           <h2>Class transcript</h2>
-          <span className="simulation">Loaded transcript / manual notes</span>
         </div>
-        <p className="small">
-          Live speech recognition is not connected. New notes refresh every 4
-          seconds. Highlighting uses only this published glossary.
-        </p>
         <label className="search-label">
           <Search aria-hidden="true" size={18} />
           <span className="sr-only">Search transcript</span>
@@ -107,6 +122,22 @@ export default function Captions({
             placeholder="Search a word or concept"
           />
         </label>
+        <LiveCaptions
+          lesson={lesson}
+          session={session}
+          selected={selected}
+          select={select}
+          query={query}
+          report={report}
+        />
+        <div className="panel-heading">
+          <h3>Loaded transcripts & notes</h3>
+          <span className="simulation">Loaded transcript / manual notes</span>
+        </div>
+        <p className="small">
+          Pasted or loaded text, not live recognition. Refreshes every 4
+          seconds. Highlighting uses only this published glossary.
+        </p>
         {error && (
           <p className="error" role="alert">
             {error}
@@ -132,23 +163,20 @@ export default function Captions({
                   <time>{new Date(c.createdAt).toLocaleTimeString()}</time>
                 </div>
                 <p>
-                  {c.text.split(matcher).map((s, i) => {
-                    const t = lesson.vocabulary.find(
-                      (t) => t.name.toLowerCase() === s.toLowerCase(),
-                    );
-                    return t ? (
+                  {highlightSegments(c.text, lesson.vocabulary).map((seg, i) =>
+                    seg.termId ? (
                       <button
                         className="term"
-                        aria-pressed={selected === t.id}
+                        aria-pressed={selected === seg.termId}
                         key={i}
-                        onClick={() => select(t.id)}
+                        onClick={() => seg.termId && select(seg.termId)}
                       >
-                        {s}
+                        {seg.text}
                       </button>
                     ) : (
-                      <span key={i}>{s}</span>
-                    );
-                  })}
+                      <span key={i}>{seg.text}</span>
+                    ),
+                  )}
                 </p>
                 {c.originalText && (
                   <details>
@@ -271,7 +299,7 @@ export default function Captions({
             Ask about this <MessageCircle size={16} aria-hidden="true" />
           </button>
         </div>
-        <SurfaceList term={term.name} published />
+        <SurfaceList term={term.name} published surfaces={surfaces ?? undefined} />
         <h3>All approved terms</h3>
         <ul className="glossary-list">
           {lesson.vocabulary.map((t) => (

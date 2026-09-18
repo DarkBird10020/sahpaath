@@ -1,10 +1,39 @@
 # Cost guardrails
 
-Date: 2026-09-18. No AWS resources created or successful AWS API calls. AWS is deferred at the user's request. Higgsfield artwork spending is recorded below. This is an action record, not a statement about the user's external account bill.
+Date: 2026-09-18. No AWS resources created or successful AWS API calls (no credentials on this machine; see docs/DEPLOYMENT.md). Higgsfield artwork spending is recorded below. This is an action record, not a statement about the user's external account bill.
 
 ## Release gate
 
-The complete demo estimate is **not yet computed**: account region, model, teaching locale and dataset size are unresolved. Do not make billable calls or deploy infrastructure until the estimate is completed from current official pricing and stays within the user's few-dollar limit. Ask before work that could exceed that limit. Do not assume free-tier eligibility or available AWS credits.
+**Phase 1 estimate (Textract + Bedrock only, per-call, no fixed infrastructure): computed below and inside the few-dollar limit.** Deployment may proceed once credentials are supplied and the user accepts this gate. Phase 2 (standing infrastructure) has no estimate yet and must not be created without a new gate. Do not assume free-tier eligibility or available AWS credits.
+
+## Phase 1 demo estimate (2026-09-18)
+
+Unit prices, sources checked 2026-09-18:
+
+| Unit | Price | Source |
+|---|---|---|
+| Textract DetectDocumentText | $0.0015 / page (first 1M pages/month) | [Textract pricing](https://aws.amazon.com/textract/pricing) |
+| Nova 2 Lite input tokens | $0.33 / 1M | [Amazon Nova pricing](https://aws.amazon.com/nova/pricing) |
+| Nova 2 Lite output tokens | $2.75 / 1M | [Amazon Nova pricing](https://aws.amazon.com/nova/pricing) |
+| Mumbai regional rates | Verify on the pricing-page region selector at deploy time | Same pages |
+
+Per uploaded diagram (one Textract page + one Converse call; the code makes exactly these two calls per upload, no retry loop):
+
+- Typical (~2,500 input tokens incl. image, ~1,500 output tokens):
+  `0.0015 + 2500/1,000,000 × 0.33 + 1500/1,000,000 × 2.75 = 0.0015 + 0.00083 + 0.00413 ≈ $0.0065`
+- Worst case (~10,000 input, ~4,000 output): `0.0015 + 0.0033 + 0.011 = $0.0158`
+
+Runs:
+
+| Run | Diagrams | Typical | Worst case |
+|---|---|---|---|
+| Single verification upload | 1 | $0.007 | $0.016 |
+| Hackathon demo run | 100 | $0.65 | $1.58 |
+| Extended pilot | 500 | $3.25 | $7.90 — requires explicit approval first |
+
+Everything else in Phase 1 costs $0: no S3, DynamoDB, Lambda, API Gateway, Step Functions, Polly, Transcribe, Cognito or CloudWatch usage — none are created or called. Fixture lessons and the manual editor make no network calls. Tax and regional price variation are excluded; a brand-new account may instead be covered by the Textract free tier (1,000 pages/month for 3 months), which is not assumed.
+
+Cleanup: no standing resources; delete the IAM access key when finished (docs/DEPLOYMENT.md).
 
 ## Documented pricing and illustrative arithmetic
 
@@ -53,3 +82,7 @@ Balances read from `higgsfield workspace list`, not estimated.
 | **Total** | **196.5** | 549.5 → 353 |
 
 None of these assets ship. The landing story (`src/DiagramStory.tsx`) is built in code from the heart demo fixture and uses no generated imagery.
+
+## Local AWS code path, 2026-09-18
+
+SDK clients (`@aws-sdk/client-textract`, `@aws-sdk/client-bedrock-runtime`) were installed and the env-gated upload pipeline wired. **No AWS call has been made; nothing was spent.** The path stays dormant without `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_BEDROCK_MODEL_ID`. Per upload if enabled: 1 Textract DetectDocumentText page (≈ USD 0.0015 first 1M pages/month, regional pricing unconfirmed) plus one Bedrock Converse call (model-dependent token cost; single forced-tool attempt, no retries). Before first real use, compute the demo-run total from the account's region pricing and confirm the model's token rates; anything beyond a few dollars stops for approval.

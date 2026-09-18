@@ -11,3 +11,5 @@ playwright-report/
 gpt resume.txt
 skills-scroll-world/
 .art/
+.pipeline-build/
+.aws-sam/

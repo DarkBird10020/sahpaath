@@ -1,7 +1,9 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { fixtureMap, fixtures } from "../shared/fixtures";
 import {
+  assertTrustTransition,
   decide,
+  itemGrounded,
   items,
   revalidate,
   publishSnapshot,
@@ -14,7 +16,7 @@ import {
   imageType,
 } from "../server/providers";
 import { Store } from "../server/store";
-import type { DiagramMap } from "../shared/schema";
+import { mapSchema, type DiagramMap } from "../shared/schema";
 
 function approveAll(map: DiagramMap) {
   for (const item of items(map))
@@ -110,6 +112,69 @@ describe("Deterministic trust boundaries", () => {
     const m = revalidate(approveAll(fixtureMap("heart", false)), true);
     expect(items(m).some((i) => i.state === "teacher_approved")).toBe(false);
   });
+  it("publishes vocabulary with aliases and approval metadata", async () => {
+    const lesson = await createLesson("heart");
+    lesson.map = approveAll(fixtureMap("heart", false));
+    const snap = publishSnapshot(lesson, "2026-09-18T00:00:00Z");
+    const artery = snap.vocabulary.find((t) => t.name === "Pulmonary artery")!;
+    expect(artery.aliases).toEqual(["Pulmonary trunk"]);
+    expect(artery.approvedAt).toBe("2026-09-18T00:00:00Z");
+    expect(artery.approvedBy).toBe("local-teacher");
+    expect(snap.license?.licenseName).toBe("Self-created schematic");
+    const serialized = studentSerialize(snap);
+    expect(
+      serialized.vocabulary.find((t) => t.name === "Pulmonary artery")!
+        .aliases,
+    ).toEqual(["Pulmonary trunk"]);
+    expect(serialized.vocabulary.every((t) => t.aliases !== undefined)).toBe(
+      true,
+    );
+  });
+  it("blocks publishing without source and license metadata", async () => {
+    const lesson = await createLesson("pump");
+    lesson.map = approveAll(fixtureMap("pump", false));
+    lesson.license = null;
+    expect(() => publishSnapshot(lesson, new Date().toISOString())).toThrow(
+      "license",
+    );
+  });
+  it("enforces the trust-state transition table", () => {
+    expect(() => assertTrustTransition("ai_proposed", "teacher_approved")).not.toThrow();
+    expect(() => assertTrustTransition("validated", "rejected")).not.toThrow();
+    expect(() => assertTrustTransition("rejected", "ai_proposed")).not.toThrow();
+    expect(() => assertTrustTransition("validated", "published")).toThrow(
+      "Invalid trust-state transition",
+    );
+    expect(() => assertTrustTransition("teacher_approved", "validated")).toThrow(
+      "Invalid trust-state transition",
+    );
+    expect(() => assertTrustTransition("published", "teacher_approved")).toThrow(
+      "Invalid trust-state transition",
+    );
+  });
+  it("reports per-item grounding deterministically", () => {
+    const m = fixtureMap("pump", false);
+    expect(itemGrounded(m, "part-0")).toBe(true);
+    expect(itemGrounded(m, "relation-0")).toBe(true);
+    expect(itemGrounded(m, "flow-0")).toBe(true);
+    m.parts[0].labelId = "invented";
+    m.relations[0].evidence = [];
+    m.flows[0].steps = ["part-0", "missing"];
+    expect(itemGrounded(m, "part-0")).toBe(false);
+    expect(itemGrounded(m, "relation-0")).toBe(false);
+    expect(itemGrounded(m, "flow-0")).toBe(false);
+    expect(itemGrounded(m, "unknown")).toBe(false);
+  });
+  it("keeps model confidence separate from OCR confidence end to end", () => {
+    const m = fixtureMap("heart", false);
+    expect(m.parts[0].modelConfidence).toBeNull();
+    expect(m.labels[0].confidence).toBeNull();
+    m.labels[0].confidence = 91.5;
+    m.parts[0].modelConfidence = 74;
+    const parsed = mapSchema.parse(m);
+    expect(parsed.labels[0].confidence).toBe(91.5);
+    expect(parsed.parts[0].modelConfidence).toBe(74);
+  });
   it("requires all decisions before publish and validates again at serialization", async () => {
     const lesson = await createLesson("pump");
     expect(() => publishSnapshot(lesson, new Date().toISOString())).toThrow();
@@ -177,6 +242,41 @@ describe("Persistent publication", () => {
     expect(s.published(l.id).map.parts[0].description).not.toBe(
       "Changed draft text",
     );
+  });
+  it("records structured approval audit events", async () => {
+    const s = make();
+    const l = await createLesson("pump");
+    l.map = approveAll(fixtureMap("pump", false));
+    s.add(l);
+    const previous = items(l.map).find((i) => i.id === "part-0")!.state;
+    s.audit(l.id, "reject", "part-0: Removed", "local-teacher", {
+      itemId: "part-0",
+      decision: "reject",
+      previousState: previous,
+      newState: "rejected",
+    });
+    const event = s.events(l.id).find((e) => e.itemId === "part-0")!;
+    expect(event).toMatchObject({
+      itemId: "part-0",
+      decision: "reject",
+      previousState: "teacher_approved",
+      newState: "rejected",
+      actor: "local-teacher",
+    });
+  });
+  it("reads versions published before the license field existed", async () => {
+    const s = make();
+    const l = await createLesson("pump");
+    l.map = approveAll(fixtureMap("pump", false));
+    s.add(l);
+    const { license: _dropped, ...legacy } = publishSnapshot(
+      l,
+      "2026-09-17T00:00:00Z",
+    );
+    s.db
+      .prepare("INSERT INTO versions VALUES (?, ?, ?)")
+      .run(l.id, 1, JSON.stringify(legacy));
+    expect(s.published(l.id).license).toBeNull();
   });
   it("database triggers prohibit snapshot updates and deletes", async () => {
     const s = make();

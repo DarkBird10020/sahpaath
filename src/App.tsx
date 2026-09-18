@@ -10,8 +10,10 @@ import {
   type Published,
   type Session,
 } from "../shared/schema";
+import { summarySchema, type Summary } from "../shared/evaluation";
 import DiagramStory from "./DiagramStory";
 import LandingSections from "./LandingSections";
+import { useMotion } from "./motion";
 import Teacher from "./Teacher";
 import Student from "./Student";
 
@@ -28,6 +30,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [loginRole, setLoginRole] = useState<"teacher" | "student">("teacher");
   const [password, setPassword] = useState("");
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [preferences, setPreferences] = useState(() => {
     try {
       return z
@@ -35,18 +38,21 @@ export default function App() {
           contrast: z.boolean(),
           large: z.boolean(),
           spatial: z.boolean(),
+          calm: z.boolean().default(false),
         })
         .parse(
           JSON.parse(localStorage.getItem("sahpaath-preferences") || "{}"),
         );
     } catch {
-      return { contrast: false, large: false, spatial: false };
+      return { contrast: false, large: false, spatial: false, calm: false };
     }
   });
   const main = useRef<HTMLElement>(null);
+  const motion = useMotion(preferences.calm);
   useEffect(() => {
     document.documentElement.dataset.contrast = String(preferences.contrast);
     document.documentElement.dataset.large = String(preferences.large);
+    document.documentElement.dataset.calm = String(preferences.calm);
     try {
       localStorage.setItem("sahpaath-preferences", JSON.stringify(preferences));
     } catch {
@@ -88,6 +94,20 @@ export default function App() {
       clearInterval(timer);
     };
   }, [session]);
+  useEffect(() => {
+    if (page !== "evaluation" || !session) return;
+    let active = true;
+    void api("/evaluation/summary", summarySchema)
+      .then((value) => {
+        if (active) setSummary(value);
+      })
+      .catch((e) => {
+        if (active) setError((e as Error).message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [page, session]);
   function go(next: string) {
     setPage(next);
     setError("");
@@ -214,7 +234,7 @@ export default function App() {
       {settings && (
         <section className="settings-panel" aria-label="Accessibility settings">
           <h2>Make yourself comfortable</h2>
-          {(["contrast", "large", "spatial"] as const).map((key) => (
+          {(["contrast", "large", "calm", "spatial"] as const).map((key) => (
             <label className="check-label" key={key}>
               <input
                 type="checkbox"
@@ -227,11 +247,14 @@ export default function App() {
                 ? "High contrast"
                 : key === "large"
                   ? "Larger text"
-                  : "Enable optional 3D concept graph"}
+                  : key === "calm"
+                    ? "Calm motion (stop scroll animations)"
+                    : "Enable optional 3D concept graph"}
             </label>
           ))}
           <p className="small">
-            All features work without 3D. Motion follows your device preference.
+            All features work without 3D or animation. Motion also follows your
+            device's reduced-motion setting.
           </p>
           <button onClick={() => setSettings(false)}>Close settings</button>
         </section>
@@ -257,6 +280,7 @@ export default function App() {
         {page === "home" && (
           <>
             <DiagramStory
+              calm={!motion}
               onExplore={() => {
                 setLoginRole("student");
                 go("explore");
@@ -376,25 +400,38 @@ export default function App() {
             <p>
               Local review and publishing are real. OCR and model proposals for
               sample diagrams are labeled simulations. AWS and live recognition
-              are not connected.
+              are not connected. Numbers appear only from recorded actual runs
+              {summary ? ` (${summary.runs} recorded)` : ""}.
             </p>
             <div className="metric-grid">
-              {[
-                "Label recall",
-                "Relationship precision / recall",
-                "Flow accuracy",
-                "Grounding rate",
-                "Teacher correction rate",
-                "Cloud processing latency",
-                "Caption word-error rate",
-                "Technical-term accuracy",
-                "Time to phrase",
-              ].map((m) => (
-                <article key={m}>
-                  <h2>{m}</h2>
-                  <p>Not measured yet.</p>
-                </article>
-              ))}
+              {(
+                [
+                  ["Label recall", "labelRecall", true],
+                  ["Relationship precision", "relationPrecision", true],
+                  ["Relationship recall", "relationRecall", true],
+                  ["Flow accuracy", "flowAccuracy", true],
+                  ["Grounding rate", "groundingRate", true],
+                  ["Teacher correction rate", "teacherCorrectionRate", true],
+                  ["Processing latency", "processingMs", false],
+                  ["Caption word-error rate", "captionWordErrorRate", false],
+                  ["Technical-term accuracy", "technicalTermAccuracy", true],
+                  ["Time to phrase", "timeToPhraseMs", false],
+                ] as const
+              ).map(([label, key, ratio]) => {
+                const value = summary?.[key] ?? null;
+                return (
+                  <article key={label}>
+                    <h2>{label}</h2>
+                    <p>
+                      {value === null
+                        ? "Not measured yet."
+                        : ratio
+                          ? `${Math.round(value * 1000) / 10}%`
+                          : `${Math.round(value * 100) / 100} ms`}
+                    </p>
+                  </article>
+                );
+              })}
             </div>
             <p>
               Internal evaluation tooling accepts actual run files. Fixture
@@ -405,7 +442,7 @@ export default function App() {
           </section>
         )}
       </main>
-      <footer className="site-footer">
+      <footer className="site-footer" data-reveal="up">
         <a
           className="brand"
           href="#"

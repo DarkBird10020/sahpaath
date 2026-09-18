@@ -94,7 +94,7 @@
   margin: 0 0 28px;
   color: var(--ds-ink);
 }
-.story-hero span {
+.story-hero .hero-accent {
   color: var(--ds-blue);
 }
 .story-brandline {
@@ -118,15 +118,8 @@
   font-weight: 720;
   line-height: 1.02;
   letter-spacing: -0.05em;
-  white-space: pre-line;
   margin: 0 0 24px;
   color: var(--ds-ink);
-  animation: ds-rise 0.7s var(--ds-ease);
-}
-@keyframes ds-rise {
-  from {
-    transform: translateY(18px);
-  }
 }
 .story-body {
   font-size: clamp(16px, 1.25vw, 19px);
@@ -1079,24 +1072,7 @@ kbd {
   }
 }
 
-/* ---------- Opening: the headline rises, the lesson sheet settles onto the desk ---------- */
-.story-hero {
-  animation: ds-hero 1s var(--ds-ease) both;
-}
-.story-hero span {
-  display: inline-block;
-  animation: ds-hero 1s 0.12s var(--ds-ease) both;
-}
-@keyframes ds-hero {
-  from {
-    transform: translateY(0.35em);
-    clip-path: inset(0 0 100% 0);
-  }
-  to {
-    transform: none;
-    clip-path: inset(0 0 -10% 0);
-  }
-}
+/* ---------- Opening: the lesson sheet settles onto the desk ---------- */
 .lesson-sheet-3d {
   animation: ds-sheet 1.4s 0.15s var(--ds-ease) both;
 }
@@ -1106,10 +1082,64 @@ kbd {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .story-hero,
-  .story-hero span,
   .lesson-sheet-3d,
   .flow-dashes path {
     animation: none !important;
+  }
+}
+
+/* ---------- Scroll-linked life inside the pinned stage ---------- */
+/* Copy drifts gently through each chapter; the grid slides with the whole story. */
+.motion-on .diagram-story:not(.story-flat) .story-copy {
+  transform: translateY(calc(-50% + (0.5 - var(--cp, 0.5)) * 36px));
+}
+.motion-on .diagram-story:not(.story-flat) .story-stage::before {
+  background-position: 0 calc(var(--story, 0) * -640px);
+}
+.story-numeral {
+  position: absolute;
+  right: 2%;
+  bottom: 4%;
+  z-index: 1;
+  font-family: "Manrope Variable", sans-serif;
+  font-size: clamp(160px, 26vw, 420px);
+  font-weight: 800;
+  line-height: 0.8;
+  letter-spacing: -0.08em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px #14365f1f;
+  pointer-events: none;
+  user-select: none;
+}
+.motion-on .diagram-story:not(.story-flat) .story-numeral {
+  transform: translateY(calc((0.5 - var(--cp, 0.5)) * 120px));
+  animation: ds-numeral 1s var(--ds-ease) both;
+}
+@keyframes ds-numeral {
+  from {
+    clip-path: inset(100% 0 0 0);
+    translate: 0 60px;
+  }
+  to {
+    clip-path: inset(-10% 0 -10% 0);
+    translate: 0 0;
+  }
+}
+.story-flat .story-numeral {
+  display: none;
+}
+/* Chapter controls ease in with each chapter. */
+.motion-on .story-pager,
+.motion-on .story-actions {
+  animation: ds-controls 0.8s 0.35s var(--ds-ease) both;
+}
+@keyframes ds-controls {
+  from {
+    transform: translateY(16px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(-20px);
   }
 }

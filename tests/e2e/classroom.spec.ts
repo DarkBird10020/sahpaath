@@ -399,6 +399,9 @@ test("manual upload fallback can be reviewed and published without an OCR servic
   await page
     .getByLabel("Lesson title", { exact: true })
     .fill("Manual water lesson");
+  await page
+    .getByLabel("License (required)", { exact: true })
+    .fill("CC0 self-made for tests");
   const png = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jAfcAAAAASUVORK5CYII=",
     "base64",
@@ -461,12 +464,56 @@ test("caption correction uses the published glossary and retains original text; 
   expect(corrected.text).toBe("The Pulmonary artery carries blood.");
   expect(corrected.originalText).toBe(caption.text);
   expect(corrected.corrections).toHaveLength(1);
+  const vocabulary = await (
+    await page.request.get(`/api/published/${lessonId}/vocabulary`)
+  ).json();
+  expect(vocabulary.map((t: { name: string }) => t.name)).toContain(
+    "Pulmonary artery",
+  );
+  const surfaces = await (
+    await page.request.get(
+      `/api/published/${lessonId}/vocabulary/part-1/surfaces`,
+    )
+  ).json();
+  expect(surfaces).toEqual({
+    explorer: true,
+    glossary: true,
+    audio: true,
+    captions: true,
+    communicationAnchor: true,
+  });
+  expect(
+    (
+      await page.request.get(
+        `/api/published/${lessonId}/vocabulary/unknown-term/surfaces`,
+      )
+    ).status(),
+  ).toBe(404);
   expect((await page.request.get("/.data/sahpaath.sqlite")).status()).toBe(403);
   expect((await page.request.get("/.data/e2e/sahpaath.sqlite")).status()).toBe(
     403,
   );
   expect((await page.request.get("/shared/fixtures.ts")).status()).toBe(403);
   await page.request.post("/api/session", { data: { role: "student" } });
+  const explorer = await (
+    await page.request.get(`/api/published/${lessonId}/explorer`)
+  ).json();
+  expect(explorer.audioEngine).toBe("browser_speech");
+  const artery = await (
+    await page.request.get(`/api/published/${lessonId}/explorer/parts/part-1`)
+  ).json();
+  expect(artery).toMatchObject({
+    name: "Pulmonary artery",
+    flow: { position: 2, previous: "part-0", next: "part-2" },
+    audio: null,
+  });
+  expect(
+    (await page.request.get(`/api/published/${lessonId}/explorer/parts/nope`)).status(),
+  ).toBe(404);
+  // Polly is not configured in e2e: no audio is served and text remains the path.
+  expect(
+    (await page.request.get(`/api/published/${lessonId}/audio/part-1`)).status(),
+  ).toBe(404);
   expect(
     (
       await page.request.post(`/api/captions/${caption.id}/correct`, {
@@ -502,4 +549,107 @@ test("landing playground links a caption term to the diagram and a question by k
   await expect(page.getByRole("status").filter({ hasText: "Demo only" })).toContainText(
     "Ask about Pulmonary veins",
   );
+});
+
+test("trust pipeline exposes each stage with an accessible inspector", async ({ page }) => {
+  await page.goto("/");
+  const validation = page.getByRole("button", { name: /Code validates/ });
+  await validation.click();
+  await expect(validation).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("complementary", { name: "Selected pipeline stage" })).toContainText(
+    "Stage 2 · Validated",
+  );
+  await page.getByRole("button", { name: /Students use it/ }).click();
+  await expect(page.getByRole("complementary", { name: "Selected pipeline stage" })).toContainText(
+    "Stage 4 · Published",
+  );
+});
+
+test("calm motion setting stops scroll animation and pins nothing", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveClass(/motion-on/);
+  await page.getByRole("button", { name: "Accessibility settings" }).click();
+  await page.getByLabel("Calm motion (stop scroll animations)").check();
+  await expect(page.locator("html")).not.toHaveClass(/motion-on/);
+  await expect(page.getByRole("button", { name: "Enable depth & scroll" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("heading", { name: "Same lesson. Your way in." })).toBeVisible();
+  await scan(page, "landing-calm");
+});
+
+test("guided demo, flow navigation and live captions with a misheard term", async ({
+  page,
+  playwright,
+}) => {
+  await teacherLogin(page);
+  await page.request.post("/api/demo/reset");
+  await page.reload();
+  await page.getByRole("button", { name: "Teacher workspace", exact: true }).click();
+  await page.getByText("Guided 3-minute demo", { exact: true }).click();
+  await page.getByRole("button", { name: "Start guided demo" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Demo · A journey through the heart", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".demo-steps li[data-status=done]")).toHaveCount(2);
+  await scan(page, "demo-guide");
+
+  // Real repair, decisions and publish on the demo lesson.
+  const state = await (await page.request.get("/api/demo/state")).json();
+  let lesson = (await (await page.request.get(`/api/lessons/${state.lessonId}`)).json()) as Lesson;
+  lesson.map.relations[1].evidence = ["label-1", "label-2"];
+  lesson = (await (
+    await page.request.put(`/api/lessons/${lesson.id}/map`, { data: { revision: lesson.revision, map: lesson.map } })
+  ).json()) as Lesson;
+  for (const item of [...lesson.map.parts, ...lesson.map.relations, ...lesson.map.flows])
+    lesson = (await (
+      await page.request.post(`/api/lessons/${lesson.id}/decision`, {
+        data: { revision: lesson.revision, itemId: item.id, decision: "approve", note: "Checked for the demo test." },
+      })
+    ).json()) as Lesson;
+  expect((await page.request.post(`/api/lessons/${lesson.id}/publish`, { data: { revision: lesson.revision } })).ok()).toBe(true);
+  await expect(page.locator('.demo-steps li[data-status=done]').filter({ hasText: "immutable version" })).toBeVisible({ timeout: 10000 });
+
+  await page.reload();
+  await page.getByRole("button", { name: "Teacher workspace", exact: true }).click();
+  await page.locator(".lesson-links button").filter({ hasText: "Demo · A journey through the heart" }).first().click();
+  await page.getByRole("button", { name: "Open student lesson" }).click();
+  await page.getByRole("button", { name: "Next in flow: Pulmonary artery" }).click();
+  await expect(page.getByRole("heading", { name: "Pulmonary artery", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Previous in flow: Right ventricle" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "Captions", exact: true }).click();
+  await page.getByRole("button", { name: "Play sample lecture" }).click();
+  await expect(page.getByText("Heard “pulmonary artary”")).toBeVisible({ timeout: 20000 });
+  await expect(page.locator(".live-lines article")).toHaveCount(4, { timeout: 20000 });
+  await page.locator(".live-lines .term").filter({ hasText: "pulmonary artary" }).click();
+  await expect(page.locator(".glossary-panel h2")).toHaveText("Pulmonary artery");
+  await scan(page, "live-captions");
+  await page.getByPlaceholder("Search a word or concept").fill("oxygen");
+  await expect(page.locator(".live-lines article")).toHaveCount(1);
+
+  const sessions = await (await page.request.get(`/api/caption-sessions?lessonId=${lesson.id}`)).json();
+  const sessionId = sessions.at(-1).id;
+  const exported = await (await page.request.get(`/api/caption-sessions/${sessionId}/export`)).text();
+  expect(exported).toContain("pulmonary artary toward the lungs");
+  expect(exported).toContain("- Pulmonary artery:");
+  const byTerm = await (await page.request.get(`/api/caption-sessions/${sessionId}/search?termId=part-1`)).json();
+  expect(byTerm).toHaveLength(1);
+  expect((await page.request.post(`/api/caption-sessions/${sessionId}/credentials`)).status()).toBe(503);
+
+  const student = await playwright.request.newContext({ baseURL: "http://127.0.0.1:5174" });
+  await student.post("/api/session", { data: { role: "student" } });
+  expect((await student.get(`/api/caption-sessions/${sessionId}`)).ok()).toBe(true);
+  expect(
+    (await student.post(`/api/caption-sessions/${sessionId}/segments`, { data: { text: "Forged", isFinal: true } })).status(),
+  ).toBe(403);
+  expect((await student.post("/api/demo/start")).status()).toBe(403);
+  await student.dispose();
+
+  await page.getByRole("button", { name: "End caption session" }).click();
+  await expect(page.locator(".live-captions .panel-heading")).toContainText("Ended");
+  const after = await (await page.request.get("/api/demo/state")).json();
+  expect(after.steps.find((s: { id: string }) => s.id === "captions").status).toBe("done");
 });

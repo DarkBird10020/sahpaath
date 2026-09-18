@@ -4,6 +4,10 @@
 
 The five schematic diagrams are authored in this repository from `shared/fixtures.ts` and rendered by `src/components.tsx`. There are no downloaded educational diagrams. The heart sample is a simplified pulmonary pathway, not a complete anatomical illustration. These repository-authored schematic fixtures and their expected graph data are dedicated under CC0 1.0 by the project contributor; no third-party source ownership is asserted. Subject-teacher review is still required before classroom use.
 
+## Lesson-level license metadata
+
+Every lesson carries explicit source and license metadata (`shared/schema.ts` `licenseSchema`): source URL/reference, license name, attribution, and one of three source types — `self_created`, `open_license`, or `ncert_section_52` (adaptation under Copyright Act s.52(1)(zb)). Publication is blocked without it (`publishSnapshot` in `shared/domain.ts`), and the license travels with the published snapshot students receive. Repository-authored fixtures default to "Self-created schematic". Uploaded diagrams require the teacher to record the license before upload is enabled in the UI. The `ncert_section_52` type declares the legal basis for classroom adaptation; it is not a copyright clearance — real NCERT use beyond the hackathon demo requires legal review. Demo lessons use openly licensed or self-created diagrams only.
+
 ## Generated artwork
 
 `public/assets/shared-classroom.png` — generated through the connected Higgsfield plugin using `gpt_image_2_5`; job `9ac84b7f-101a-4507-9f43-691fa3f0f906`, September 2026. A warm, empty classroom desk with blank books, used as atmospheric artwork. It contains no educational source facts, student data, or purported application screenshot. Confirmed generation cost: 1 credit. Use is subject to the provider's applicable terms; no blanket public-domain claim is made.
