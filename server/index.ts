@@ -91,7 +91,7 @@ function aiFailure(error: unknown): never {
     throw new HttpError(502, "The AI answer was incomplete. Please try again.");
   throw new HttpError(502, typeof safe === "string" ? safe : "AI help is unavailable right now. Please try again.");
 }
-const mediaTypes = ["video/mp4", "video/webm", "video/quicktime", "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg", "audio/aac", "audio/flac", "audio/mp4", "audio/x-m4a"] as const;
+const mediaTypes = ["video/mp4", "video/webm", "video/quicktime", "video/mpeg", "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg", "audio/aac", "audio/flac", "audio/mp4", "audio/x-m4a"] as const;
 // Interim (non-final) caption text is display-only and never stored.
 const partials = new Map<string, string>();
 const counters = new Map<string, { count: number; until: number }>();
@@ -760,13 +760,25 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
   }
   if (path === "/api/ai/transcribe" && method === "POST") {
     const s = session(req);
-    limited(`ai-media:${s.code}`, 5);
-    const input = z.object({ mime: z.enum(mediaTypes), base64: z.string().min(1).max(14_000_000) }).strict().parse(await body(req, 14_500_000));
+    // Long recordings arrive as several speech-quality parts (the browser
+    // splits them), each with the part's start time in the whole recording.
+    limited(`ai-media:${s.code}`, 30);
+    const input = z.object({
+      mime: z.enum(mediaTypes),
+      base64: z.string().min(1).max(14_000_000),
+      offsetMs: z.number().int().nonnegative().max(4 * 3_600_000).default(0),
+    }).strict().parse(await body(req, 14_500_000));
     const bytes = Buffer.from(input.base64, "base64");
-    if (!bytes.length || bytes.length > 10_000_000) throw new HttpError(413, "File too large. Use a recording below 10 MB.");
+    if (!bytes.length || bytes.length > 10_000_000) throw new HttpError(413, "This part is too large. Reload the page and try again.");
     const config = needTutor();
-    try { return json(res, { ...(await transcribeMedia(config, { bytes, mime: input.mime })), model: config.model }); }
-    catch (error) { aiFailure(error); }
+    try {
+      const t = await transcribeMedia(config, { bytes, mime: input.mime });
+      return json(res, {
+        segments: t.segments.map((seg) => ({ ...seg, startMs: seg.startMs + input.offsetMs, endMs: seg.endMs + input.offsetMs })),
+        hardWords: t.hardWords,
+        model: config.model,
+      });
+    } catch (error) { aiFailure(error); }
   }
   // ClassCaption: live sessions of timed final segments on a published version.
   if (path === "/api/caption-sessions" && method === "POST") {
