@@ -51,7 +51,9 @@
   height: 100%;
   background: var(--ds-ink);
   transform-origin: 0 50%;
-  transition: transform 0.2s linear;
+  /* Written by the story's scroll loop; scaling a composited layer costs no re-render. */
+  transform: scaleX(var(--story-progress, 1));
+  will-change: transform;
 }
 .story-top {
   position: absolute;
@@ -391,6 +393,9 @@
 /* Living layer: the same geometry, coloured by meaning and faded in by scroll. */
 .living-layer {
   opacity: var(--alive, 0);
+  /* Fading a whole SVG layer per frame: ask for a layer so it composites
+     instead of repainting the diagram underneath it. */
+  will-change: opacity;
 }
 .story-flat .living-layer {
   opacity: 0;
