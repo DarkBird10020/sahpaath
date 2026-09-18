@@ -97,9 +97,7 @@ button.secondary {
 main:focus {
   outline: none;
 }
-main {
-  padding-top: 88px;
-}
+/* The landing runs under its floating bar; other pages sit below a bar in flow. */
 main.under-header {
   padding-top: 0;
 }
@@ -235,18 +233,39 @@ legend {
    the animated sections. The bar sits in a fixed-height shell, so its own shape can
    change without moving the page under it. */
 .site-header {
-  position: sticky;
-  top: 0;
   z-index: 60;
   height: 88px;
-  /* The page runs under the bar, so a section's own colour reaches the top of the
-     window instead of leaving a strip of app background above it. */
-  margin-bottom: -88px;
   display: flex;
   align-items: center;
   padding: 0 clamp(14px, 3.5%, 46px);
-  pointer-events: none;
   transition: transform 0.5s cubic-bezier(0.2, 0.75, 0.15, 1);
+}
+/* The landing's bar floats over the page and moves with the scroll. */
+.site-header.is-landing {
+  position: sticky;
+  top: 0;
+  /* The page runs under the bar, so a section's own colour reaches the top of the
+     window instead of leaving a strip of app background above it. */
+  margin-bottom: -88px;
+  pointer-events: none;
+}
+.site-header.is-landing > * {
+  pointer-events: auto;
+}
+/* Every other page keeps the plain bar, in the flow, where the links are. */
+.site-header.is-plain {
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  padding: 0 5.5%;
+}
+.site-header.is-plain .header-bar {
+  gap: 30px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .site-header.is-hidden {
   transform: translateY(-118%);
@@ -257,10 +276,17 @@ legend {
   align-items: center;
   gap: clamp(14px, 2.5vw, 32px);
   height: 64px;
-  padding: 0 14px;
-  border-radius: 999px;
+  padding: 0 4px;
   pointer-events: auto;
-  transition: background 0.35s ease, box-shadow 0.35s ease, padding 0.35s ease;
+}
+.site-header.is-landing .brand,
+.site-header.is-landing .menu-button {
+  /* Just enough to hold the letters apart from a busy picture behind them. */
+  text-shadow: 0 1px 12px rgba(255, 253, 248, 0.55);
+}
+.site-header.is-landing.is-dark .brand,
+.site-header.is-landing.is-dark .menu-button {
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.65);
 }
 /* Two lines and the name: everything else lives one click away, in the menu. */
 .menu-button {
@@ -315,32 +341,11 @@ legend {
 .site-header.is-dark .menu-button:hover:not(:disabled) {
   background: rgba(255, 253, 248, 0.16);
 }
-/* Frosted while floating: the page keeps showing through, with a rim light rather
-   than a flat border so it reads as a pane of glass over the moving page. */
-.site-header.is-floating .header-bar {
-  padding-inline: 18px;
-  background: rgba(255, 253, 248, 0.72);
-  backdrop-filter: blur(18px) saturate(1.6);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    inset 0 -1px 0 rgba(20, 54, 95, 0.06),
-    0 20px 44px -26px rgba(20, 54, 95, 0.65);
-}
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .site-header.is-floating .header-bar {
-    background: #fffdf8;
-  }
-}
-/* Locked over a dark section, the bar turns dark with it. */
-.site-header.is-dark .header-bar {
-  background: rgba(10, 19, 34, 0.78);
-  backdrop-filter: blur(18px) saturate(1.4);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 22px 46px -26px rgba(0, 0, 0, 0.9);
-}
+/* Nothing behind it. The reference this follows paints its bar into the WebGL
+   scene, so there is no strip and no shadow - only the marks themselves over the
+   page. A DOM bar can do the same as long as it changes colour with the section
+   underneath it, which is what is-dark below does. */
+/* Over a dark section the lettering turns cream; the bar itself stays invisible. */
 .site-header.is-dark .brand,
 .site-header.is-dark nav button,
 .site-header.is-dark nav a,
@@ -383,9 +388,16 @@ legend {
 .header-cta {
   transition: background 0.35s ease, color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
 }
-:root[data-contrast="true"] .site-header.is-floating .header-bar {
+/* High contrast cannot rely on lettering floating over a picture. */
+:root[data-contrast="true"] .site-header.is-landing .header-bar {
+  padding-inline: 14px;
   background: #fff;
+  border-radius: 14px;
   box-shadow: 0 0 0 2px #38566f;
+}
+:root[data-contrast="true"] .site-header.is-landing .brand,
+:root[data-contrast="true"] .site-header.is-landing .menu-button {
+  text-shadow: none;
 }
 /* Calm motion: the header simply stays where it is. */
 :root:not(.motion-on) .site-header {
@@ -464,6 +476,31 @@ legend {
   font-size: 0.85rem;
   padding: 11px 20px;
   border-radius: 999px;
+}
+/* Pin the landing bar open, or let it go again. No chrome until you reach for it. */
+.pin-button {
+  margin-left: auto;
+  border-color: transparent;
+  background: none;
+}
+.pin-button:hover:not(:disabled) {
+  background: rgba(20, 54, 95, 0.09);
+  border-color: transparent;
+}
+.site-header.is-dark .pin-button:hover:not(:disabled) {
+  background: rgba(255, 253, 248, 0.18);
+}
+:root[data-contrast="true"] .pin-button {
+  border-color: #38566f;
+}
+.pin-button[aria-pressed="true"] {
+  background: rgba(20, 54, 95, 0.12);
+  border-color: transparent;
+  color: var(--ink);
+}
+.site-header.is-dark .pin-button[aria-pressed="true"] {
+  background: rgba(255, 253, 248, 0.22);
+  color: #fffdf8;
 }
 .header-cta svg {
   transition: transform 0.2s cubic-bezier(0.2, 0.75, 0.15, 1);
@@ -2199,7 +2236,8 @@ code {
 @media (max-width: 800px) {
   /* Phones keep a plain bar in the flow: it wraps to two rows, so a fixed height
      and a page running underneath it would both be wrong. */
-  .site-header {
+  .site-header,
+  .site-header.is-landing {
     position: static;
     height: auto;
     min-height: 78px;
@@ -2215,13 +2253,6 @@ code {
     flex-wrap: wrap;
     gap: 10px;
     padding: 0;
-  }
-  .site-header.is-floating .header-bar {
-    padding-inline: 0;
-    background: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    box-shadow: none;
   }
   .site-header nav {
     order: 3;

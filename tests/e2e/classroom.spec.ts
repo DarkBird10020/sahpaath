@@ -28,9 +28,14 @@ async function scan(page: Page, name: string) {
   );
   expect(result.violations, name).toEqual([]);
 }
-/** The header carries only the menu now; everything else is one click inside it. */
+/**
+ * On the landing page the navigation lives in the menu; elsewhere it is in the bar.
+ * The landing's bar only shows at the top of the page unless it is pinned, so this
+ * goes back up first, the way a visitor reaches for it.
+ */
 async function fromMenu(page: Page, name: string | RegExp) {
-  await page.getByRole("button", { name: "Menu" }).click();
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
   await page.getByRole("dialog", { name: "Menu" }).getByRole("button", { name }).click();
 }
 async function teacherLogin(page: Page) {
@@ -219,7 +224,7 @@ test("teacher repairs, approves, publishes, explores and sends a contextual ques
   await expect(root).toHaveAttribute("aria-expanded", "false");
   await page.keyboard.press("ArrowRight");
   await expect(root).toHaveAttribute("aria-expanded", "true");
-  await fromMenu(page, /^Captions/);
+  await page.getByRole("button", { name: "Captions", exact: true }).click();
   await page
     .getByRole("button", { name: "Load heart sample transcript" })
     .click();
@@ -237,7 +242,7 @@ test("teacher repairs, approves, publishes, explores and sends a contextual ques
     .getByRole("button", { name: "I don’t understand what this does" })
     .click();
   await expect(page.locator(".sent-message")).toContainText("Sent:");
-  await fromMenu(page, /^Teacher workspace/);
+  await page.getByRole("button", { name: "Teacher workspace", exact: true }).click();
   await page.getByRole("button", { name: "Questions & activity" }).click();
   await expect(page.locator(".inbox")).toContainText(
     "Ask about Pulmonary artery",
@@ -342,6 +347,7 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
 }) => {
   await teacherLogin(page);
   await createPublished(page);
+  // A reload always comes back to the landing page, where the menu is the way in.
   await page.reload();
   await fromMenu(page, /^Explore/);
   await page.setViewportSize({ width: 320, height: 800 });
@@ -351,7 +357,7 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await fromMenu(page, /Accessibility settings/);
+  await page.getByRole("button", { name: "Accessibility settings" }).click();
   await page.getByLabel("High contrast", { exact: true }).check();
   await page.getByLabel("Larger text", { exact: true }).check();
   await page
@@ -363,13 +369,13 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await fromMenu(page, /^Communicate/);
+  await page.getByRole("button", { name: "Communicate", exact: true }).click();
   await page
     .getByRole("button", { name: "Please repeat", exact: true })
     .focus();
   await page.keyboard.press("Enter");
   await expect(page.locator(".sent-message")).toContainText("Please repeat");
-  await fromMenu(page, /^Explore/);
+  await page.getByRole("button", { name: "Explore", exact: true }).click();
   await page.evaluate(() => {
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (
@@ -382,7 +388,7 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
         : Reflect.apply(original, this, [type, ...args]);
     } as typeof original;
   });
-  await fromMenu(page, /Accessibility settings/);
+  await page.getByRole("button", { name: "Accessibility settings" }).click();
   await page.getByLabel("Enable optional 3D concept graph").check();
   await expect(
     page.getByText(
@@ -688,22 +694,54 @@ test("the menu opens over the page, travels the story and hands focus back", asy
 test("the header takes the colour of the section it is locked over", async ({ page }) => {
   await page.goto("/");
   const bar = page.locator(".header-bar");
-  const paper = await bar.evaluate((el) => getComputedStyle(el).backgroundColor);
-  // Down to the dark closing sections, then back up so the header comes in.
+  // The bar has no surface of its own, so what changes is the lettering.
+  expect(await bar.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
+  const onPaper = await page.locator(".site-header .brand").evaluate((el) => getComputedStyle(el).color);
+  // Pin it open, then travel down to the dark closing sections.
+  await page.getByRole("button", { name: "Pin the navigation bar" }).click();
   await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
-  await page.mouse.move(700, 400);
-  for (let i = 0; i < 3; i++) {
-    await page.mouse.wheel(0, -120);
-    await page.waitForTimeout(60);
-  }
+  await page.waitForTimeout(300);
   await expect(page.locator(".site-header")).toHaveClass(/is-dark/);
-  const ink = await bar.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(ink).not.toBe(paper);
-  // Cream lettering over the dark bar.
   expect(await page.locator(".site-header .brand").evaluate((el) => getComputedStyle(el).color)).toBe("rgb(255, 253, 248)");
-  // Back at the top it is light again.
+  expect(await bar.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
+  // Back at the top it is ink on paper again.
   await page.evaluate(() => scrollTo(0, 0));
   await expect(page.locator(".site-header")).not.toHaveClass(/is-dark/);
+  // The colour crossfades back, so let the transition finish before reading it.
+  await expect
+    .poll(() => page.locator(".site-header .brand").evaluate((el) => getComputedStyle(el).color))
+    .toBe(onPaper);
+});
+
+test("the quiet bar is the landing's alone, and it can be pinned open", async ({ page }) => {
+  await page.goto("/");
+  const header = page.locator(".site-header");
+  await expect(header).toHaveClass(/is-landing/);
+  await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
+  // Unpinned, it gets out of the way while you read down the page.
+  await page.mouse.move(700, 400);
+  for (let i = 0; i < 12; i++) {
+    await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(30);
+  }
+  await expect(header).toHaveClass(/is-hidden/);
+  // Pinned, it stays; the choice is remembered.
+  await page.evaluate(() => scrollTo(0, 0));
+  await expect(header).not.toHaveClass(/is-hidden/);
+  await page.getByRole("button", { name: "Pin the navigation bar" }).click();
+  for (let i = 0; i < 12; i++) {
+    await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(30);
+  }
+  await expect(header).not.toHaveClass(/is-hidden/);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Unpin the navigation bar" })).toHaveAttribute("aria-pressed", "true");
+  // Every other page keeps the plain bar with its links.
+  await fromMenu(page, /Our approach/);
+  await expect(header).toHaveClass(/is-plain/);
+  await expect(page.getByRole("button", { name: "Menu", exact: true })).toHaveCount(0);
+  await expect(page.locator(".site-header nav button")).toHaveCount(3);
+  await expect(page.getByRole("button", { name: "Accessibility settings" })).toBeVisible();
 });
 
 test("the scanning beam belongs to the chapter that is reading labels", async ({ page }) => {
@@ -777,7 +815,7 @@ test("guided demo, flow navigation and live captions with a misheard term", asyn
   await expect(page.getByRole("heading", { name: "Pulmonary artery", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Previous in flow: Right ventricle" })).toBeEnabled();
 
-  await fromMenu(page, /^Captions/);
+  await page.getByRole("button", { name: "Captions", exact: true }).click();
   await page.getByRole("button", { name: "Play sample lecture" }).click();
   await expect(page.getByText("Heard “pulmonary artary”")).toBeVisible({ timeout: 20000 });
   await expect(page.locator(".live-lines article")).toHaveCount(4, { timeout: 20000 });
@@ -855,7 +893,8 @@ test("AI helper pages work for students, explain clearly when AI is off, and loa
   await expect(page.getByRole("alert")).toContainText("AI help is not configured");
   await scan(page, "explain-diagram");
 
-  await fromMenu(page, /Watch & listen/);
+  // On a tool page the plain bar is back, with the links in it.
+  await page.getByRole("button", { name: "Watch & listen", exact: true }).click();
   await page.locator(".ai-upload input[type=file]").first().setInputFiles("docs/samples/heart-lecture-test.wav");
   const vtt = "WEBVTT\n\n00:00.000 --> 00:02.900\nBlood leaves the right ventricle.\n\n00:03.400 --> 00:07.400\nIt travels to the lungs.\n";
   await page.getByLabel("Or load subtitles (.vtt or .srt), free and instant").setInputFiles({ name: "lecture.vtt", mimeType: "text/vtt", buffer: Buffer.from(vtt) });

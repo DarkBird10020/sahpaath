@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, Headphones, MessageSquare, ScanText } from "lucide-react";
+import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, Headphones, LogOut, MessageSquare, Pin, PinOff, ScanText, Settings2 } from "lucide-react";
 import { api, okSchema } from "./api";
 import {
   lessonSchema,
@@ -55,8 +55,24 @@ export default function App() {
   const main = useRef<HTMLElement>(null);
   const header = useRef<HTMLElement>(null);
   const motion = useMotion(preferences.calm);
-  useStickyHeader(header, motion);
   const [menu, setMenu] = useState(false);
+  const landing = page === "home";
+  // Pinning keeps the landing bar on screen; the choice is remembered per browser.
+  const [pinned, setPinned] = useState(() => {
+    try {
+      return localStorage.getItem("sahpaath:pinned-bar") === "yes";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("sahpaath:pinned-bar", pinned ? "yes" : "no");
+    } catch {
+      // A browser with storage blocked simply forgets the choice.
+    }
+  }, [pinned]);
+  useStickyHeader(header, motion && landing, pinned);
   // Escape closes the settings card, like the menu.
   useEffect(() => {
     if (!settings) return;
@@ -183,19 +199,23 @@ export default function App() {
       <a className="skip-link" href="#main">
         Skip to main content
       </a>
-      <header className="site-header" ref={header}>
+      {/* The landing carries the quiet bar that gets out of the way; every working
+          page keeps the plain navigation, where getting somewhere matters more. */}
+      <header className={`site-header${landing ? " is-landing" : " is-plain"}${pinned ? " is-pinned-open" : ""}`} ref={header}>
        <div className="header-bar">
-        <button
-          className="menu-button"
-          aria-label="Menu"
-          aria-expanded={menu}
-          onClick={() => setMenu(true)}
-        >
-          <span className="menu-lines" aria-hidden="true" />
-          <span className="menu-word" aria-hidden="true">
-            Menu
-          </span>
-        </button>
+        {landing && (
+          <button
+            className="menu-button"
+            aria-label="Menu"
+            aria-expanded={menu}
+            onClick={() => setMenu(true)}
+          >
+            <span className="menu-lines" aria-hidden="true" />
+            <span className="menu-word" aria-hidden="true">
+              Menu
+            </span>
+          </button>
+        )}
         <a
           className="brand"
           href="#"
@@ -210,6 +230,85 @@ export default function App() {
           </span>
           SahPaath<span className="brand-dot">.</span>
         </a>
+        {landing ? (
+          <button
+            className="icon-button pin-button"
+            aria-pressed={pinned}
+            aria-label={pinned ? "Unpin the navigation bar" : "Pin the navigation bar"}
+            title={pinned ? "Unpin the navigation bar" : "Pin the navigation bar"}
+            onClick={() => setPinned((v) => !v)}
+          >
+            {pinned ? <PinOff size={18} aria-hidden="true" /> : <Pin size={18} aria-hidden="true" />}
+          </button>
+        ) : (
+          <>
+            <nav aria-label="Main navigation">
+              {session ? (
+                <>
+                  {session.role === "teacher" && (
+                    <button aria-current={page === "teacher" ? "page" : undefined} onClick={() => go("teacher")}>
+                      Teacher workspace
+                    </button>
+                  )}
+                  <button aria-current={page === "explore" ? "page" : undefined} onClick={() => go("explore")}>
+                    Explore
+                  </button>
+                  <button aria-current={page === "captions" ? "page" : undefined} onClick={() => go("captions")}>
+                    Captions
+                  </button>
+                  <button aria-current={page === "communicate" ? "page" : undefined} onClick={() => go("communicate")}>
+                    Communicate
+                  </button>
+                  <button aria-current={page === "diagram" ? "page" : undefined} onClick={() => go("diagram")}>
+                    Explain a diagram
+                  </button>
+                  <button aria-current={page === "watch" ? "page" : undefined} onClick={() => go("watch")}>
+                    Watch &amp; listen
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => void openTool("diagram")}>Explain a diagram</button>
+                  <button onClick={() => void openTool("watch")}>Watch &amp; listen</button>
+                  <button onClick={() => go("evaluation")}>Our approach</button>
+                </>
+              )}
+            </nav>
+            <div className="header-actions">
+              <button
+                className="icon-button"
+                aria-label="Accessibility settings"
+                aria-expanded={settings}
+                onClick={() => setSettings((v) => !v)}
+              >
+                <Settings2 size={20} aria-hidden="true" />
+              </button>
+              {session ? (
+                <button
+                  className="icon-button"
+                  aria-label="Leave classroom"
+                  onClick={async () => {
+                    try {
+                      await api("/session", okSchema, "DELETE");
+                      setSession(null);
+                      setLessons([]);
+                      setPublished([]);
+                      go("home");
+                    } catch (e) {
+                      setError((e as Error).message);
+                    }
+                  }}
+                >
+                  <LogOut size={19} aria-hidden="true" />
+                </button>
+              ) : (
+                <button className="primary header-cta" onClick={openTeacher}>
+                  Open classroom <ArrowRight size={16} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </>
+        )}
        </div>
       </header>
       <NavMenu
