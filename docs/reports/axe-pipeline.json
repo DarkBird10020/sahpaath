@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/",
-  "timestamp": "2026-09-18T19:09:05.574Z",
+  "timestamp": "2026-09-18T21:45:19.861Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -21,8 +21,6 @@
     "html-has-lang",
     "html-lang-valid",
     "link-name",
-    "list",
-    "listitem",
     "meta-viewport",
     "nested-interactive",
     "select-name",

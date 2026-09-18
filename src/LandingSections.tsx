@@ -54,7 +54,7 @@ export default function LandingSections({
     <>
       <Playground motion={motion} />
       <TrustPipeline motion={motion} />
-      <section className="finale" aria-labelledby="finale-heading">
+      <section className="finale" data-nav="dark" aria-labelledby="finale-heading">
         <div className="finale-grid" data-drift style={{ "--py": 120 } as CSSProperties} aria-hidden="true" />
         <p className="finale-kicker" data-reveal="wipe">
           SahPaath
@@ -93,7 +93,7 @@ function Wordmark({ motion }: { motion: boolean }) {
   const lit = motion ? Math.round(progress * WORD.length) : WORD.length;
   const dot = Math.min(2, Math.floor((lit / WORD.length) * 3 - 0.001));
   return (
-    <section ref={root} className="wordmark" aria-label="SahPaath">
+    <section ref={root} className="wordmark" data-nav="dark" aria-label="SahPaath">
       <div className="wordmark-dots" aria-hidden="true">
         {[0, 1, 2].map((i) => (
           <span key={i} className={i === Math.max(0, dot) ? "is-on" : ""} />
@@ -183,7 +183,7 @@ function Playground({ motion }: { motion: boolean }) {
     <section
       ref={outer}
       id="try-it"
-      className={`scroll-pin ${scroll.pinned ? "is-pinned" : ""}`}
+      className={`scroll-pin pin-sand ${scroll.pinned ? "is-pinned" : ""}`}
       style={{ "--steps": parts.length } as CSSProperties}
       aria-labelledby="try-heading"
     >
@@ -233,7 +233,11 @@ function Playground({ motion }: { motion: boolean }) {
             </svg>
             <div className="explore-controls">
               <h3>Blood through the pulmonary circuit</h3>
-              {scroll.pinned && <p className="scroll-hint">Keep scrolling to follow the blood, part by part.</p>}
+              {/* Always in the layout: if the hint appeared only once pinned, it changed
+                  the height that decides pinning, and the page jumped up and down. */}
+              <p className="scroll-hint" style={{ visibility: scroll.pinned ? "visible" : "hidden" }}>
+                Keep scrolling to follow the blood, part by part.
+              </p>
               <ol className="part-list">
                 {parts.map((part, i) => (
                   <li key={part.name}>
@@ -432,8 +436,8 @@ function TrustPipeline({ motion }: { motion: boolean }) {
     <section
       ref={outer}
       id="how-it-works"
-      className={`scroll-pin ${scroll.pinned ? "is-pinned" : ""}`}
-      style={{ "--steps": pipeline.length, "--fill": motion ? scroll.progress : 1 } as CSSProperties}
+      className={`scroll-pin pin-paper ${scroll.pinned ? "is-pinned" : ""}`}
+      style={{ "--steps": pipeline.length } as CSSProperties}
       aria-labelledby="pipeline-heading"
     >
     <div className="trust-pipeline">
@@ -445,7 +449,7 @@ function TrustPipeline({ motion }: { motion: boolean }) {
       </h2>
       <div className="trust-track">
         <span className="trust-line" aria-hidden="true">
-          <span className="trust-line-fill" />
+          <span className="trust-line-fill" data-progress="" />
         </span>
         <ol className="trust-steps">
            {pipeline.map(({ icon: Icon, chip, cls, title, text }, i) => (

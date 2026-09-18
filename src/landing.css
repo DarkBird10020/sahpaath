@@ -1,7 +1,8 @@
 /* Lower landing sections: playground, trust pipeline, finale. Shares the story's paper palette. */
 .playground,
 .trust-pipeline,
-.finale {
+.finale,
+.scroll-pin {
   --ld-bg: #f3eee5;
   --ld-paper: #fffdf8;
   --ld-ink: #14365f;
@@ -226,6 +227,10 @@
   font-size: 15px;
   line-height: 1.55;
   border-left: 4px solid var(--ld-blue);
+  /* Room for the longest part description, so changing part keeps the panel the
+     same height: a panel that grows mid-scroll moves the page under the reader. */
+  min-height: calc(3 * 1.55em + 28px);
+  box-sizing: border-box;
 }
 .explore-actions,
 .term-actions {
@@ -713,17 +718,39 @@
 
 
 /* ---------- Scroll-pinned sections: scrolling moves through the steps ---------- */
+.scroll-pin {
+  /* The browser must not "helpfully" re-anchor the scroll when the pinned content
+     changes height; that reads as the page nudging itself up and down. */
+  overflow-anchor: none;
+}
 .scroll-pin.is-pinned {
   height: calc(100vh + var(--steps) * 45vh);
+}
+/* The section carries the colour while it is pinned: the locked panel is scaled to
+   fit the window, so its own background would leave a band above and below. */
+.scroll-pin.is-pinned.pin-sand {
+  background: var(--ld-bg);
+  border-top: 1px solid var(--ld-line);
+}
+.scroll-pin.is-pinned.pin-paper {
+  background: var(--ld-paper);
+  border-top: 1px solid var(--ld-line);
 }
 .scroll-pin.is-pinned > .playground,
 .scroll-pin.is-pinned > .trust-pipeline {
   position: sticky;
   top: 0;
-  min-height: 100vh;
+  height: 100vh;
   box-sizing: border-box;
-  padding-top: clamp(32px, 6vh, 72px);
+  /* Room at the top for the floating header when a reader scrolls back up. */
+  padding-top: clamp(92px, 13vh, 124px);
   padding-bottom: clamp(24px, 4vh, 48px);
+  background: transparent;
+  border-top: 0;
+  /* Shrink just enough that the whole step is on screen on a short laptop window.
+     The alternative — refusing to lock — made the steps race past while the
+     section was still sliding in. */
+  transform: scale(var(--fit, 1));
 }
 .scroll-pin.is-pinned > .playground {
   align-items: center;
@@ -758,7 +785,10 @@
   inset: 0;
   background: var(--ld-ink);
   transform-origin: left center;
-  transform: scaleX(var(--fill, 1));
+  /* The hook writes --progress on the section every frame; scaling a composited
+     layer keeps the line filling smoothly without a React render. */
+  transform: scaleX(var(--progress, 1));
+  will-change: transform;
 }
 .trust-steps li.is-reached::before {
   background: var(--ld-ink);

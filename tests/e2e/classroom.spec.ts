@@ -582,6 +582,162 @@ test("calm motion setting stops scroll animation and pins nothing", async ({ pag
   await scan(page, "landing-calm");
 });
 
+test("scrolling the landing page never fights the reader", async ({ page }) => {
+  // A laptop-sized window: this height used to sit on the pinning threshold, so the
+  // sections pinned and unpinned dozens of times and the page jumped up and down.
+  await page.setViewportSize({ width: 1440, height: 780 });
+  await page.goto("/");
+  await page.evaluate(() => {
+    const w = window as unknown as { report: { pins: number; back: number } };
+    w.report = { pins: 0, back: 0 };
+    const seen = new Map<Element, boolean>();
+    const check = () =>
+      document.querySelectorAll(".scroll-pin").forEach((el) => {
+        const pinned = el.classList.contains("is-pinned");
+        if (seen.has(el) && seen.get(el) !== pinned) w.report.pins++;
+        seen.set(el, pinned);
+      });
+    check();
+    new MutationObserver(check).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
+    let previous = scrollY;
+    let direction = 0;
+    addEventListener(
+      "scroll",
+      () => {
+        const delta = scrollY - previous;
+        // Ignore the clamp at the very bottom of the page.
+        if (direction > 0 && delta < -2 && scrollY < document.documentElement.scrollHeight - innerHeight - 2) w.report.back++;
+        if (delta !== 0) direction = delta;
+        previous = scrollY;
+      },
+      { passive: true },
+    );
+  });
+  await page.mouse.move(720, 400);
+  for (let i = 0; i < 60; i++) {
+    await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(25);
+  }
+  const report = await page.evaluate(() => (window as unknown as { report: { pins: number; back: number } }).report);
+  expect(report.pins).toBe(0);
+  expect(report.back).toBe(0);
+});
+
+test("stepped sections lock in place first, then move one point at a time", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 780 });
+  await page.goto("/");
+  const at = async (section: string, through: number) =>
+    page.evaluate(
+      ({ section, through }) => {
+        const el = document.querySelector(section) as HTMLElement;
+        const top = el.getBoundingClientRect().top + scrollY;
+        scrollTo(0, Math.round(top + (el.offsetHeight - innerHeight) * through));
+      },
+      { section, through },
+    );
+  // Both sections lock; the whole locked panel stays on screen, nothing cut off.
+  for (const section of ["#try-it", "#how-it-works"]) {
+    await at(section, 0.5);
+    await page.waitForTimeout(200);
+    await expect(page.locator(`${section}.is-pinned`)).toHaveCount(1);
+    const box = await page.locator(`${section} > div`).first().boundingBox();
+    expect(box!.y).toBeGreaterThanOrEqual(-2);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(782);
+  }
+  // The playground starts on part 1 when it locks and reaches part 5 at the end,
+  // instead of racing through the parts while the section is still sliding in.
+  const current = page.locator('.part-list button[aria-current="step"]');
+  await at("#try-it", 0);
+  await expect(current).toHaveText(/Right ventricle/);
+  await at("#try-it", 0.5);
+  await expect(current).toHaveText(/Lungs/);
+  await at("#try-it", 1);
+  await expect(current).toHaveText(/Left atrium/);
+  // Same for the timeline: one dot at a time, the last one only at the end.
+  await at("#how-it-works", 0);
+  await expect(page.locator(".trust-steps li.is-reached")).toHaveCount(1);
+  await at("#how-it-works", 1);
+  await expect(page.locator(".trust-steps li.is-reached")).toHaveCount(4);
+});
+
+test("the menu opens over the page, travels the story and hands focus back", async ({ page }) => {
+  await page.goto("/");
+  // A value on the window proves the page never reloaded.
+  await page.evaluate(() => ((window as unknown as { kept: number }).kept = 7));
+  const trigger = page.getByRole("button", { name: "Menu" });
+  await trigger.click();
+  const menu = page.getByRole("dialog", { name: "Menu" });
+  await expect(menu).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close menu" })).toBeFocused();
+  await scan(page, "menu");
+  // Escape closes it and focus goes back to the button that opened it.
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  // A chapter closes the menu and travels the story, still without a reload.
+  await trigger.click();
+  await page.getByRole("button", { name: /Chapter 05/ }).click();
+  await expect(menu).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "05 Captions", exact: true })).toHaveAttribute("aria-current", "step", { timeout: 10000 });
+  expect(await page.evaluate(() => (window as unknown as { kept: number }).kept)).toBe(7);
+  // The learner tools open from the menu without a sign-in form.
+  await trigger.click();
+  await menu.getByRole("button", { name: /Explain a diagram/ }).click();
+  await expect(page.getByRole("heading", { name: "Explain any diagram." })).toBeVisible();
+});
+
+test("the header takes the colour of the section it is locked over", async ({ page }) => {
+  await page.goto("/");
+  const bar = page.locator(".header-bar");
+  const paper = await bar.evaluate((el) => getComputedStyle(el).backgroundColor);
+  // Down to the dark closing sections, then back up so the header comes in.
+  await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
+  await page.mouse.move(700, 400);
+  for (let i = 0; i < 3; i++) {
+    await page.mouse.wheel(0, -120);
+    await page.waitForTimeout(60);
+  }
+  await expect(page.locator(".site-header")).toHaveClass(/is-dark/);
+  const ink = await bar.evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(ink).not.toBe(paper);
+  // Cream lettering over the dark bar.
+  expect(await page.locator(".site-header .brand").evaluate((el) => getComputedStyle(el).color)).toBe("rgb(255, 253, 248)");
+  // Back at the top it is light again.
+  await page.evaluate(() => scrollTo(0, 0));
+  await expect(page.locator(".site-header")).not.toHaveClass(/is-dark/);
+});
+
+test("the scanning beam belongs to the chapter that is reading labels", async ({ page }) => {
+  await page.goto("/");
+  const beam = async (through: number) =>
+    page.evaluate(
+      (through) => {
+        const el = document.querySelector(".diagram-story") as HTMLElement;
+        const top = el.getBoundingClientRect().top + scrollY;
+        scrollTo(0, Math.round(top + (el.offsetHeight - innerHeight) * (through / 7)));
+        return new Promise<{ opacity: string; structure: boolean }>((resolve) =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() =>
+              resolve({
+                opacity: getComputedStyle(document.querySelector(".scan-bar")!).opacity,
+                structure: !!document.querySelector(".structure")?.classList.contains("is-on"),
+              }),
+            ),
+          ),
+        );
+      },
+      through,
+    );
+  // It sweeps while the labels are being read...
+  const reading = await beam(1.3);
+  expect(Number(reading.opacity)).toBeGreaterThan(0.5);
+  expect(reading.structure).toBe(false);
+  // ...and is gone once the proposed structure is on the diagram.
+  const mapped = await beam(1.8);
+  expect(mapped.structure).toBe(true);
+  expect(Number(mapped.opacity)).toBe(0);
+});
+
 test("guided demo, flow navigation and live captions with a misheard term", async ({
   page,
   playwright,
@@ -686,12 +842,12 @@ test("one login and one logout cover both the classroom API and the v1 backend",
 });
 
 test("AI helper pages work for students, explain clearly when AI is off, and load subtitles offline", async ({ page }) => {
-  // A logged-out visitor picks "Explain a diagram" and lands there after logging in.
+  // A logged-out visitor picks "Explain a diagram" and is taken straight there:
+  // only "Open classroom" asks who you are.
   await page.goto("/");
   await page.getByRole("button", { name: "Explain a diagram" }).click();
-  await expect(page.getByLabel("I’m a student")).toBeChecked();
-  await page.getByRole("button", { name: "Enter classroom" }).click();
   await expect(page.getByRole("heading", { name: "Explain any diagram." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Enter classroom" })).toHaveCount(0);
   const picker = page.locator(".ai-upload input[type=file]");
   await expect(picker).toBeEnabled();
   await picker.setInputFiles("docs/samples/heart-flow-test.png");
