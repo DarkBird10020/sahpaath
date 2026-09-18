@@ -10,3 +10,4 @@ playwright-report/
 *.sqlite*
 gpt resume.txt
 skills-scroll-world/
+.art/
