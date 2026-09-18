@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { ArrowRight, BookOpen, Settings2, LogOut, GraduationCap } from "lucide-react";
+import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, LogOut, Menu as MenuIcon, ScanText, Settings2 } from "lucide-react";
 import { api, okSchema } from "./api";
 import {
   lessonSchema,
@@ -14,6 +14,7 @@ import { summarySchema, type Summary } from "../shared/evaluation";
 import DiagramStory from "./DiagramStory";
 import LandingSections from "./LandingSections";
 import { useMotion, useStickyHeader } from "./motion";
+import NavMenu from "./NavMenu";
 import Teacher from "./Teacher";
 import Student from "./Student";
 import ExplainDiagram from "./ExplainDiagram";
@@ -55,6 +56,7 @@ export default function App() {
   const header = useRef<HTMLElement>(null);
   const motion = useMotion(preferences.calm);
   useStickyHeader(header, motion);
+  const [menu, setMenu] = useState(false);
   useEffect(() => {
     document.documentElement.dataset.contrast = String(preferences.contrast);
     document.documentElement.dataset.large = String(preferences.large);
@@ -245,6 +247,14 @@ export default function App() {
         </nav>
         <div className="header-actions">
           <button
+            className="icon-button menu-button"
+            aria-label="Menu"
+            aria-expanded={menu}
+            onClick={() => setMenu(true)}
+          >
+            <MenuIcon size={20} aria-hidden="true" />
+          </button>
+          <button
             className="icon-button"
             aria-label="Accessibility settings"
             aria-expanded={settings}
@@ -278,6 +288,42 @@ export default function App() {
         </div>
        </div>
       </header>
+      <NavMenu
+        open={menu}
+        onClose={() => setMenu(false)}
+        onHome={() => {
+          const already = page === "home";
+          if (!already) setPage("home");
+          return already;
+        }}
+        settingsOpen={() => setSettings(true)}
+        actions={[
+          {
+            label: "Explain a diagram",
+            hint: "Upload a picture from a book and explore it part by part.",
+            icon: ScanText,
+            run: () => void openTool("diagram"),
+          },
+          {
+            label: "Watch & listen",
+            hint: "Captions for a lecture or audiobook, with the hard words explained.",
+            icon: CaptionsIcon,
+            run: () => void openTool("watch"),
+          },
+          {
+            label: "Our approach",
+            hint: "What the system checks, and what it still gets wrong.",
+            icon: Compass,
+            run: () => go("evaluation"),
+          },
+          {
+            label: session ? "Your classroom" : "Open classroom",
+            hint: session ? "Back to your lessons." : "Sign in as a teacher or a student.",
+            icon: GraduationCap,
+            run: openTeacher,
+          },
+        ]}
+      />
       {settings && (
         <section className="settings-panel" aria-label="Accessibility settings">
           <h2>Make yourself comfortable</h2>
