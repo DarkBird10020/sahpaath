@@ -365,6 +365,16 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
     ),
   ).toBe(true);
   await page.getByRole("button", { name: "Communicate", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Every question, one desk." }),
+  ).toBeVisible();
+  // Teachers see the inbox on the Communicate page; the phrase flow is the
+  // student's view, so switch sessions through the login form.
+  await page.getByRole("button", { name: "Leave classroom", exact: true }).click();
+  await page.getByRole("button", { name: "Open classroom", exact: true }).click();
+  await page.getByLabel("I’m a student").check();
+  await page.getByRole("button", { name: "Enter classroom" }).click();
+  await page.getByRole("button", { name: "Communicate", exact: true }).click();
   await page
     .getByRole("button", { name: "Please repeat", exact: true })
     .focus();
