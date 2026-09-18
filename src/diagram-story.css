@@ -334,12 +334,14 @@
   transform: none;
 }
 .scan-bar {
+  /* Follows the scroll: sweeps down once while the labels are read, then fades so it
+     is never left lying across a diagram that is already mapped. */
   opacity: 0;
-  transition: transform 0.25s linear, opacity 0.3s;
+  transform: translateY(calc(var(--scan, 0) * 520px - 60px));
   pointer-events: none;
 }
 .ch-1 .scan-bar {
-  opacity: 1;
+  opacity: var(--beam, 0);
 }
 /* Once the map is alive, the proposal links give way to the real circuit. */
 .is-alive .link {

@@ -194,6 +194,11 @@ export default function DiagramStory({
         tilt.style.transform = `translate(${m(3)}%, ${m(4)}%) rotateX(${m(0) + tiltNow.x}deg) rotateY(${m(1) + tiltNow.y}deg) rotateZ(${m(2)}deg) scale(${m(5)})`;
         tilt.style.opacity = String(m(6));
       }
+      // The scanning beam belongs to the reading chapter only: it sweeps once, fades
+      // out, and then the proposed structure appears over a settled diagram.
+      const sweep = index === 1 ? clamp(within / SCAN_END) : 0;
+      set(".scan-bar", "--scan", sweep.toFixed(3));
+      set(".scan-bar", "--beam", (index === 1 ? 1 - clamp((within - SCAN_END) / 0.12) : 0).toFixed(3));
       // The diagram "comes alive" across the Teacher review → Explore hand-off.
       set(".living-layer", "--alive", clamp((scaled - 2.6) / 0.5).toFixed(3));
       const cp = within.toFixed(3);
@@ -221,6 +226,8 @@ export default function DiagramStory({
         node?.style.removeProperty("--alive");
         node?.style.removeProperty("--cp");
         node?.style.removeProperty("--story-progress");
+        node?.style.removeProperty("--scan");
+        node?.style.removeProperty("--beam");
       }
     };
   }, [flat]);
@@ -356,10 +363,15 @@ export default function DiagramStory({
  * from these few values, so the canvas can skip a re-render while the scroll moves
  * between two thresholds.
  */
+/** The beam has finished reading by this point in the chapter. */
+const SCAN_END = 0.5;
+
 function storyFrame(chapter: number, p: number) {
   const step = chapter === 3 ? Math.min(4, Math.floor(p * 5)) : -1;
   return {
-    scanned: chapter === 1 ? Math.floor(p * 6) : chapter > 1 ? 5 : 0,
+    // The beam sweeps over the first half of the chapter and the labels are read as
+    // it passes; the structure it proposes only appears once it has finished.
+    scanned: chapter === 1 ? Math.floor(clamp(p / SCAN_END) * 6) : chapter > 1 ? 5 : 0,
     structured: chapter >= 1 && (chapter > 1 || p > 0.55),
     approved: chapter > 2 || (chapter === 2 && p > 0.55),
     step,
@@ -470,14 +482,7 @@ const StoryCanvas = memo(function StoryCanvas({
                 </g>
               ))}
             </g>
-            <rect
-              className="scan-bar"
-              x="0"
-              width="640"
-              height="60"
-              style={{ transform: `translateY(${chapter === 1 ? p * 520 - 60 : -80}px)` }}
-              fill="url(#ds-scan)"
-            />
+            <rect className="scan-bar" x="0" width="640" height="60" fill="url(#ds-scan)" />
           </svg>
           <div className="sheet-foot">
             <span>

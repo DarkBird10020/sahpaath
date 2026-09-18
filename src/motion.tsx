@@ -93,6 +93,7 @@ export function useScrollSteps(ref: RefObject<HTMLElement | null>, steps: number
     }
     let pinned = false;
     let tallest = 0;
+    let fit = 1;
     let queued = false;
     let last = "";
     // The scroll value is written on the one element that reads it where there is
@@ -101,21 +102,28 @@ export function useScrollSteps(ref: RefObject<HTMLElement | null>, steps: number
     const painted = el.querySelector<HTMLElement>("[data-progress]") ?? el;
 
     /**
-     * Pin only when the content fits on screen; otherwise its bottom would be hidden.
-     * The decision uses the tallest content seen at this window size and is never
-     * reversed except by a resize: pinning changes the page height, so a decision
-     * that reacted to the current step's height made the page jump up and down.
+     * A pinned section locks in place and then moves through its steps, so on a
+     * desktop it always pins; content taller than the window is scaled down to fit
+     * rather than left to overflow. The decision uses the tallest content seen at
+     * this window size and is never reversed except by a resize: pinning changes the
+     * page height, so a decision that reacted to the current step made the page jump.
      */
     const decide = () => {
       if (!pin) return;
       const inner = el.firstElementChild as HTMLElement | null;
       if (inner && inner.children.length) {
         const boxes = [...inner.children].map((c) => c.getBoundingClientRect());
-        tallest = Math.max(tallest, Math.max(...boxes.map((r) => r.bottom)) - Math.min(...boxes.map((r) => r.top)));
+        // Undo the scale already applied, so this is the natural height.
+        const measured = (Math.max(...boxes.map((r) => r.bottom)) - Math.min(...boxes.map((r) => r.top))) / fit;
+        tallest = Math.max(tallest, measured);
       }
-      const next = pin && innerWidth > 900 && tallest + 140 <= innerHeight;
-      if (next !== pinned) {
+      // Below this the text would be too small to read; such a window scrolls normally.
+      const wanted = Math.min(1, (innerHeight - 96) / Math.max(1, tallest));
+      const next = innerWidth > 900 && wanted >= 0.72;
+      if (next !== pinned || (next && Math.abs(wanted - fit) > 0.005)) {
         pinned = next;
+        fit = next ? wanted : 1;
+        el.style.setProperty("--fit", fit.toFixed(3));
         read();
       }
     };
@@ -163,6 +171,7 @@ export function useScrollSteps(ref: RefObject<HTMLElement | null>, steps: number
       removeEventListener("scroll", onScroll);
       removeEventListener("resize", onResize);
       painted.style.removeProperty("--progress");
+      el.style.removeProperty("--fit");
     };
   }, [ref, steps, enabled, pin]);
   return state;
