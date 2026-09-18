@@ -258,9 +258,8 @@ export function decide(
   const map = structuredClone(input);
   const item = items(map).find((i) => i.id === itemId);
   if (!item) throw new Error("Content item not found.");
-  // Relations and flows carry "from"; parts carry "name". Capture the item
-  // kind before the state machine below overwrites item.state.
-  const itemStateWasPart = !("from" in item) && !("steps" in item);
+  // Relations and flows carry "from" or "steps"; parts carry neither.
+  const isPart = !("from" in item) && !("steps" in item);
   if (decision === "approve") {
     // Evaluate rejected items as active before approving: rejection must not bypass validation.
     assertTrustTransition(item.state, "ai_proposed");
@@ -297,7 +296,10 @@ export function decide(
   // rejecting one concept. Cascade-reject active dependants (and note the
   // reason), mirroring the invalidate-approved cascade above. Approving the
   // part again later is always possible via the rejected → ai_proposed path.
-  if (itemStateWasPart) {
+  // Only a rejection cascades. Approving a part must never touch its relations:
+  // that silently rejected everything a teacher approved and left the lesson
+  // unpublishable.
+  if (decision === "reject" && isPart) {
     const dependentIds = new Set([
       ...map.relations
         .filter(

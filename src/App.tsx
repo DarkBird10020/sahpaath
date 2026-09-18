@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, LogOut, Menu as MenuIcon, ScanText, Settings2 } from "lucide-react";
+import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, Headphones, MessageSquare, ScanText } from "lucide-react";
 import { api, okSchema } from "./api";
 import {
   lessonSchema,
@@ -58,6 +58,13 @@ export default function App() {
   const motion = useMotion(preferences.calm);
   useStickyHeader(header, motion);
   const [menu, setMenu] = useState(false);
+  // Escape closes the settings card, like the menu.
+  useEffect(() => {
+    if (!settings) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSettings(false);
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [settings]);
   useEffect(() => {
     document.documentElement.dataset.contrast = String(preferences.contrast);
     document.documentElement.dataset.large = String(preferences.large);
@@ -179,6 +186,17 @@ export default function App() {
       </a>
       <header className="site-header" ref={header}>
        <div className="header-bar">
+        <button
+          className="menu-button"
+          aria-label="Menu"
+          aria-expanded={menu}
+          onClick={() => setMenu(true)}
+        >
+          <span className="menu-lines" aria-hidden="true" />
+          <span className="menu-word" aria-hidden="true">
+            Menu
+          </span>
+        </button>
         <a
           className="brand"
           href="#"
@@ -193,100 +211,6 @@ export default function App() {
           </span>
           SahPaath<span className="brand-dot">.</span>
         </a>
-        <nav aria-label="Main navigation">
-          {session ? (
-            <>
-              {session.role === "teacher" && (
-                <button
-                  aria-current={page === "teacher" ? "page" : undefined}
-                  onClick={() => go("teacher")}
-                >
-                  Teacher workspace
-                </button>
-              )}
-              <button
-                aria-current={page === "explore" ? "page" : undefined}
-                onClick={() => go("explore")}
-              >
-                Explore
-              </button>
-              <button
-                aria-current={page === "captions" ? "page" : undefined}
-                onClick={() => go("captions")}
-              >
-                Captions
-              </button>
-              <button
-                aria-current={page === "communicate" ? "page" : undefined}
-                onClick={() => go("communicate")}
-              >
-                Communicate
-              </button>
-              <button
-                aria-current={page === "diagram" ? "page" : undefined}
-                onClick={() => go("diagram")}
-              >
-                Explain a diagram
-              </button>
-              <button
-                aria-current={page === "watch" ? "page" : undefined}
-                onClick={() => go("watch")}
-              >
-                Watch &amp; listen
-              </button>
-            </>
-          ) : (
-            <>
-              <a href="#how-it-works" onClick={() => setPage("home")}>
-                How it works
-              </a>
-              <button onClick={() => void openTool("diagram")}>Explain a diagram</button>
-              <button onClick={() => void openTool("watch")}>Watch &amp; listen</button>
-              <button onClick={() => go("evaluation")}>Our approach</button>
-            </>
-          )}
-        </nav>
-        <div className="header-actions">
-          <button
-            className="icon-button menu-button"
-            aria-label="Menu"
-            aria-expanded={menu}
-            onClick={() => setMenu(true)}
-          >
-            <MenuIcon size={20} aria-hidden="true" />
-          </button>
-          <button
-            className="icon-button"
-            aria-label="Accessibility settings"
-            aria-expanded={settings}
-            onClick={() => setSettings((v) => !v)}
-          >
-            <Settings2 size={20} aria-hidden="true" />
-          </button>
-          {session ? (
-            <button
-              className="icon-button"
-              aria-label="Leave classroom"
-              onClick={async () => {
-                try {
-                  await api("/session", okSchema, "DELETE");
-                  setSession(null);
-                  setLessons([]);
-                  setPublished([]);
-                  go("home");
-                } catch (e) {
-                  setError((e as Error).message);
-                }
-              }}
-            >
-              <LogOut size={19} aria-hidden="true" />
-            </button>
-          ) : (
-            <button className="primary header-cta" onClick={openTeacher}>
-              Open classroom <ArrowRight size={16} aria-hidden="true" />
-            </button>
-          )}
-        </div>
        </div>
       </header>
       <NavMenu
@@ -298,32 +222,68 @@ export default function App() {
           return already;
         }}
         settingsOpen={() => setSettings(true)}
-        actions={[
-          {
-            label: "Explain a diagram",
-            hint: "Upload a picture from a book and explore it part by part.",
-            icon: ScanText,
-            run: () => void openTool("diagram"),
-          },
-          {
-            label: "Watch & listen",
-            hint: "Captions for a lecture or audiobook, with the hard words explained.",
-            icon: CaptionsIcon,
-            run: () => void openTool("watch"),
-          },
-          {
-            label: "Our approach",
-            hint: "What the system checks, and what it still gets wrong.",
-            icon: Compass,
-            run: () => go("evaluation"),
-          },
-          {
-            label: session ? "Your classroom" : "Open classroom",
-            hint: session ? "Back to your lessons." : "Sign in as a teacher or a student.",
-            icon: GraduationCap,
-            run: openTeacher,
-          },
-        ]}
+        signOut={
+          session
+            ? async () => {
+                try {
+                  await api("/session", okSchema, "DELETE");
+                  setSession(null);
+                  setLessons([]);
+                  setPublished([]);
+                  go("home");
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }
+            : undefined
+        }
+        actions={
+          session
+            ? [
+                ...(session.role === "teacher"
+                  ? [
+                      {
+                        label: "Teacher workspace",
+                        hint: "Review, approve and publish your lessons.",
+                        icon: GraduationCap,
+                        current: page === "teacher",
+                        run: () => go("teacher"),
+                      },
+                    ]
+                  : []),
+                { label: "Explore", hint: "The lesson, part by part.", icon: Compass, current: page === "explore", run: () => go("explore") },
+                { label: "Captions", hint: "Live captions with the class glossary.", icon: CaptionsIcon, current: page === "captions", run: () => go("captions") },
+                { label: "Communicate", hint: "Ask without speaking.", icon: MessageSquare, current: page === "communicate", run: () => go("communicate") },
+                { label: "Explain a diagram", hint: "Upload a picture and explore it.", icon: ScanText, current: page === "diagram", run: () => go("diagram") },
+                { label: "Watch & listen", hint: "Captions for a lecture or audiobook.", icon: Headphones, current: page === "watch", run: () => go("watch") },
+              ]
+            : [
+                {
+                  label: "Explain a diagram",
+                  hint: "Upload a picture from a book and explore it part by part.",
+                  icon: ScanText,
+                  run: () => void openTool("diagram"),
+                },
+                {
+                  label: "Watch & listen",
+                  hint: "Captions for a lecture or audiobook, with the hard words explained.",
+                  icon: CaptionsIcon,
+                  run: () => void openTool("watch"),
+                },
+                {
+                  label: "Our approach",
+                  hint: "What the system checks, and what it still gets wrong.",
+                  icon: Compass,
+                  run: () => go("evaluation"),
+                },
+                {
+                  label: "Open classroom",
+                  hint: "Sign in as a teacher or a student.",
+                  icon: GraduationCap,
+                  run: openTeacher,
+                },
+              ]
+        }
       />
       {settings && (
         <section className="settings-panel" aria-label="Accessibility settings">

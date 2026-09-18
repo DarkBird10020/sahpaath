@@ -28,11 +28,14 @@ async function scan(page: Page, name: string) {
   );
   expect(result.violations, name).toEqual([]);
 }
+/** The header carries only the menu now; everything else is one click inside it. */
+async function fromMenu(page: Page, name: string | RegExp) {
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("dialog", { name: "Menu" }).getByRole("button", { name }).click();
+}
 async function teacherLogin(page: Page) {
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "Open classroom", exact: true })
-    .click();
+  await fromMenu(page, /Open classroom/);
   await page.getByLabel("Local teacher password").fill("e2e-teacher");
   await page.getByRole("button", { name: "Enter classroom" }).click();
   await expect(
@@ -133,9 +136,7 @@ test("landing, login and narrow layout accessibility", async ({ page }) => {
   ).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("main")).toBeFocused();
-  await page
-    .getByRole("button", { name: "Open classroom", exact: true })
-    .click();
+  await fromMenu(page, /Open classroom/);
   await scan(page, "login");
   await page.setViewportSize({ width: 320, height: 740 });
   await scan(page, "login-mobile");
@@ -170,7 +171,7 @@ test("teacher repairs, approves, publishes, explores and sends a contextual ques
   });
   await page.getByRole("button", { name: "Attach endpoint labels" }).click();
   const approve = page.getByRole("button", { name: "Approve", exact: true });
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 12; i++) {
     const next = approve.filter({ visible: true }).all();
     const buttons = await next;
     const enabled = [];
@@ -218,7 +219,7 @@ test("teacher repairs, approves, publishes, explores and sends a contextual ques
   await expect(root).toHaveAttribute("aria-expanded", "false");
   await page.keyboard.press("ArrowRight");
   await expect(root).toHaveAttribute("aria-expanded", "true");
-  await page.getByRole("button", { name: "Captions", exact: true }).click();
+  await fromMenu(page, /^Captions/);
   await page
     .getByRole("button", { name: "Load heart sample transcript" })
     .click();
@@ -236,9 +237,7 @@ test("teacher repairs, approves, publishes, explores and sends a contextual ques
     .getByRole("button", { name: "I don’t understand what this does" })
     .click();
   await expect(page.locator(".sent-message")).toContainText("Sent:");
-  await page
-    .getByRole("button", { name: "Teacher workspace", exact: true })
-    .click();
+  await fromMenu(page, /^Teacher workspace/);
   await page.getByRole("button", { name: "Questions & activity" }).click();
   await expect(page.locator(".inbox")).toContainText(
     "Ask about Pulmonary artery",
@@ -344,7 +343,7 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
   await teacherLogin(page);
   await createPublished(page);
   await page.reload();
-  await page.getByRole("button", { name: "Explore", exact: true }).click();
+  await fromMenu(page, /^Explore/);
   await page.setViewportSize({ width: 320, height: 800 });
   await scan(page, "explorer-mobile");
   expect(
@@ -352,7 +351,7 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page.getByRole("button", { name: "Accessibility settings" }).click();
+  await fromMenu(page, /Accessibility settings/);
   await page.getByLabel("High contrast", { exact: true }).check();
   await page.getByLabel("Larger text", { exact: true }).check();
   await page
@@ -364,23 +363,23 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page.getByRole("button", { name: "Communicate", exact: true }).click();
+  await fromMenu(page, /^Communicate/);
   await expect(
     page.getByRole("heading", { name: "Every question, one desk." }),
   ).toBeVisible();
   // Teachers see the inbox on the Communicate page; the phrase flow is the
   // student's view, so switch sessions through the login form.
   await page.getByRole("button", { name: "Leave classroom", exact: true }).click();
-  await page.getByRole("button", { name: "Open classroom", exact: true }).click();
+  await fromMenu(page, /Open classroom/);
   await page.getByLabel("I’m a student").check();
   await page.getByRole("button", { name: "Enter classroom" }).click();
-  await page.getByRole("button", { name: "Communicate", exact: true }).click();
+  await fromMenu(page, /^Communicate/);
   await page
     .getByRole("button", { name: "Please repeat", exact: true })
     .focus();
   await page.keyboard.press("Enter");
   await expect(page.locator(".sent-message")).toContainText("Please repeat");
-  await page.getByRole("button", { name: "Explore", exact: true }).click();
+  await fromMenu(page, /^Explore/);
   await page.evaluate(() => {
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (
@@ -393,7 +392,7 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
         : Reflect.apply(original, this, [type, ...args]);
     } as typeof original;
   });
-  await page.getByRole("button", { name: "Accessibility settings" }).click();
+  await fromMenu(page, /Accessibility settings/);
   await page.getByLabel("Enable optional 3D concept graph").check();
   await expect(
     page.getByText(
@@ -580,7 +579,7 @@ test("calm motion setting stops scroll animation and pins nothing", async ({ pag
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/");
   await expect(page.locator("html")).toHaveClass(/motion-on/);
-  await page.getByRole("button", { name: "Accessibility settings" }).click();
+  await fromMenu(page, /Accessibility settings/);
   await page.getByLabel("Calm motion (stop scroll animations)").check();
   await expect(page.locator("html")).not.toHaveClass(/motion-on/);
   await expect(page.locator(".diagram-story")).toHaveClass(/story-flat/);
@@ -755,7 +754,7 @@ test("guided demo, flow navigation and live captions with a misheard term", asyn
   await teacherLogin(page);
   await page.request.post("/api/demo/reset");
   await page.reload();
-  await page.getByRole("button", { name: "Teacher workspace", exact: true }).click();
+  await fromMenu(page, /^Teacher workspace/);
   await page.getByText("Guided 3-minute demo", { exact: true }).click();
   await page.getByRole("button", { name: "Start guided demo" }).click();
   await expect(
@@ -781,14 +780,14 @@ test("guided demo, flow navigation and live captions with a misheard term", asyn
   await expect(page.locator('.demo-steps li[data-status=done]').filter({ hasText: "immutable version" })).toBeVisible({ timeout: 10000 });
 
   await page.reload();
-  await page.getByRole("button", { name: "Teacher workspace", exact: true }).click();
+  await fromMenu(page, /^Teacher workspace/);
   await page.locator(".lesson-links button").filter({ hasText: "Demo · A journey through the heart" }).first().click();
   await page.getByRole("button", { name: "Open student lesson" }).click();
   await page.getByRole("button", { name: "Next in flow: Pulmonary artery" }).click();
   await expect(page.getByRole("heading", { name: "Pulmonary artery", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Previous in flow: Right ventricle" })).toBeEnabled();
 
-  await page.getByRole("button", { name: "Captions", exact: true }).click();
+  await fromMenu(page, /^Captions/);
   await page.getByRole("button", { name: "Play sample lecture" }).click();
   await expect(page.getByText("Heard “pulmonary artary”")).toBeVisible({ timeout: 20000 });
   await expect(page.locator(".live-lines article")).toHaveCount(4, { timeout: 20000 });
@@ -855,7 +854,7 @@ test("AI helper pages work for students, explain clearly when AI is off, and loa
   // A logged-out visitor picks "Explain a diagram" and is taken straight there:
   // only "Open classroom" asks who you are.
   await page.goto("/");
-  await page.getByRole("button", { name: "Explain a diagram" }).click();
+  await fromMenu(page, /Explain a diagram/);
   await expect(page.getByRole("heading", { name: "Explain any diagram." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Enter classroom" })).toHaveCount(0);
   const picker = page.locator(".ai-upload input[type=file]");
@@ -866,7 +865,7 @@ test("AI helper pages work for students, explain clearly when AI is off, and loa
   await expect(page.getByRole("alert")).toContainText("AI help is not configured");
   await scan(page, "explain-diagram");
 
-  await page.getByRole("button", { name: "Watch & listen" }).click();
+  await fromMenu(page, /Watch & listen/);
   await page.locator(".ai-upload input[type=file]").first().setInputFiles("docs/samples/heart-lecture-test.wav");
   const vtt = "WEBVTT\n\n00:00.000 --> 00:02.900\nBlood leaves the right ventricle.\n\n00:03.400 --> 00:07.400\nIt travels to the lungs.\n";
   await page.getByLabel("Or load subtitles (.vtt or .srt), free and instant").setInputFiles({ name: "lecture.vtt", mimeType: "text/vtt", buffer: Buffer.from(vtt) });
