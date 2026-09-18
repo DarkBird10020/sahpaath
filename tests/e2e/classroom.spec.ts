@@ -79,20 +79,20 @@ test("scroll story supports chapter navigation, reduced motion and narrow screen
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Previous chapter", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Next chapter", exact: true }).click();
-  await expect(page.getByRole("button", { name: "02 Teacher review", exact: true })).toHaveAttribute("aria-current", "step");
+  await expect(page.getByRole("button", { name: "02 Structure", exact: true })).toHaveAttribute("aria-current", "step");
   await page.getByRole("button", { name: "Previous chapter", exact: true }).click();
   await expect(page.getByRole("button", { name: "01 One lesson", exact: true })).toHaveAttribute("aria-current", "step");
-  await page.getByRole("button", { name: "04 Shared vocabulary" }).click();
+  await page.getByRole("button", { name: "07 Shared vocabulary" }).click();
   await expect(
-    page.getByRole("heading", { name: "A shared word. A shared lesson." }),
+    page.getByRole("heading", { name: "One word. Every way in." }),
   ).toBeVisible();
   await scan(page, "story-vocabulary");
   await page.screenshot({ path: "docs/reports/story-depth.png" });
   await page.getByRole("button", { name: "Turn off depth & scroll" }).click();
-  await page.getByRole("button", { name: "02 Teacher review" }).focus();
+  await page.getByRole("button", { name: "03 Teacher review" }).focus();
   await page.keyboard.press("Enter");
   await expect(
-    page.getByRole("heading", { name: "Make the connections clear." }),
+    page.getByRole("heading", { name: "AI proposes. A teacher decides." }),
   ).toBeVisible();
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 320, height: 740 });
@@ -100,9 +100,9 @@ test("scroll story supports chapter navigation, reduced motion and narrow screen
   await expect(
     page.getByRole("button", { name: "Enable depth & scroll" }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "03 Access pathways" }).click();
+  await page.getByRole("button", { name: "06 Ask" }).click();
   await expect(
-    page.getByRole("heading", { name: "Three ways in. One conversation." }),
+    page.getByRole("heading", { name: "Ask without speaking." }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Next chapter", exact: true }).click();
   await expect(page.getByRole("button", { name: "Next chapter", exact: true })).toBeDisabled();
@@ -474,4 +474,32 @@ test("caption correction uses the published glossary and retains original text; 
       })
     ).status(),
   ).toBe(403);
+});
+
+test("landing playground links a caption term to the diagram and a question by keyboard", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const explore = page.getByRole("tab", { name: "Explore" });
+  await explore.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "Captions" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Captions" })).toBeFocused();
+  await page.getByRole("button", { name: "Lungs", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Lungs", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Explore this" }).click();
+  await expect(page.getByRole("tab", { name: "Explore" })).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByRole("tabpanel").getByRole("button", { name: "Lungs", exact: true }),
+  ).toHaveAttribute("aria-current", "step");
+  await expect(page.getByText("Lungs. Step 3 of 5", { exact: false })).toBeVisible();
+  await scan(page, "landing-playground");
+  await page.getByRole("tab", { name: "Captions" }).click();
+  await page.getByRole("button", { name: "Pulmonary veins" }).click();
+  await page.getByRole("button", { name: "Ask about this" }).click();
+  await expect(page.getByLabel("Ask about")).toHaveValue("3");
+  await page.getByRole("button", { name: "Send to teacher" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Demo only" })).toContainText(
+    "Ask about Pulmonary veins",
+  );
 });

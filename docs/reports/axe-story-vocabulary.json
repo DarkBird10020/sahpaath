@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/",
-  "timestamp": "2026-09-18T08:13:18.294Z",
+  "timestamp": "2026-09-18T09:39:22.692Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -10,6 +10,8 @@
     "aria-hidden-focus",
     "aria-prohibited-attr",
     "aria-required-attr",
+    "aria-required-children",
+    "aria-required-parent",
     "aria-roles",
     "aria-valid-attr-value",
     "aria-valid-attr",
@@ -18,15 +20,22 @@
     "bypass",
     "color-contrast",
     "document-title",
+    "duplicate-id-aria",
     "html-has-lang",
     "html-lang-valid",
-    "image-alt",
     "link-name",
+    "list",
+    "listitem",
     "meta-viewport",
     "nested-interactive",
     "target-size"
   ],
   "incomplete": [
+    {
+      "id": "aria-prohibited-attr",
+      "impact": "serious",
+      "description": "Ensure ARIA attributes are not prohibited for an element's role"
+    },
     {
       "id": "color-contrast",
       "impact": "serious",

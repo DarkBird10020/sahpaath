@@ -3,9 +3,7 @@
     "argv": [
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\Administrator\\Desktop\\fir-comit\\node_modules\\@playwright\\test\\cli.js",
-      "test",
-      "--grep",
-      "scroll story"
+      "test"
     ],
     "configFile": "C:\\Users\\Administrator\\Desktop\\fir-comit\\playwright.config.ts",
     "rootDir": "C:/Users/Administrator/Desktop/fir-comit/tests/e2e",
@@ -98,12 +96,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3087,
+                  "duration": 4886,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-18T08:13:16.444Z",
+                  "startTime": "2026-09-18T09:39:19.632Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -115,15 +113,253 @@
           "file": "classroom.spec.ts",
           "line": 75,
           "column": 1
+        },
+        {
+          "title": "landing, login and narrow layout accessibility",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3633,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-18T09:39:24.681Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-e0c16fa0ad393c62d4cb",
+          "file": "classroom.spec.ts",
+          "line": 122,
+          "column": 1
+        },
+        {
+          "title": "teacher repairs, approves, publishes, explores and sends a contextual question",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 17723,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-18T09:39:28.324Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-81f99d1539866b45f798",
+          "file": "classroom.spec.ts",
+          "line": 157,
+          "column": 1
+        },
+        {
+          "title": "API roles, forged approval, races and malicious uploads",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4639,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-18T09:39:46.057Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-afe6f123e13c82eceea3",
+          "file": "classroom.spec.ts",
+          "line": 249,
+          "column": 1
+        },
+        {
+          "title": "keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 10479,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-18T09:39:50.708Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-1a381d0eafd599091398",
+          "file": "classroom.spec.ts",
+          "line": 340,
+          "column": 1
+        },
+        {
+          "title": "manual upload fallback can be reviewed and published without an OCR service",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3651,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-18T09:40:01.198Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-00054c036f0349deac81",
+          "file": "classroom.spec.ts",
+          "line": 394,
+          "column": 1
+        },
+        {
+          "title": "caption correction uses the published glossary and retains original text; local storage is private",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1330,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-18T09:40:04.859Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-660c5d00c60dfe79d162",
+          "file": "classroom.spec.ts",
+          "line": 443,
+          "column": 1
+        },
+        {
+          "title": "landing playground links a caption term to the diagram and a question by keyboard",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2169,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-18T09:40:06.200Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-ab460472543833a5d348",
+          "file": "classroom.spec.ts",
+          "line": 479,
+          "column": 1
         }
       ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-18T08:13:13.803Z",
-    "duration": 6063.275,
-    "expected": 1,
+    "startTime": "2026-09-18T09:39:16.994Z",
+    "duration": 51752.443,
+    "expected": 8,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0
