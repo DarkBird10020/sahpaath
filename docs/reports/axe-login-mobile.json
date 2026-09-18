@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/#main",
-  "timestamp": "2026-09-18T21:45:10.560Z",
+  "timestamp": "2026-09-18T22:18:57.899Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -14,6 +14,7 @@
     "aria-valid-attr-value",
     "aria-valid-attr",
     "autocomplete-valid",
+    "avoid-inline-spacing",
     "button-name",
     "bypass",
     "color-contrast",
