@@ -259,6 +259,9 @@ export class LessonService {
     if (!item) throw notFoundError("Content item not found in this draft.");
 
     const from = item.state;
+    // Relations and flows carry "from"/"steps"; parts carry "name". Capture
+    // the item kind before the state machine below overwrites item.state.
+    const itemIsPart = !("fromPartId" in item) && !("stepPartIds" in item);
     if (input.decision === "approve") {
       // Approving a rejected item re-opens it first; rejection must not bypass validation.
       if (from === "rejected") assertTransition(input.itemId, from, "needs_review");
@@ -297,6 +300,33 @@ export class LessonService {
       const id = "partId" in candidate ? candidate.partId : "relationId" in candidate ? candidate.relationId : candidate.flowId;
       if (!["teacher_approved", "rejected"].includes(candidate.state))
         candidate.state = flagged.has(id) ? "needs_review" : "validated";
+    }
+
+    // A rejected part must not strand its dependent relationships and flows as
+    // unfixable errors (dangling / broken_step blocks approving the dependant
+    // itself), which would make the draft impossible to finish. Cascade-reject
+    // active dependants with a reason, mirroring the invalidate-approved
+    // cascade above; re-approving the part later re-opens review as usual.
+    if (input.decision === "reject" && itemIsPart) {
+      const dependants = [
+        ...structure.relations.filter(
+          (r) => r.state !== "rejected" && (r.fromPartId === input.itemId || r.toPartId === input.itemId),
+        ),
+        ...structure.flows.filter(
+          (f) => f.state !== "rejected" && f.stepPartIds.includes(input.itemId),
+        ),
+      ];
+      for (const d of dependants) {
+        const id = "relationId" in d ? d.relationId : d.flowId;
+        assertTransition(id, d.state, "rejected");
+        d.state = "rejected";
+        d.reviewNote =
+          d.reviewNote ||
+          `Auto-rejected: it references “${
+            structure.parts.find((p) => p.partId === input.itemId)?.name ??
+            input.itemId
+          }”, which was rejected.`;
+      }
     }
 
     const next: DiagramVersion = { ...version, structure };
