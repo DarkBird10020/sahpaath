@@ -183,7 +183,7 @@ function Playground({ motion }: { motion: boolean }) {
     <section
       ref={outer}
       id="try-it"
-      className={`scroll-pin ${scroll.pinned ? "is-pinned" : ""}`}
+      className={`scroll-pin pin-sand ${scroll.pinned ? "is-pinned" : ""}`}
       style={{ "--steps": parts.length } as CSSProperties}
       aria-labelledby="try-heading"
     >
@@ -436,7 +436,7 @@ function TrustPipeline({ motion }: { motion: boolean }) {
     <section
       ref={outer}
       id="how-it-works"
-      className={`scroll-pin ${scroll.pinned ? "is-pinned" : ""}`}
+      className={`scroll-pin pin-paper ${scroll.pinned ? "is-pinned" : ""}`}
       style={{ "--steps": pipeline.length } as CSSProperties}
       aria-labelledby="pipeline-heading"
     >

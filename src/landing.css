@@ -1,7 +1,8 @@
 /* Lower landing sections: playground, trust pipeline, finale. Shares the story's paper palette. */
 .playground,
 .trust-pipeline,
-.finale {
+.finale,
+.scroll-pin {
   --ld-bg: #f3eee5;
   --ld-paper: #fffdf8;
   --ld-ink: #14365f;
@@ -725,14 +726,30 @@
 .scroll-pin.is-pinned {
   height: calc(100vh + var(--steps) * 45vh);
 }
+/* The section carries the colour while it is pinned: the locked panel is scaled to
+   fit the window, so its own background would leave a band above and below. */
+.scroll-pin.is-pinned.pin-sand {
+  background: var(--ld-bg);
+  border-top: 1px solid var(--ld-line);
+}
+.scroll-pin.is-pinned.pin-paper {
+  background: var(--ld-paper);
+  border-top: 1px solid var(--ld-line);
+}
 .scroll-pin.is-pinned > .playground,
 .scroll-pin.is-pinned > .trust-pipeline {
   position: sticky;
   top: 0;
-  min-height: 100vh;
+  height: 100vh;
   box-sizing: border-box;
   padding-top: clamp(32px, 6vh, 72px);
   padding-bottom: clamp(24px, 4vh, 48px);
+  background: transparent;
+  border-top: 0;
+  /* Shrink just enough that the whole step is on screen on a short laptop window.
+     The alternative — refusing to lock — made the steps race past while the
+     section was still sliding in. */
+  transform: scale(var(--fit, 1));
 }
 .scroll-pin.is-pinned > .playground {
   align-items: center;
