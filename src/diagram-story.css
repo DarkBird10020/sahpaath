@@ -51,11 +51,14 @@
   height: 100%;
   background: var(--ds-ink);
   transform-origin: 0 50%;
-  transition: transform 0.2s linear;
+  /* Written by the story's scroll loop; scaling a composited layer costs no re-render. */
+  transform: scaleX(var(--story-progress, 1));
+  will-change: transform;
 }
 .story-top {
   position: absolute;
-  top: 26px;
+  /* Clear of the floating header when a reader scrolls back up the story. */
+  top: clamp(88px, 12vh, 108px);
   left: 5%;
   right: 5%;
   display: flex;
@@ -332,12 +335,14 @@
   transform: none;
 }
 .scan-bar {
+  /* Follows the scroll: sweeps down once while the labels are read, then fades so it
+     is never left lying across a diagram that is already mapped. */
   opacity: 0;
-  transition: transform 0.25s linear, opacity 0.3s;
+  transform: translateY(calc(var(--scan, 0) * 520px - 60px));
   pointer-events: none;
 }
 .ch-1 .scan-bar {
-  opacity: 1;
+  opacity: var(--beam, 0);
 }
 /* Once the map is alive, the proposal links give way to the real circuit. */
 .is-alive .link {
@@ -391,6 +396,9 @@
 /* Living layer: the same geometry, coloured by meaning and faded in by scroll. */
 .living-layer {
   opacity: var(--alive, 0);
+  /* Fading a whole SVG layer per frame: ask for a layer so it composites
+     instead of repainting the diagram underneath it. */
+  will-change: opacity;
 }
 .story-flat .living-layer {
   opacity: 0;
@@ -948,6 +956,9 @@ kbd {
 /* ---------- Flat / reduced motion / narrow ---------- */
 .story-flat {
   height: auto;
+}
+.story-flat .story-top {
+  top: 26px;
 }
 .story-flat .story-stage {
   position: relative;
