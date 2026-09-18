@@ -11,6 +11,8 @@
   --green: #236149;
   --amber: #85580d;
   --radius: 10px;
+  /* Anchor jumps and focus scrolling stop below the floating header. */
+  scroll-padding-top: 100px;
   font-size: 16px;
   line-height: 1.6;
 }
@@ -94,6 +96,12 @@ button.secondary {
 }
 main:focus {
   outline: none;
+}
+main {
+  padding-top: 88px;
+}
+main.under-header {
+  padding-top: 0;
 }
 h1,
 h2,
@@ -222,14 +230,63 @@ legend {
 .skip-link:focus {
   top: 10px;
 }
+/* The header behaves like the rest of the page: flat at the top, a compact floating
+   bar once you are into the page, and out of the way while you scroll down through
+   the animated sections. The bar sits in a fixed-height shell, so its own shape can
+   change without moving the page under it. */
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
   height: 88px;
+  /* The page runs under the bar, so a section's own colour reaches the top of the
+     window instead of leaving a strip of app background above it. */
+  margin-bottom: -88px;
   display: flex;
   align-items: center;
-  padding: 0 5.5%;
-  border-bottom: 1px solid var(--line);
-  gap: 30px;
+  padding: 0 clamp(14px, 3.5%, 46px);
+  pointer-events: none;
+  transition: transform 0.5s cubic-bezier(0.2, 0.75, 0.15, 1);
+}
+.site-header.is-hidden {
+  transform: translateY(-118%);
+}
+.header-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2.5vw, 30px);
+  height: 64px;
+  padding: 0 8px 0 10px;
+  border-radius: 999px;
+  pointer-events: auto;
+  transition: background 0.35s ease, box-shadow 0.35s ease, padding 0.35s ease;
+}
+/* Frosted while floating: the page keeps showing through, with a rim light rather
+   than a flat border so it reads as a pane of glass over the moving page. */
+.site-header.is-floating .header-bar {
+  padding-inline: 18px;
+  background: rgba(255, 253, 248, 0.72);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(20, 54, 95, 0.06),
+    0 20px 44px -26px rgba(20, 54, 95, 0.65);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .site-header.is-floating .header-bar {
+    background: #fffdf8;
+  }
+}
+:root[data-contrast="true"] .site-header.is-floating .header-bar {
   background: #fff;
+  box-shadow: 0 0 0 2px #38566f;
+}
+/* Calm motion: the header simply stays where it is. */
+:root:not(.motion-on) .site-header {
+  transform: none !important;
+  transition: none !important;
 }
 .brand {
   font-family: "Manrope Variable", Arial, sans-serif;
@@ -258,7 +315,7 @@ legend {
 }
 .site-header nav {
   display: flex;
-  gap: 8px;
+  gap: 2px;
   margin: auto;
   align-items: center;
 }
@@ -266,24 +323,49 @@ legend {
 .site-header nav a {
   border: 0;
   background: none;
-  font-size: 0.85rem;
-  padding: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 11px 15px;
+  border-radius: 999px;
   color: #425970;
   text-decoration: none;
   white-space: nowrap;
   min-height: 44px;
+  transition: background 0.2s ease, color 0.2s ease;
 }
+.site-header nav button:hover:not(:disabled),
+.site-header nav a:hover {
+  background: rgba(20, 54, 95, 0.07);
+  color: var(--ink);
+}
+/* The current page is marked by weight as well as fill, not by colour alone. */
 .site-header nav [aria-current="page"] {
   color: var(--ink);
-  box-shadow: inset 0 -3px var(--ink);
+  font-weight: 750;
+  background: rgba(20, 54, 95, 0.09);
 }
 .header-actions {
   display: flex;
   gap: 12px;
   align-items: center;
 }
+.site-header .icon-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+}
 .header-cta {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
+  padding: 11px 20px;
+  border-radius: 999px;
+}
+.header-cta svg {
+  transition: transform 0.2s cubic-bezier(0.2, 0.75, 0.15, 1);
+}
+.header-cta:hover:not(:disabled) svg {
+  transform: translateX(3px);
 }
 .settings-panel {
   background: #fff;
@@ -1813,15 +1895,18 @@ code {
 }
 @media (max-width: 1150px) {
   .site-header {
-    padding: 0 3%;
-    gap: 15px;
+    padding: 0 2.5%;
+  }
+  .header-bar {
+    gap: 14px;
   }
   .site-header nav {
     gap: 0;
   }
-  .site-header nav button {
-    font-size: 0.75rem;
-    padding: 10px;
+  .site-header nav button,
+  .site-header nav a {
+    font-size: 0.8rem;
+    padding: 10px 11px;
   }
   .hero {
     padding: 45px 4%;
@@ -1897,12 +1982,31 @@ code {
   }
 }
 @media (max-width: 800px) {
+  /* Phones keep a plain bar in the flow: it wraps to two rows, so a fixed height
+     and a page running underneath it would both be wrong. */
   .site-header {
+    position: static;
     height: auto;
     min-height: 78px;
+    padding: 12px 4%;
+    margin-bottom: 0;
+  }
+  main,
+  main.under-header {
+    padding-top: 0;
+  }
+  .header-bar {
+    height: auto;
     flex-wrap: wrap;
-    padding: 15px 5%;
     gap: 10px;
+    padding: 0;
+  }
+  .site-header.is-floating .header-bar {
+    padding-inline: 0;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
   }
   .site-header nav {
     order: 3;

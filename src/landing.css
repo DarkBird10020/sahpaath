@@ -742,7 +742,8 @@
   top: 0;
   height: 100vh;
   box-sizing: border-box;
-  padding-top: clamp(32px, 6vh, 72px);
+  /* Room at the top for the floating header when a reader scrolls back up. */
+  padding-top: clamp(92px, 13vh, 124px);
   padding-bottom: clamp(24px, 4vh, 48px);
   background: transparent;
   border-top: 0;

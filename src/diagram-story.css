@@ -57,7 +57,8 @@
 }
 .story-top {
   position: absolute;
-  top: 26px;
+  /* Clear of the floating header when a reader scrolls back up the story. */
+  top: clamp(88px, 12vh, 108px);
   left: 5%;
   right: 5%;
   display: flex;
@@ -955,6 +956,9 @@ kbd {
 /* ---------- Flat / reduced motion / narrow ---------- */
 .story-flat {
   height: auto;
+}
+.story-flat .story-top {
+  top: 26px;
 }
 .story-flat .story-stage {
   position: relative;
