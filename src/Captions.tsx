@@ -297,7 +297,9 @@ export default function Captions({
             Explore this <ArrowRight size={16} aria-hidden="true" />
           </button>
           <button className="secondary" onClick={() => go("communicate")}>
-            Ask about this <MessageCircle size={16} aria-hidden="true" />
+            {/* Teachers land on the question inbox, not the asking form. */}
+            {session.role === "teacher" ? "See questions about this" : "Ask about this"}
+            <MessageCircle size={16} aria-hidden="true" />
           </button>
         </div>
         <WordExplainer lessonId={lesson.lessonId} />
