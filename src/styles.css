@@ -2398,15 +2398,15 @@ code {
     padding: 40px 7%;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation: none !important;
-    transition: none !important;
-  }
+/* Calm motion chosen in settings: hold everything still. */
+:root:not(.motion-on) *,
+:root:not(.motion-on) *::before,
+:root:not(.motion-on) *::after {
+  scroll-behavior: auto !important;
+  animation: none !important;
+  transition: none !important;
 }
+
 @media print {
   .site-header,
   .site-footer,

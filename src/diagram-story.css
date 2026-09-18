@@ -979,21 +979,21 @@ kbd {
 .story-flat .is-alive .flow-dashes path {
   animation: none;
 }
-@media (prefers-reduced-motion: reduce) {
-  .canvas-tilt,
-  .panel,
-  .surface,
-  .story-title,
-  .ocr-box,
-  .story-progress span {
-    transition: none !important;
-    animation: none !important;
-  }
-  .flow-dashes path,
-  .caret {
-    animation: none !important;
-  }
+/* Calm motion chosen in settings: hold everything still. */
+:root:not(.motion-on) .canvas-tilt,
+:root:not(.motion-on) .panel,
+:root:not(.motion-on) .surface,
+:root:not(.motion-on) .story-title,
+:root:not(.motion-on) .ocr-box,
+:root:not(.motion-on) .story-progress span {
+  transition: none !important;
+  animation: none !important;
 }
+:root:not(.motion-on) .flow-dashes path,
+:root:not(.motion-on) .caret {
+  animation: none !important;
+}
+
 @media (max-width: 1100px) {
   .story-canvas {
     left: 42%;
@@ -1081,12 +1081,12 @@ kbd {
     transform: translateY(40px) rotateX(24deg) scale(0.94);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .lesson-sheet-3d,
-  .flow-dashes path {
-    animation: none !important;
-  }
+/* Calm motion chosen in settings: hold everything still. */
+:root:not(.motion-on) .lesson-sheet-3d,
+:root:not(.motion-on) .flow-dashes path {
+  animation: none !important;
 }
+
 
 /* ---------- Scroll-linked life inside the pinned stage ---------- */
 /* Copy drifts gently through each chapter; the grid slides with the whole story. */
