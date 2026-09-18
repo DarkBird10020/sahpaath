@@ -1,0 +1,273 @@
+/*
+ * Motion system. Everything here is scoped to :root.motion-on, which is absent when the
+ * visitor chose Calm motion or their OS asks for reduced motion.
+ *
+ * Reveals use transform and clip-path only, never opacity, so text keeps full contrast at
+ * every frame. With scroll-driven animation support the motion is scrubbed by the scroll
+ * position (and plays backwards on the way up); otherwise it plays once on entry.
+ */
+:root {
+  --mo-ease: cubic-bezier(0.2, 0.75, 0.15, 1);
+}
+
+/* ---------- Word-by-word text ---------- */
+.words {
+  display: inline;
+}
+.w {
+  display: inline-block;
+  /* clip (not hidden) masks the word without creating a scroll container. */
+  overflow: clip;
+  overflow-clip-margin: 0.12em;
+  vertical-align: top;
+  padding-bottom: 0.1em;
+  margin-bottom: -0.1em;
+}
+.w-in {
+  display: inline-block;
+}
+
+@keyframes mo-word {
+  from {
+    transform: translateY(112%) rotate(7deg);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes mo-word-soft {
+  from {
+    transform: translateY(70%);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(0 0 -20% 0);
+  }
+}
+
+/* Timed words (pinned story copy): play on mount, staggered. */
+.motion-on .words-time .w-in {
+  animation: mo-word 0.9s var(--mo-ease) both;
+  animation-delay: calc(var(--i) * 38ms);
+}
+.motion-on p .words-time .w-in {
+  animation-name: mo-word-soft;
+  animation-duration: 0.7s;
+  animation-delay: calc(180ms + var(--i) * 12ms);
+}
+
+/* Scroll words, fallback: play once when the block enters. */
+.motion-fallback .words:not(.words-time) .w-in {
+  transform: translateY(112%) rotate(7deg);
+  transition: transform 0.9s var(--mo-ease);
+  transition-delay: calc(var(--i) * 32ms);
+}
+.motion-fallback .words.is-in .w-in {
+  transform: none;
+}
+
+/* ---------- Block reveals: data-reveal="up|scale|left|right|wipe|draw|pop" ---------- */
+@keyframes mo-up {
+  from {
+    transform: translateY(70px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(-160px);
+  }
+}
+@keyframes mo-scale {
+  from {
+    transform: translateY(50px) scale(0.9);
+    clip-path: inset(8% 8% 8% 8% round 24px);
+  }
+  to {
+    transform: none;
+    clip-path: inset(-160px);
+  }
+}
+@keyframes mo-left {
+  from {
+    transform: translateX(-80px) rotate(-2deg);
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(-160px);
+  }
+}
+@keyframes mo-right {
+  from {
+    transform: translateX(80px) rotate(2deg);
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    transform: none;
+    clip-path: inset(-160px);
+  }
+}
+@keyframes mo-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(-160px);
+  }
+}
+@keyframes mo-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes mo-pop {
+  from {
+    transform: scale(0.4) translateY(20px);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  to {
+    transform: none;
+  }
+}
+.motion-on [data-reveal="draw"] {
+  transform-origin: 0 50%;
+}
+
+@supports (animation-timeline: view()) {
+  .motion-on .words:not(.words-time) .w-in {
+    animation: mo-word linear both;
+    animation-timeline: view();
+    animation-range: entry calc(4% + var(--i) * 1.6%) entry calc(70% + var(--i) * 1.6%);
+  }
+  .motion-on p .words:not(.words-time) .w-in {
+    animation-name: mo-word-soft;
+    animation-range: entry calc(2% + var(--i) * 0.5%) entry calc(60% + var(--i) * 0.5%);
+  }
+  .motion-on [data-reveal] {
+    animation: mo-up linear both;
+    animation-timeline: view();
+    animation-range: entry calc(var(--d, 0) * 5%) cover calc(28% + var(--d, 0) * 5%);
+  }
+  .motion-on [data-reveal="scale"] {
+    animation-name: mo-scale;
+  }
+  .motion-on [data-reveal="left"] {
+    animation-name: mo-left;
+  }
+  .motion-on [data-reveal="right"] {
+    animation-name: mo-right;
+  }
+  .motion-on [data-reveal="wipe"] {
+    animation-name: mo-wipe;
+  }
+  .motion-on [data-reveal="draw"] {
+    animation-name: mo-draw;
+    animation-range: entry 10% cover 55%;
+  }
+  .motion-on [data-reveal="pop"] {
+    animation-name: mo-pop;
+  }
+  /* Continuous parallax while an element crosses the viewport. */
+  @keyframes mo-drift {
+    from {
+      transform: translate3d(calc(var(--px, 0) * 1px), calc(var(--py, 60) * 1px), 0);
+    }
+    to {
+      transform: translate3d(calc(var(--px, 0) * -1px), calc(var(--py, 60) * -1px), 0);
+    }
+  }
+  .motion-on [data-drift] {
+    animation: mo-drift linear both;
+    animation-timeline: view();
+    animation-range: cover 0% cover 100%;
+  }
+}
+
+/* Fallback for [data-reveal] without scroll-driven animations. */
+.motion-fallback [data-reveal] {
+  transform: translateY(60px);
+  clip-path: inset(0 0 100% 0);
+  transition:
+    transform 1s var(--mo-ease),
+    clip-path 1s var(--mo-ease);
+  transition-delay: calc(var(--d, 0) * 90ms);
+}
+.motion-fallback [data-reveal="draw"] {
+  transform: scaleX(0);
+  clip-path: none;
+}
+.motion-fallback [data-reveal].is-in {
+  transform: none;
+  clip-path: inset(-160px);
+}
+
+/* ---------- App screens: a lighter, time-based entrance so work is never slowed ---------- */
+@keyframes mo-enter {
+  from {
+    transform: translateY(18px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(-160px);
+  }
+}
+.motion-on main > .workspace > *,
+.motion-on main > .login-page > * {
+  animation: mo-enter 0.45s var(--mo-ease) both;
+}
+.motion-on main > .workspace > :nth-child(2),
+.motion-on main > .login-page > :nth-child(2) {
+  animation-delay: 40ms;
+}
+.motion-on main > .workspace > :nth-child(3) {
+  animation-delay: 80ms;
+}
+.motion-on main > .workspace > :nth-child(n + 4) {
+  animation-delay: 120ms;
+}
+
+/* ---------- Micro-interactions ---------- */
+.motion-on button,
+.motion-on a {
+  transition:
+    transform 0.25s var(--mo-ease),
+    background-color 0.25s,
+    color 0.25s,
+    box-shadow 0.25s,
+    border-color 0.25s;
+}
+/* A shadow, not a lift: moving the hit area on hover makes buttons jitter under the pointer. */
+.motion-on button:not(:disabled):hover {
+  box-shadow: 0 8px 20px -10px #14365f66;
+}
+.motion-on button:not(:disabled):active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* ---------- Site chrome ---------- */
+@keyframes mo-drop {
+  from {
+    transform: translateY(-24px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(-20px);
+  }
+}
+.motion-on .site-header > * {
+  animation: mo-drop 0.8s var(--mo-ease) both;
+}
+.motion-on .site-header > :nth-child(2) {
+  animation-delay: 90ms;
+}
+.motion-on .site-header > :nth-child(3) {
+  animation-delay: 180ms;
+}

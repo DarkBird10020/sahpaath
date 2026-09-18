@@ -2,10 +2,48 @@ import {
   mapSchema,
   publishedSchema,
   type DiagramMap,
+  type Explorer,
+  type ExplorerPart,
   type Issue,
   type Lesson,
   type Published,
 } from "./schema";
+
+/** Rule 14: the only legal trust-state transitions. "published" is a lesson
+ * status, never an item state; nothing may transition into it. */
+export const trustTransitions: Record<string, readonly string[]> = {
+  // "ai_proposed" resets after any state: validation re-runs and map edits
+  // restore every item to a fresh proposal.
+  ai_proposed: ["needs_review", "validated", "teacher_approved", "rejected"],
+  needs_review: ["ai_proposed", "validated", "teacher_approved", "rejected"],
+  validated: ["ai_proposed", "needs_review", "teacher_approved", "rejected"],
+  teacher_approved: ["ai_proposed", "needs_review", "rejected"],
+  rejected: ["ai_proposed", "needs_review", "teacher_approved"],
+};
+export function assertTrustTransition(from: string, to: string) {
+  // Setting an item to its current state is an idempotent no-op, not a
+  // transition; re-running revalidate/decide on unchanged state must pass.
+  if (from === to) return;
+  if (!trustTransitions[from]?.includes(to))
+    throw new Error(`Invalid trust-state transition ${from} → ${to}.`);
+}
+
+/** Deterministic grounding check for a single map item: every claim traces
+ * back to a real source label / part. Parts ground in their OCR label,
+ * relations in non-empty evidence labels, flows in existing parts. */
+export function itemGrounded(map: DiagramMap, itemId: string): boolean {
+  const part = map.parts.find((p) => p.id === itemId);
+  if (part) return map.labels.some((l) => l.id === part.labelId);
+  const relation = map.relations.find((r) => r.id === itemId);
+  if (relation)
+    return (
+      relation.evidence.length > 0 &&
+      relation.evidence.every((e) => map.labels.some((l) => l.id === e))
+    );
+  const flow = map.flows.find((f) => f.id === itemId);
+  if (flow) return flow.steps.every((s) => map.parts.some((p) => p.id === s));
+  return false;
+}
 
 export const normalize = (s: string) =>
   s
@@ -45,6 +83,8 @@ export function validateMap(input: DiagramMap): Issue[] {
   }
   const activeRelations = map.relations.filter((r) => r.state !== "rejected");
   for (const p of parts.values()) {
+    if (p.evidence && (!p.evidence.includes(p.labelId) || p.evidence.some((e) => !labels.has(e))))
+      add(p.id, "invalid_part_evidence", "error", "Part evidence must include its source label and reference only existing labels.");
     const label = labels.get(p.labelId);
     if (!label)
       add(
@@ -193,15 +233,19 @@ export function revalidate(
   const map = structuredClone(input);
   if (resetDecisions)
     for (const item of items(map)) {
+      assertTrustTransition(item.state, "ai_proposed");
       item.state = "ai_proposed";
       item.reviewNote = "";
     }
   const issues = validateMap(map);
   for (const item of items(map))
-    if (!["teacher_approved", "rejected"].includes(item.state))
-      item.state = issues.some((i) => i.itemId === item.id)
+    if (!["teacher_approved", "rejected"].includes(item.state)) {
+      const next = issues.some((i) => i.itemId === item.id)
         ? "needs_review"
         : "validated";
+      assertTrustTransition(item.state, next);
+      item.state = next;
+    }
   return map;
 }
 
@@ -216,6 +260,7 @@ export function decide(
   if (!item) throw new Error("Content item not found.");
   if (decision === "approve") {
     // Evaluate rejected items as active before approving: rejection must not bypass validation.
+    assertTrustTransition(item.state, "ai_proposed");
     item.state = "ai_proposed";
     const issues = validateMap(map).filter((i) => i.itemId === itemId);
     if (issues.some((i) => i.severity === "error"))
@@ -224,8 +269,12 @@ export function decide(
       throw new Error(
         "Add a review note explaining how you checked the flagged item.",
       );
+    assertTrustTransition(item.state, "teacher_approved");
     item.state = "teacher_approved";
-  } else item.state = "rejected";
+  } else {
+    if (item.state !== "rejected") assertTrustTransition(item.state, "rejected");
+    item.state = "rejected";
+  }
   item.reviewNote = note;
   // A rejection can invalidate a previously approved dependency.
   const invalid = new Set(
@@ -235,6 +284,7 @@ export function decide(
   );
   for (const other of items(map))
     if (other.state === "teacher_approved" && invalid.has(other.id)) {
+      assertTrustTransition(other.state, "needs_review");
       other.state = "needs_review";
       other.reviewNote = "";
     }
@@ -245,6 +295,10 @@ export function publishSnapshot(lesson: Lesson, now: string): Published {
   if (lesson.status === "published")
     throw new Error(
       "This version has already been published. Create a new version to edit.",
+    );
+  if (!lesson.license || !lesson.license.licenseName.trim())
+    throw new Error(
+      "A diagram cannot be published without source and license information.",
     );
   if (!lesson.map.parts.some((p) => p.state === "teacher_approved"))
     throw new Error("Approve at least one part before publishing.");
@@ -275,13 +329,17 @@ export function publishSnapshot(lesson: Lesson, now: string): Published {
     version: lesson.version,
     publishedAt: now,
     image: lesson.image,
+    license: lesson.license,
     map,
     vocabulary: parts.map((p) => ({
       id: p.id,
       name: p.name,
       definition: p.description,
       labelId: p.labelId,
-      state: "teacher_approved",
+      aliases: p.aliases,
+      approvedAt: now,
+      approvedBy: "local-teacher",
+      state: "teacher_approved" as const,
     })),
   });
 }
@@ -292,12 +350,79 @@ export function studentSerialize(input: Published): Published {
     throw new Error("Published content contains an unapproved item.");
   if (validateMap(value.map).some((i) => i.severity === "error"))
     throw new Error("Published content failed structural validation.");
-  const vocabulary = value.map.parts.map((p) => ({
-    id: p.id,
-    name: p.name,
-    definition: p.description,
-    labelId: p.labelId,
-    state: "teacher_approved" as const,
-  }));
+  const vocabulary = value.map.parts.map((p) => {
+    const term = value.vocabulary.find((t) => t.id === p.id);
+    return {
+      id: p.id,
+      name: p.name,
+      definition: p.description,
+      labelId: p.labelId,
+      aliases: term?.aliases ?? [],
+      approvedAt: term?.approvedAt ?? "",
+      approvedBy: term?.approvedBy ?? "local-teacher",
+      state: "teacher_approved" as const,
+    };
+  });
   return { ...value, vocabulary };
+}
+
+/** Screen-reader-first explorer view built ONLY from published, approved
+ * content. Audio is browser speech by default; cached Polly audio is attached
+ * per part when it exists and is never a hard dependency for the explorer. */
+export function buildExplorer(
+  input: Published,
+  audio?: { cachedUrl: (partId: string) => string | null },
+): Explorer {
+  const value = studentSerialize(input);
+  const parts = value.map.parts;
+  const byId = new Map(parts.map((p) => [p.id, p]));
+  const relations = value.map.relations.filter(
+    (r) => byId.has(r.from) && byId.has(r.to),
+  );
+  const flow = value.map.flows[0] ?? null;
+  const nodes: ExplorerPart[] = parts.map((p) => {
+    const connected = relations
+      .filter((r) => r.from === p.id || r.to === p.id)
+      .map((r) => {
+        const outgoing = r.from === p.id;
+        const other = byId.get(outgoing ? r.to : r.from)!;
+        return {
+          partId: other.id,
+          name: other.name,
+          relationship: r.kind,
+          direction: outgoing ? ("outgoing" as const) : ("incoming" as const),
+        };
+      });
+    const index = flow ? flow.steps.indexOf(p.id) : -1;
+    const audioUrl = audio?.cachedUrl(p.id) ?? null;
+    return {
+      partId: p.id,
+      name: p.name,
+      shortDescription: p.description.slice(0, 280),
+      detailedDescription: p.description,
+      vocabularyTermId: p.id,
+      connectedParts: connected,
+      flow:
+        flow && index >= 0
+          ? {
+              flowId: flow.id,
+              name: flow.name,
+              position: index + 1,
+              total: flow.steps.length,
+              previous: index > 0 ? flow.steps[index - 1] : null,
+              next: index < flow.steps.length - 1 ? flow.steps[index + 1] : null,
+            }
+          : null,
+      // Audio is never a hard dependency: the explorer is complete as text.
+      audio: audioUrl ? { url: audioUrl, engine: "polly" as const, cached: true } : null,
+    };
+  });
+  return {
+    lessonId: value.lessonId,
+    version: value.version,
+    title: value.title,
+    readingOrder: flow ? flow.steps : parts.map((p) => p.id),
+    parts: nodes,
+    audioEngine: nodes.some((n) => n.audio) ? "polly" : "browser_speech",
+  };
 }

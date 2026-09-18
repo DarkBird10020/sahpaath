@@ -17,10 +17,13 @@ import CaptionCorrection from "./CaptionCorrection";
 import { vocabularyPattern } from "../shared/vocabulary";
 import {
   captionSchema,
+  explorerSchema,
   phrases,
   questionSchema,
   type Caption,
+  type Explorer,
   type Published,
+  type Question,
   type Session,
 } from "../shared/schema";
 import {
@@ -59,10 +62,12 @@ export default function Student({
   const [busy, setBusy] = useState(false);
   const [custom, setCustom] = useState("");
   const [sent, setSent] = useState("");
+  const [mine, setMine] = useState<Question[]>([]);
   useEffect(() => {
     setSelected(lesson?.map.parts[0]?.id || "");
     setError("");
     setSent("");
+    setMine([]);
   }, [lesson?.lessonId, lesson?.version]);
   const part =
     lesson?.map.parts.find((p) => p.id === selected) || lesson?.map.parts[0];
@@ -76,6 +81,37 @@ export default function Student({
   const description = part
     ? `${part.name}. ${flow ? `Step ${flow.steps.indexOf(part.id) + 1} of ${flow.steps.length}, ${flow.name}. ` : `Concept ${position + 1} of ${lesson.map.parts.length}. `}${part.description}${incoming.length ? ` Receives a connection from ${incoming.join(", ")}.` : ""}`
     : "";
+  // Flow, connections and audio come from the server's explorer view, which is
+  // built from published, approved content only.
+  const [explorer, setExplorer] = useState<Explorer | null>(null);
+  useEffect(() => {
+    if (!lesson) return;
+    let active = true;
+    void api(`/published/${lesson.lessonId}/explorer`, explorerSchema)
+      .then((v) => active && setExplorer(v))
+      .catch(() => active && setExplorer(null));
+    return () => {
+      active = false;
+    };
+  }, [lesson?.lessonId, lesson?.version]);
+  const node =
+    explorer?.lessonId === lesson?.lessonId && explorer?.version === lesson?.version
+      ? explorer?.parts.find((p) => p.partId === part?.id)
+      : undefined;
+  const nameOf = (id: string | null | undefined) =>
+    lesson?.map.parts.find((p) => p.id === id)?.name;
+  const loadMine = () => {
+    if (!lesson) return;
+    void api(
+      `/questions/mine?lessonId=${lesson.lessonId}`,
+      z.array(questionSchema),
+    )
+      .then(setMine)
+      .catch(() => {});
+  };
+  useEffect(() => {
+    if (page === "communicate") loadMine();
+  }, [page, lesson?.lessonId]); // eslint-disable-line react-hooks/exhaustive-deps
   async function send(text: string, anchored: boolean) {
     if (!lesson) return;
     setError("");
@@ -89,6 +125,7 @@ export default function Student({
       });
       setSent(text);
       setCustom("");
+      loadMine();
       report("Question sent to the teacher’s local inbox.");
     } catch (e) {
       setError((e as Error).message);
@@ -168,30 +205,63 @@ export default function Student({
               </span>
               <h2>{part.name}</h2>
               <p className="concept-description">{part.description}</p>
-              <Speak text={description} />
+              {node?.audio ? (
+                <div className="recorded-audio">
+                  <audio
+                    controls
+                    preload="none"
+                    src={node.audio.url}
+                    aria-label={`Recorded description of ${part.name}`}
+                  />
+                  <small className="speech-note">
+                    Cached audio of the approved description
+                  </small>
+                </div>
+              ) : (
+                <Speak text={description} />
+              )}
               <div className="sr-only" role="status" aria-live="polite">
                 {description}
               </div>
+              {node?.flow && (
+                <div className="button-row flow-nav">
+                  <button
+                    disabled={!node.flow.previous}
+                    onClick={() => node.flow?.previous && setSelected(node.flow.previous)}
+                  >
+                    <ArrowLeft size={16} aria-hidden="true" />
+                    {node.flow.previous
+                      ? `Previous in flow: ${nameOf(node.flow.previous)}`
+                      : "Start of the flow"}
+                  </button>
+                  <button
+                    className="primary"
+                    disabled={!node.flow.next}
+                    onClick={() => node.flow?.next && setSelected(node.flow.next)}
+                  >
+                    {node.flow.next
+                      ? `Next in flow: ${nameOf(node.flow.next)}`
+                      : "End of the flow"}
+                    <ArrowRight size={16} aria-hidden="true" />
+                  </button>
+                </div>
+              )}
               <div className="connections">
                 <h3>Connected concepts</h3>
-                {lesson.map.relations
-                  .filter((r) => r.from === part.id || r.to === part.id)
-                  .map((r) => {
-                    const other = lesson.map.parts.find(
-                      (p) => p.id === (r.from === part.id ? r.to : r.from),
-                    );
-                    return other ? (
-                      <button key={r.id} onClick={() => setSelected(other.id)}>
-                        <span>
-                          {r.from === part.id
-                            ? r.kind.replaceAll("_", " ")
-                            : "Connected from"}
-                        </span>
-                        {other.name}
-                        <ArrowRight size={16} aria-hidden="true" />
-                      </button>
-                    ) : null;
-                  })}
+                {(node?.connectedParts ?? []).map((c) => (
+                  <button key={`${c.direction}-${c.partId}`} onClick={() => setSelected(c.partId)}>
+                    <span>
+                      {c.direction === "outgoing"
+                        ? c.relationship.replaceAll("_", " ")
+                        : "Connected from"}
+                    </span>
+                    {c.name}
+                    <ArrowRight size={16} aria-hidden="true" />
+                  </button>
+                ))}
+                {!node && (
+                  <p className="small">Loading connections…</p>
+                )}
               </div>
               {flow && (
                 <div className="flow-steps">
@@ -290,7 +360,7 @@ export default function Student({
                   onClick={() => void send(phrase, false)}
                 >
                   <span className="phrase-symbol" aria-hidden="true">
-                    {["?", "↻", "…", "◷", "＋"][i]}
+                    {["?", "↻", "…", "◷", "＋", "✎", "✓", "!"][i]}
                   </span>
                   <strong>{phrase}</strong>
                   <Send size={18} aria-hidden="true" />
@@ -307,6 +377,19 @@ export default function Student({
                 "Your messages go to the teacher’s local inbox."
               )}
             </div>
+            {mine.length > 0 && (
+              <div className="my-questions">
+                <h3>Your recent messages</h3>
+                <ul>
+                  {mine.slice(-5).map((q) => (
+                    <li key={q.id}>
+                      <p>{q.text}</p>
+                      <Status state={`question_${q.status}`} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
           <aside className="anchored-question">
             <span className="section-kicker">Stay connected to the lesson</span>

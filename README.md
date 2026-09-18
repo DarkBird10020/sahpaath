@@ -2,7 +2,7 @@
 
 **Same lesson. Your way in.** One teacher-reviewed lesson connects a diagram explorer, transcript vocabulary, and classroom questions.
 
-This is a working **local classroom application**. AWS is deliberately deferred at the user's request. SQLite stores lessons, immutable publications, decisions, captions, questions, and audit events. Demo label extraction and diagram proposals are authored fixtures marked **Demo simulation**. Uploaded diagrams use the manual map editor. There is no live speech recognition or cloud OCR in this build.
+This is a working **local classroom application**, with an optional real DiagramSense AWS processing backend. SQLite stores classroom drafts, immutable publications, decisions, captions, questions and audit events. Local sample extraction/proposals remain authored fixtures marked **Demo simulation**; unconfigured uploads use the manual editor. The optional cloud path uses private S3, Step Functions, Textract, Bedrock and DynamoDB, and returns drafts for teacher review. See [DiagramSense setup and contracts](docs/CLASSROOM_DIAGRAM_PIPELINE.md). Live cloud execution/model compatibility remain **UNVERIFIED**; live captions use browser speech recognition or typed lines; Amazon Transcribe is not wired.
 
 ## Run locally
 
@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5173. Select **Open classroom**, then use the development teacher password `sahpaath-local`. Students can enter anonymously. To change the password, set `SAHPAATH_TEACHER_PASSWORD` in the shell before starting the server. The server does not automatically load `.env` files. Do not deploy this development authentication scheme to the internet.
+Open http://127.0.0.1:5173. Select **Open classroom**, then use the development teacher password `sahpaath-local`. Students can enter anonymously. To change the password, set `SAHPAATH_TEACHER_PASSWORD` in the shell before starting the server. The server loads `.env` when present; existing shell variables take precedence. Do not deploy this development authentication scheme to the internet.
 
 ```powershell
 $env:SAHPAATH_TEACHER_PASSWORD = 'your-local-password'
@@ -31,7 +31,7 @@ For a compiled frontend: `npm run build`, then `npm start`. All application data
 5. Open **Captions** and load the sample transcript. It is explicitly a loaded transcript, not a live stream. Approved terms link back to the same concepts.
 6. Ask about a concept. Open the teacher inbox to see and acknowledge the saved question.
 
-Uploaded PNG/JPEG files instead enter the manual editor. Add source labels and descriptions, review the manual-entry warnings, approve, and publish.
+Without AWS configuration, uploaded PNG/JPEG files enter the manual editor. Add source labels and descriptions, review the manual-entry warnings, approve, and publish.
 
 ## Checks
 
@@ -55,4 +55,4 @@ Browser tests use a separate database under `.data/e2e` and port 5174. Axe repor
 - The optional 3D concept graph is lazy-loaded and has a text/tree equivalent. It is disabled by default.
 - The supplied scroll-world skill is being applied to the introduction. The initial generated artwork was rejected by the user; natural photographic stills are now in review. The final video sequence is not delivered.
 
-See [architecture](docs/ARCHITECTURE.md), [accessibility](docs/ACCESSIBILITY.md), [evaluation](docs/EVALUATION.md), [AWS verification](docs/AWS_VERIFICATION.md), [costs](docs/COSTS.md), and [asset credits](CREDITS.md).
+See [architecture](docs/ARCHITECTURE.md), [shared vocabulary](docs/SHARED_VOCABULARY.md), [ClassCaption](docs/CLASSCAPTION.md), [guided demo](docs/DEMO.md), [validation rules](docs/VALIDATION.md), [accessibility](docs/ACCESSIBILITY.md), [evaluation](docs/EVALUATION.md), [AWS verification](docs/AWS_VERIFICATION.md), [costs](docs/COSTS.md), [deployment](docs/DEPLOYMENT.md), and [asset credits](CREDITS.md).

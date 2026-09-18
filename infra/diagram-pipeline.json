@@ -1,0 +1,235 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "SahPaath DiagramSense processing infrastructure (drafts only)",
+  "Parameters": {
+    "BedrockModelId": {
+      "Type": "String",
+      "MinLength": 1,
+      "Description": "Verified image + forced-tool Converse model/profile ID; no default"
+    },
+    "BedrockResourceArns": {
+      "Type": "CommaDelimitedList",
+      "Description": "Exact model/profile ARNs needed by this model; include destination model ARNs for cross-region profiles"
+    }
+  },
+  "Resources": {
+    "DiagramBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "BucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "DiagramBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DiagramBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${DiagramBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "PipelineTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "jobId",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "jobId",
+            "KeyType": "HASH"
+          }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        }
+      }
+    },
+    "PipelineWorker": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Runtime": "nodejs22.x",
+        "Handler": "index.handler",
+        "CodeUri": "../.pipeline-build/",
+        "Timeout": 600,
+        "MemorySize": 512,
+        "ReservedConcurrentExecutions": 2,
+        "Environment": {
+          "Variables": {
+            "SAHPAATH_PIPELINE_MODE": "step_functions",
+            "SAHPAATH_AWS_USE_ROLE": "true",
+            "AWS_BEDROCK_MODEL_ID": {
+              "Ref": "BedrockModelId"
+            },
+            "SAHPAATH_PIPELINE_BUCKET": {
+              "Ref": "DiagramBucket"
+            },
+            "SAHPAATH_PIPELINE_TABLE": {
+              "Ref": "PipelineTable"
+            }
+          }
+        },
+        "Policies": [
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:GetObject"
+                ],
+                "Resource": [
+                  {
+                    "Fn::Sub": "${DiagramBucket.Arn}/diagrams/*"
+                  }
+                ]
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:PutObject"
+                ],
+                "Resource": [
+                  {
+                    "Fn::Sub": "${DiagramBucket.Arn}/results/*"
+                  }
+                ]
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "dynamodb:GetItem",
+                  "dynamodb:PutItem"
+                ],
+                "Resource": {
+                  "Fn::GetAtt": [
+                    "PipelineTable",
+                    "Arn"
+                  ]
+                }
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "textract:DetectDocumentText"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "bedrock:InvokeModel"
+                ],
+                "Resource": {
+                  "Ref": "BedrockResourceArns"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "DiagramPipeline": {
+      "Type": "AWS::Serverless::StateMachine",
+      "Properties": {
+        "Type": "STANDARD",
+        "Definition": {
+          "Comment": "DiagramSense: private image -> OCR -> structured proposal -> validation -> draft persistence. No publish action.",
+          "StartAt": "ProcessDiagram",
+          "TimeoutSeconds": 660,
+          "States": {
+            "ProcessDiagram": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": {
+                  "Fn::GetAtt": [
+                    "PipelineWorker",
+                    "Arn"
+                  ]
+                },
+                "Payload.$": "$"
+              },
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        },
+        "Policies": [
+          {
+            "LambdaInvokePolicy": {
+              "FunctionName": {
+                "Ref": "PipelineWorker"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "Bucket": {
+      "Value": {
+        "Ref": "DiagramBucket"
+      }
+    },
+    "Table": {
+      "Value": {
+        "Ref": "PipelineTable"
+      }
+    },
+    "StateMachineArn": {
+      "Value": {
+        "Ref": "DiagramPipeline"
+      }
+    }
+  }
+}

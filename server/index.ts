@@ -16,14 +16,24 @@ import { loadEnvFile } from "node:process";
 import { z } from "zod";
 import { Store } from "./store";
 import { createLesson, imageType } from "./providers";
+import { readAwsConfig } from "./aws";
+import { AudioService, pollySynthesizer, readPollyConfig } from "./audio";
+import { demoState, resetDemo, startDemo } from "./demo";
+import { normalize } from "../shared/domain";
+import { cloudConfig, startCloudPipeline, refreshCloudLesson, isProcessing } from "./cloud-pipeline";
+import { evaluate, runSchema } from "../shared/evaluation";
 import { fixtures } from "../shared/fixtures";
-import { decide, revalidate, validateMap } from "../shared/domain";
+import { decide, revalidate, validateMap, buildExplorer, items } from "../shared/domain";
+import { getTermSurfaces } from "../shared/vocabulary";
 import {
   approveSchema,
   editSchema,
   revisionSchema,
   uploadSchema,
   questionInput,
+  questionSchema,
+  captionSourceSchema,
+  segmentInput,
   id,
   type Caption,
   type Question,
@@ -36,7 +46,15 @@ const port = Number(process.env.PORT || 5173);
 const root = resolve(process.env.SAHPAATH_DATA_DIR || ".data");
 const store = new Store(resolve(root, "sahpaath.sqlite"));
 const password = process.env.SAHPAATH_TEACHER_PASSWORD || "sahpaath-local";
+const polly = readPollyConfig(process.env);
+const audio = new AudioService(
+  resolve(root, "audio"),
+  polly ? pollySynthesizer(polly) : null,
+  polly ? `${polly.voiceId}:${polly.engine}:${polly.languageCode}` : "none",
+);
 const hash = (value: string) => createHash("sha256").update(value).digest();
+// Interim (non-final) caption text is display-only and never stored.
+const partials = new Map<string, string>();
 const counters = new Map<string, { count: number; until: number }>();
 function limited(key: string, max: number) {
   const now = Date.now();
@@ -118,7 +136,11 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       throw new HttpError(403, "Cross-site changes are not allowed.");
   }
   if (path === "/api/health")
-    return json(res, { mode: "local", awsConnected: false });
+    return json(res, {
+      mode: "local",
+      awsConfigured: cloudConfig(process.env) !== null || readAwsConfig(process.env) !== null,
+      pollyConfigured: audio.enabled,
+    });
   if (path === "/api/session" && method === "POST") {
     limited(`login:${req.socket.remoteAddress}`, 20);
     const input = z
@@ -187,6 +209,21 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       .parse(await body(req));
     return json(res, store.add(await createLesson(input.fixtureId)), 201);
   }
+  if (path === "/api/evaluation/summary" && method === "GET")
+    return json(res, store.evaluationSummary());
+  if (path === "/api/evaluation/runs" && method === "POST") {
+    teacher(req);
+    const input = (await body(req)) as Record<string, unknown>;
+    const record = runSchema.parse({
+      ...input,
+      runId:
+        typeof input.runId === "string" && input.runId
+          ? input.runId
+          : randomUUID(),
+    });
+    store.addEvaluationRun(record);
+    return json(res, evaluate(record), 201);
+  }
   if (path === "/api/upload" && method === "POST") {
     teacher(req);
     const input = uploadSchema.parse(await body(req));
@@ -199,14 +236,66 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     const name = `${randomUUID()}.${input.mime === "image/png" ? "png" : "jpg"}`;
     await mkdir(resolve(root, "uploads"), { recursive: true });
     await writeFile(resolve(root, "uploads", name), bytes);
+    const cloud = cloudConfig(process.env);
+    if (cloud) {
+      const lesson = await createLesson(null, input.title, name, undefined, null, input.license);
+      try { await startCloudPipeline(cloud, lesson, bytes); }
+      catch { throw new HttpError(502, "Cloud processing could not be started. Check AWS configuration and retry the upload."); }
+      store.add(lesson);
+      store.audit(lesson.id, "processing_started", `Step Functions job ${lesson.jobId} queued.`);
+      return json(res, lesson, 201);
+    }
     return json(
       res,
-      store.add(await createLesson(null, input.title, name)),
+      store.add(
+        // AWS runs only when fully configured; otherwise the manual editor.
+        await createLesson(
+          null,
+          input.title,
+          name,
+          bytes,
+          readAwsConfig(process.env),
+          input.license,
+        ),
+      ),
       201,
     );
   }
   if (path === "/api/published" && method === "GET")
     return json(res, store.publishedList());
+  // Student explorer view: derived server-side from published content only.
+  const explorer = path.match(
+    /^\/api\/published\/([\w-]+)\/explorer(?:\/parts\/([\w-]+))?$/,
+  );
+  if (explorer && method === "GET") {
+    const published = store.published(id.parse(explorer[1]));
+    const view = buildExplorer(published, {
+      cachedUrl: (partId) =>
+        audio.has(published, partId)
+          ? `/api/published/${published.lessonId}/audio/${partId}?version=${published.version}`
+          : null,
+    });
+    if (!explorer[2]) return json(res, view);
+    const part = view.parts.find((p) => p.partId === explorer[2]!);
+    if (!part)
+      throw new HttpError(404, "This part is not in the published lesson.");
+    return json(res, part);
+  }
+  // Cached Polly audio of an approved description; same-origin and session-only.
+  const audioRoute = path.match(/^\/api\/published\/([\w-]+)\/audio\/([\w-]+)$/);
+  if (audioRoute && method === "GET") {
+    const published = store.published(
+      id.parse(audioRoute[1]),
+      url.searchParams.has("version")
+        ? z.coerce.number().int().positive().parse(url.searchParams.get("version"))
+        : undefined,
+    );
+    const data = await audio.read(published, id.parse(audioRoute[2]));
+    if (!data)
+      throw new HttpError(404, "No cached audio for this part. Read the text description or use Read aloud.");
+    res.writeHead(200, { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=3600" });
+    return res.end(data);
+  }
   const pub = path.match(/^\/api\/published\/([\w-]+)$/);
   if (pub && method === "GET")
     return json(
@@ -222,6 +311,28 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
           : undefined,
       ),
     );
+  const vocabulary = path.match(
+    /^\/api\/published\/([\w-]+)\/vocabulary(?:\/([\w-]+)\/surfaces)?$/,
+  );
+  if (vocabulary && method === "GET") {
+    const published = store.published(id.parse(vocabulary[1]));
+    if (!vocabulary[2]) return json(res, published.vocabulary);
+    const termId = id.parse(vocabulary[2]);
+    if (!published.vocabulary.some((t) => t.id === termId))
+      throw new HttpError(
+        404,
+        "This term is not part of the approved lesson version.",
+      );
+    return json(
+      res,
+      getTermSurfaces(termId, published, [
+        ...store
+          .records<Caption>("captions", published.lessonId)
+          .filter((c) => c.version === published.version),
+        ...store.lessonSegments(published.lessonId, published.version),
+      ]),
+    );
+  }
   const media = path.match(/^\/api\/images\/([\w-]+\.(?:png|jpg))$/);
   if (media && method === "GET") {
     const s = session(req);
@@ -238,7 +349,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     return res.end(data);
   }
   const lessonRoute = path.match(
-    /^\/api\/lessons\/([\w-]+)(?:\/(map|decision|publish|version|audit|questions|captions))?$/,
+    /^\/api\/lessons\/([\w-]+)(?:\/(map|decision|publish|version|audit|questions|captions|processing-status))?$/,
   );
   if (lessonRoute) {
     const lessonId = id.parse(lessonRoute[1]);
@@ -253,6 +364,21 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       );
     }
     teacher(req);
+    if (action === "processing-status" && method === "GET") {
+      const lesson = store.get(lessonId);
+      const cloud = cloudConfig(process.env);
+      const updated = cloud ? await refreshCloudLesson(cloud, lesson) : null;
+      if (updated) {
+        // Another poll or edit may have completed while AWS was responding.
+        if (store.get(lessonId).revision !== lesson.revision) return json(res, store.get(lessonId));
+        const saved = store.save(updated, lesson.revision);
+        store.audit(lessonId, "processing_finished", `Job ${lesson.jobId} imported for teacher review.`);
+        return json(res, saved);
+      }
+      return json(res, lesson);
+    }
+    if (["map", "decision", "publish", "version"].includes(action) && method !== "GET" && isProcessing(store.get(lessonId)))
+      throw new HttpError(409, "Diagram processing is still running. Wait for teacher review.");
     if (!action && method === "GET") return json(res, store.get(lessonId));
     if (action === "audit" && method === "GET")
       return json(res, store.events(lessonId));
@@ -289,18 +415,41 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       const lesson = store.get(lessonId);
       if (lesson.status === "published")
         throw new HttpError(409, "Published decisions are immutable.");
+      const previous =
+        items(lesson.map).find((i) => i.id === input.itemId)?.state ??
+        "missing";
       lesson.map = decide(lesson.map, input.itemId, input.decision, input.note);
       const saved = store.save(lesson, input.revision);
       store.audit(
         lessonId,
         input.decision,
         `${input.itemId}: ${input.note || "Explicit teacher decision."}`,
+        "local-teacher",
+        {
+          itemId: input.itemId,
+          decision: input.decision,
+          previousState: previous,
+          newState:
+            items(saved.map).find((i) => i.id === input.itemId)?.state ??
+            "missing",
+        },
       );
       return json(res, saved);
     }
     if (action === "publish" && method === "POST") {
       const input = revisionSchema.parse(await body(req));
-      return json(res, store.publish(lessonId, input.revision));
+      const snapshot = store.publish(lessonId, input.revision);
+      if (audio.enabled) {
+        // Audio follows approval and never blocks publication.
+        const started = performance.now();
+        const counts = await audio.prepare(store.published(lessonId, snapshot.version));
+        store.audit(
+          lessonId,
+          counts.failed ? "audio_partial" : "audio_ready",
+          `Polly audio for version ${snapshot.version}: ${counts.generated} generated, ${counts.cached} cached, ${counts.failed} failed (text remains available) in ${Math.round(performance.now() - started)} ms.`,
+        );
+      }
+      return json(res, snapshot);
     }
     if (action === "version" && method === "POST") {
       const input = revisionSchema.parse(await body(req));
@@ -344,17 +493,41 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       ...input,
       id: randomUUID(),
       sessionCode: s.code,
-      acknowledged: false,
       createdAt: new Date().toISOString(),
+      status: "queued",
     };
     store.addRecord("questions", record);
+    store.audit(
+      input.lessonId,
+      "question_received",
+      `Question from session ${s.code}${input.conceptId ? ` anchored to ${input.conceptId}` : ""}. Exact student wording preserved.`,
+      `student-${s.code}`,
+    );
     return json(res, record, 201);
   }
-  const ack = path.match(/^\/api\/questions\/([\w-]+)\/acknowledge$/);
-  if (ack && method === "POST") {
+  if (path === "/api/questions/mine" && method === "GET") {
+    const s = session(req);
+    const lessonIdParam = url.searchParams.get("lessonId");
+    if (!lessonIdParam) throw new HttpError(400, "lessonId is required.");
+    const lessonId = id.parse(lessonIdParam);
+    return json(
+      res,
+      store
+        .records<Question>("questions", lessonId)
+        .filter((q) => q.sessionCode === s.code),
+    );
+  }
+  const statusMatch = path.match(/^\/api\/questions\/([\w-]+)\/status$/);
+  if (statusMatch && method === "POST") {
     teacher(req);
-    store.acknowledge(id.parse(ack[1]));
-    return json(res, { ok: true });
+    const input = z
+      .object({ status: z.enum(["seen", "answered", "dismissed"]) })
+      .strict()
+      .parse(await body(req));
+    return json(
+      res,
+      store.setQuestionStatus(id.parse(statusMatch[1]), input.status),
+    );
   }
   const correction = path.match(/^\/api\/captions\/([\w-]+)\/correct$/);
   if (correction && method === "POST") {
@@ -367,6 +540,98 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       res,
       store.correctCaption(id.parse(correction[1]), input.heard, input.termId),
     );
+  }
+  // ClassCaption: live sessions of timed final segments on a published version.
+  if (path === "/api/caption-sessions" && method === "POST") {
+    teacher(req);
+    const input = z
+      .object({ lessonId: id, source: captionSourceSchema })
+      .strict()
+      .parse(await body(req));
+    if (input.source === "transcribe")
+      throw new HttpError(503, "Amazon Transcribe streaming is not configured. Use browser speech recognition or typed captions.");
+    return json(res, store.startCaptionSession(input.lessonId, input.source), 201);
+  }
+  if (path === "/api/caption-sessions" && method === "GET") {
+    const lessonId = id.parse(url.searchParams.get("lessonId"));
+    const published = store.published(lessonId);
+    return json(res, store.captionSessions(lessonId).filter((s) => s.version === published.version));
+  }
+  const captionSession = path.match(
+    /^\/api\/caption-sessions\/([\w-]+)(?:\/(segments|search|export|end|credentials))?$/,
+  );
+  if (captionSession) {
+    const sessionId = id.parse(captionSession[1]);
+    const action = captionSession[2];
+    const cs = store.captionSession(sessionId);
+    if (!action && method === "GET")
+      return json(res, { session: cs, partial: partials.get(sessionId) ?? null, segments: store.segments(sessionId) });
+    if (action === "segments" && method === "GET") return json(res, store.segments(sessionId));
+    if (action === "search" && method === "GET") {
+      const q = normalize(url.searchParams.get("q") ?? "");
+      const termId = url.searchParams.get("termId");
+      if (!q && !termId) throw new HttpError(400, "Give a search word (q) or an approved term (termId).");
+      return json(
+        res,
+        store.segments(sessionId).filter(
+          (s) =>
+            (q && normalize(s.text).includes(q)) ||
+            (termId && s.matchedTerms.some((h) => h.termId === termId)),
+        ),
+      );
+    }
+    if (action === "export" && method === "GET") {
+      const segs = store.segments(sessionId);
+      const clock = (ms: number) => `${String(Math.floor(ms / 60000)).padStart(2, "0")}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
+      const terms = new Map<string, number[]>();
+      for (const s of segs) for (const h of s.matchedTerms) terms.set(h.canonical, [...(terms.get(h.canonical) ?? []), s.startMs]);
+      const text = [
+        `SahPaath captions · session ${cs.id} · lesson version ${cs.version} · source: ${cs.source}`,
+        "Captions support, and do not replace, sign-language interpretation.",
+        "",
+        ...segs.map((s) => `[${clock(s.startMs)}] ${s.text}`),
+        "",
+        "Approved terms heard (first mentions):",
+        ...[...terms].map(([name, at]) => `- ${name}: ${at.map(clock).join(", ")}`),
+      ].join("\n");
+      res.writeHead(200, {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Disposition": `attachment; filename="sahpaath-captions-${cs.id}.txt"`,
+      });
+      return res.end(text);
+    }
+    teacher(req);
+    if (action === "segments" && method === "POST") {
+      limited(`segment:${sessionId}`, 240);
+      const input = segmentInput.parse(await body(req));
+      if (cs.status !== "live") throw new HttpError(409, "This caption session has ended. Start a new one.");
+      if (!input.isFinal) {
+        partials.set(sessionId, input.text);
+        return json(res, { partial: input.text });
+      }
+      partials.delete(sessionId);
+      return json(res, store.addSegment(sessionId, input.text, input.startMs, input.endMs), 201);
+    }
+    if (action === "end" && method === "POST") {
+      partials.delete(sessionId);
+      return json(res, store.endCaptionSession(sessionId));
+    }
+    if (action === "credentials" && method === "POST")
+      // Browser credentials must come from a Cognito identity pool scoped to
+      // streaming only (docs/CLASSCAPTION.md); never from server keys.
+      throw new HttpError(503, "Amazon Transcribe streaming is not configured. Use browser speech recognition or typed captions.");
+  }
+  if (path.startsWith("/api/demo/")) {
+    teacher(req);
+    if (path === "/api/demo/state" && method === "GET") return json(res, demoState(store, audio));
+    if (path === "/api/demo/start" && method === "POST") {
+      await startDemo(store);
+      return json(res, demoState(store, audio));
+    }
+    if (path === "/api/demo/reset" && method === "POST") {
+      resetDemo(store);
+      return json(res, demoState(store, audio));
+    }
   }
   throw new HttpError(404, "This resource was not found.");
 }
@@ -452,6 +717,6 @@ const server = createServer(async (req, res) => {
 });
 server.listen(port, "127.0.0.1", () =>
   console.log(
-    `SahPaath local classroom: http://127.0.0.1:${port}\nAWS is not connected. Local teacher password: ${process.env.SAHPAATH_TEACHER_PASSWORD ? "(configured in environment)" : "sahpaath-local"}`,
+    `SahPaath local classroom: http://127.0.0.1:${port}\n${cloudConfig(process.env) ? "Step Functions processing configured (live verification required)." : readAwsConfig(process.env) ? "Direct AWS processing configured (live verification required)." : "AWS is not connected."} Local teacher password: ${process.env.SAHPAATH_TEACHER_PASSWORD ? "(configured in environment)" : "sahpaath-local"}`,
   ),
 );

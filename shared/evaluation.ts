@@ -101,3 +101,21 @@ export function evaluate(input?: unknown) {
         : r.phraseSentAt - r.phraseStartedAt,
   };
 }
+const summaryValue = z.number().nullable();
+export const summarySchema = z
+  .object({
+    runs: z.number().int().nonnegative(),
+    source: z.literal("actual_run"),
+    labelRecall: summaryValue,
+    relationPrecision: summaryValue,
+    relationRecall: summaryValue,
+    flowAccuracy: summaryValue,
+    groundingRate: summaryValue,
+    teacherCorrectionRate: summaryValue,
+    processingMs: summaryValue,
+    captionWordErrorRate: summaryValue,
+    technicalTermAccuracy: summaryValue,
+    timeToPhraseMs: summaryValue,
+  })
+  .strict();
+export type Summary = z.infer<typeof summarySchema>;

@@ -67,6 +67,22 @@ export default function MapEditor({
               />
             </label>
             <label>
+              Also known as (comma separated)
+              <input
+                maxLength={480}
+                value={p.aliases.join(", ")}
+                onChange={(e) =>
+                  update((m) => {
+                    m.parts[i].aliases = e.target.value
+                      .split(",")
+                      .map((a) => a.trim())
+                      .filter(Boolean)
+                      .slice(0, 10);
+                  })
+                }
+              />
+            </label>
+            <label>
               Description
               <textarea
                 required
@@ -142,6 +158,8 @@ export default function MapEditor({
               labelId: `l-${id}`,
               name: "New label",
               description: "Describe this part.",
+              aliases: [],
+              modelConfidence: null,
               state: "needs_review",
               reviewNote: "",
             });
@@ -230,6 +248,7 @@ export default function MapEditor({
               to: m.parts[1].id,
               kind: "flows_to",
               evidence: [],
+              modelConfidence: null,
               state: "needs_review",
               reviewNote: "",
             }),

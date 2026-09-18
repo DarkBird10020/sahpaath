@@ -4,6 +4,13 @@ No AWS OCR, model, or live-caption accuracy run has been performed. The evaluati
 
 `npm run evaluate` runs `scripts/evaluate.ts`. With no run file it emits nulls. An optional JSON file must satisfy `runSchema` in `shared/evaluation.ts`, including `source: actual_run`, run ID and timestamp. The marker is a provenance declaration, not proof that supplied data is genuine. Retain original inputs, raw outputs and timing logs when collecting a real run.
 
+Recorded runs and summary API:
+
+- `POST /api/evaluation/runs` (teacher session) validates a run against `runSchema`, stores it and returns its metrics.
+- `GET /api/evaluation/summary` (signed-in session) averages every recorded run per metric and returns null for metrics no run has measured. The Evidence page shows these values; with no recorded runs every metric reads **Not measured yet.**
+
+Ground truth for the five self-created demonstration diagrams (expected labels, relationships and reading order) lives in `shared/fixtures.ts` as `groundTruth`, ready for comparison when the real OCR + model pipeline runs. Fixture lessons created in the UI do not record evaluation runs: authored proposals are demo simulations, and simulated data must never populate metrics.
+
 Metrics:
 
 - Label recall: intersection of expected and observed label sets / expected count.
