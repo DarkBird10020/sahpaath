@@ -88,7 +88,9 @@ test("scroll story supports chapter navigation, reduced motion and narrow screen
   ).toBeVisible();
   await scan(page, "story-vocabulary");
   await page.screenshot({ path: "docs/reports/story-depth.png" });
-  await page.getByRole("button", { name: "Turn off depth & scroll" }).click();
+  // Depth and scroll are always on: there is no switch to turn them off.
+  await expect(page.getByRole("button", { name: /depth & scroll/ })).toHaveCount(0);
+  await expect(page.locator(".diagram-story")).not.toHaveClass(/story-flat/);
   await page.getByRole("button", { name: "03 Teacher review" }).focus();
   await page.keyboard.press("Enter");
   await expect(
@@ -97,9 +99,8 @@ test("scroll story supports chapter navigation, reduced motion and narrow screen
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/");
-  await expect(
-    page.getByRole("button", { name: "Enable depth & scroll" }),
-  ).toHaveAttribute("aria-pressed", "true");
+  // Reduced motion and phones get the simple step-by-step layout.
+  await expect(page.locator(".diagram-story")).toHaveClass(/story-flat/);
   await page.getByRole("button", { name: "06 Ask" }).click();
   await expect(
     page.getByRole("heading", { name: "Ask without speaking." }),
@@ -572,10 +573,11 @@ test("calm motion setting stops scroll animation and pins nothing", async ({ pag
   await page.getByRole("button", { name: "Accessibility settings" }).click();
   await page.getByLabel("Calm motion (stop scroll animations)").check();
   await expect(page.locator("html")).not.toHaveClass(/motion-on/);
-  await expect(page.getByRole("button", { name: "Enable depth & scroll" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(page.locator(".diagram-story")).toHaveClass(/story-flat/);
+  // Calm motion also turns off the scroll-stepped sections: nothing is pinned or hidden.
+  await expect(page.locator(".scroll-pin.is-pinned")).toHaveCount(0);
+  await expect(page.locator(".trust-steps li.is-pending")).toHaveCount(0);
+  await expect(page.locator(".wl.is-lit")).toHaveCount(8);
   await expect(page.getByRole("heading", { name: "Same lesson. Your way in." })).toBeVisible();
   await scan(page, "landing-calm");
 });
