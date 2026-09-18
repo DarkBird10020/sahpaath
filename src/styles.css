@@ -2845,3 +2845,8 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+.watch-layout video.audio-only {
+  height: 54px;
+  background: none;
+}
