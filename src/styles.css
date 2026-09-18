@@ -2557,3 +2557,227 @@ code {
 .status.demo-waiting {
   color: var(--amber);
 }
+
+.license-needed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  border: 1px solid #e0c58a;
+  background: #fff8e9;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.license-needed strong {
+  flex-basis: 100%;
+  color: var(--amber);
+}
+.license-needed label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 200px;
+}
+
+/* AI helper pages: explain a diagram, watch & listen, ask AI, explain a word */
+.ai-page h1 {
+  margin: 4px 0 8px;
+}
+.ai-intro {
+  max-width: 68ch;
+  font-size: 1.05rem;
+}
+.ai-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 18px 20px;
+  margin: 18px 0;
+}
+.ai-upload label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 260px;
+}
+.ai-upload button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ai-progress {
+  color: var(--ink);
+  font-weight: 600;
+}
+.ai-note,
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px dashed #98702b;
+  background: #fff8e9;
+  color: #72510e;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.ai-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 28px;
+  margin: 18px 0;
+}
+.ai-grid figure {
+  margin: 0;
+}
+.ai-grid img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.ai-summary {
+  font-size: 1.15rem;
+}
+.ai-steps li,
+.ai-parts li {
+  margin-bottom: 10px;
+}
+.ai-parts {
+  padding-left: 1.2rem;
+}
+.ai-parts h4 {
+  margin: 0;
+  color: var(--ink);
+}
+.ai-parts p {
+  margin: 4px 0;
+}
+.found {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.found.ok {
+  color: var(--green);
+}
+.found.warn {
+  color: var(--amber);
+}
+.ai-words div {
+  margin-bottom: 8px;
+}
+.ai-words dt {
+  font-weight: 700;
+  color: var(--ink);
+}
+.ai-words dd {
+  margin: 0;
+}
+.ai-answer {
+  border-left: 4px solid var(--ink);
+  background: var(--blue);
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin: 12px 0;
+}
+.ai-answer h3 {
+  margin-top: 0;
+}
+.ai-answer-note {
+  border-left: 3px solid #98702b;
+  background: #fff8e9;
+  padding: 6px 10px;
+  margin: 6px 0;
+  font-size: 0.85rem;
+}
+.word-explainer {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 14px 16px;
+  margin: 16px 0;
+}
+.word-explainer h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.word-explainer label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.word-card {
+  border-top: 1px solid var(--line);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+.word-card h4 {
+  margin: 8px 0 4px;
+  color: var(--ink);
+}
+.watch-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 28px;
+}
+.watch-layout video,
+.watch-layout audio {
+  width: 100%;
+  border-radius: var(--radius);
+  background: #000;
+}
+.watch-layout audio {
+  background: none;
+}
+.caption-now {
+  min-height: 3.6em;
+  margin: 12px 0;
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  background: #10233b;
+  color: #fff;
+  font-size: 1.45rem;
+  line-height: 1.6;
+}
+.caption-now .term {
+  background: #fff3c4;
+  color: #10233b;
+}
+.transcript-list {
+  list-style: none;
+  padding: 0;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.transcript-list button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  padding: 8px 6px;
+  min-height: 44px;
+}
+.transcript-list button[aria-current="true"] {
+  background: var(--blue);
+  font-weight: 600;
+}
+@media (max-width: 860px) {
+  .ai-grid,
+  .watch-layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -119,7 +119,7 @@ export const diagramLabelSchema = z
     text: z.string().trim().min(1).max(120),
     /** 0..100 when produced by OCR (e.g. Textract); null for teacher-entered. */
     confidence: z.number().min(0).max(100).nullable(),
-    source: z.enum(["teacher_entered", "textract", "fixture"]),
+    source: z.enum(["teacher_entered", "textract", "local_ocr", "fixture"]),
     /** Normalized 0..1 geometry for hotspot rendering. */
     x: z.number().min(0).max(1),
     y: z.number().min(0).max(1),

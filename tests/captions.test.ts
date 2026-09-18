@@ -110,7 +110,7 @@ describe("Caption sessions and guided demo", () => {
     expect(status().captions).toBe("done");
     s.addRecord("questions", {
       id: "q1", lessonId, version: 1, conceptId: "part-1", text: "Ask about Pulmonary artery: I don't understand what this does.",
-      sessionCode: "ABC123", createdAt: new Date().toISOString(), status: "queued",
+      sessionCode: "ABC123", createdAt: new Date().toISOString(), status: "queued", aiAnswer: null,
     });
     expect(status()).toMatchObject({ ask: "done", inbox: "waiting" });
     s.setQuestionStatus("q1", "seen");

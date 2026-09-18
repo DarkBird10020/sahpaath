@@ -63,6 +63,7 @@ export default function Student({
   const [custom, setCustom] = useState("");
   const [sent, setSent] = useState("");
   const [mine, setMine] = useState<Question[]>([]);
+  const [aiReply, setAiReply] = useState<{ answer: string; outsideLesson: boolean; model: string } | null>(null);
   useEffect(() => {
     setSelected(lesson?.map.parts[0]?.id || "");
     setError("");
@@ -112,6 +113,29 @@ export default function Student({
   useEffect(() => {
     if (page === "communicate") loadMine();
   }, [page, lesson?.lessonId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // AI tutor: answers from the approved lesson now; the teacher sees it later.
+  async function askAi(text: string) {
+    if (!lesson) return;
+    setError("");
+    setBusy(true);
+    setAiReply(null);
+    try {
+      const result = await api(
+        "/ai/ask",
+        z.object({ question: questionSchema, conceptIds: z.array(z.string()) }),
+        "POST",
+        { lessonId: lesson.lessonId, version: lesson.version, conceptId: part.id, text },
+      );
+      setAiReply(result.question.aiAnswer);
+      setCustom("");
+      loadMine();
+      report("AI answer ready. Your question was also sent to your teacher.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function send(text: string, anchored: boolean) {
     if (!lesson) return;
     setError("");
@@ -384,6 +408,7 @@ export default function Student({
                   {mine.slice(-5).map((q) => (
                     <li key={q.id}>
                       <p>{q.text}</p>
+                      {q.aiAnswer && <p className="small">AI tutor: {q.aiAnswer.answer}</p>}
                       <Status state={`question_${q.status}`} />
                     </li>
                   ))}
@@ -437,8 +462,31 @@ export default function Student({
                   placeholder="What would you like to know?"
                 />
               </label>
-              <button disabled={busy || !custom.trim()}>Send question</button>
+              <div className="button-row">
+                <button disabled={busy || !custom.trim()}>Send to teacher</button>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={busy || !custom.trim()}
+                  onClick={() => void askAi(custom)}
+                >
+                  Ask AI now
+                </button>
+              </div>
             </form>
+            {busy && <p role="status" className="small">The AI tutor is reading your lesson…</p>}
+            {aiReply && (
+              <div className="ai-answer" role="status">
+                <span className="ai-badge">AI tutor ({aiReply.model}), not checked by your teacher</span>
+                <p>{aiReply.answer}</p>
+                <Speak text={aiReply.answer} />
+                <p className="small">
+                  {aiReply.outsideLesson
+                    ? "Part of this answer goes beyond your teacher’s lesson. Your teacher can see it and correct it."
+                    : "Answered from your teacher-approved lesson. Your teacher can also see this answer."}
+                </p>
+              </div>
+            )}
             <small>Anonymous classroom session {session.code}</small>
           </aside>
         </div>

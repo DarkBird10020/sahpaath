@@ -60,6 +60,16 @@ export default function Teacher({
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [questions, setQuestions] = useState<Question[]>([]);
   const [audit, setAudit] = useState<Audit[]>([]);
+  const [engine, setEngine] = useState<{ ocr: string; model: string; standIn: boolean } | null>(null);
+  const [analysing, setAnalysing] = useState(false);
+  useEffect(() => {
+    void api(
+      "/health",
+      z.object({ analysis: z.object({ ocr: z.string(), model: z.string(), standIn: z.boolean() }).nullable().optional() }),
+    )
+      .then((h) => setEngine(h.analysis ?? null))
+      .catch(() => setEngine(null));
+  }, []);
   const lesson = lessons.find((l) => l.id === selected);
   const processing = lesson?.stages.some((s) => s.name === "Analysis" && s.status === "waiting");
   useEffect(() => {
@@ -82,13 +92,13 @@ export default function Teacher({
         (i) => !["teacher_approved", "rejected"].includes(i.state),
       ).length
     : 0;
-  async function run(action: () => Promise<unknown>, message: string) {
+  async function run(action: () => Promise<unknown>, message: string | (() => string)) {
     setBusy(true);
     setError("");
     try {
       await action();
       await onChange();
-      report(message);
+      report(typeof message === "string" ? message : message());
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -147,62 +157,7 @@ export default function Teacher({
       </div>
       <div className="teacher-layout">
         <aside className="lesson-sidebar">
-          <h2>
-            Your lessons <span>{lessons.length}</span>
-          </h2>
-          <div className="lesson-links">
-            {lessons.map((l) => (
-              <button
-                key={l.id}
-                className={selected === l.id ? "active" : ""}
-                onClick={() => onSelect(l.id)}
-              >
-                <BookGlyph />
-                <span>
-                  <strong>{l.title}</strong>
-                  <small>
-                    {l.status === "published"
-                      ? `Published · version ${l.version}`
-                      : "Draft · teacher review"}
-                  </small>
-                </span>
-                <ChevronRight aria-hidden="true" size={16} />
-              </button>
-            ))}
-          </div>
-          <DemoGuide onOpen={onSelect} onChange={onChange} report={report} />
-          <form
-            className="create-lesson"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void addFixture();
-            }}
-          >
-            <h3>Start with a lesson</h3>
-            <label>
-              Self-created diagram
-              <select
-                value={fixture}
-                onChange={(e) => setFixture(e.target.value)}
-              >
-                {fixtures.map((f) => (
-                  <option value={f.id} key={f.id}>
-                    {f.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button className="primary" disabled={busy}>
-              <Plus size={17} aria-hidden="true" />
-              Use sample diagram
-            </button>
-            <span className="simulation">Demo simulation</span>
-            <p className="small">
-              Authored labels and proposals. Real review and publishing. No
-              model has been called.
-            </p>
-          </form>
-          <details className="upload-panel">
+          <details className="upload-panel" open={!!engine}>
             <summary>
               <Upload size={17} aria-hidden="true" />
               Upload your diagram
@@ -221,11 +176,7 @@ export default function Teacher({
               <input
                 type="file"
                 accept="image/png,image/jpeg"
-                disabled={
-                  busy ||
-                  !title.trim() ||
-                  !source.licenseName.trim()
-                }
+                disabled={busy}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
@@ -233,6 +184,8 @@ export default function Teacher({
                     setError("Choose a PNG or JPEG image smaller than 5 MB.");
                     return;
                   }
+                  let uploaded = "Original uploaded. Add visible labels in the manual map editor.";
+                  if (engine) setAnalysing(true);
                   void run(async () => {
                     const buffer = await file.arrayBuffer();
                     const bytes = new Uint8Array(buffer);
@@ -240,14 +193,23 @@ export default function Teacher({
                     for (let i = 0; i < bytes.length; i++)
                       binary += String.fromCharCode(bytes[i]);
                     const created = await api("/upload", lessonSchema, "POST", {
-                      title,
+                      // The file name is used when no title was typed.
+                      title: title.trim() || file.name.replace(/.[^.]+$/, "").slice(0, 140) || "Uploaded diagram",
                       mime: file.type,
                       base64: btoa(binary),
-                      license: source,
+                      license: source.licenseName.trim() ? source : null,
                     });
                     onSelect(created.id);
-                    setEditor(true);
-                  }, "Original uploaded. Add visible labels in the manual map editor.");
+                    const proposed = created.map.parts.length > 0;
+                    setEditor(!proposed);
+                    if (proposed)
+                      uploaded = `Analysis ready: ${created.map.parts.length} proposed parts from ${created.map.labels.length} OCR labels. Review every item.`;
+                    else if (created.map.labels.length)
+                      uploaded = "OCR labels found, but no proposal. Build the map in the manual editor.";
+                  }, () => uploaded).finally(() => {
+                    setAnalysing(false);
+                    e.target.value = "";
+                  });
                 }}
               />
             </label>
@@ -310,11 +272,85 @@ export default function Teacher({
                 recorded.
               </p>
             </div>
-            <p className="small">
-              OCR is not connected. You can add labels, parts, relationships and
-              reading order by hand.
-            </p>
+            {!source.licenseName.trim() && (
+              <p className="small upload-hint">
+                You can upload now. Add the license before publishing to students.
+              </p>
+            )}
+            {analysing && (
+              <p className="small" role="status">
+                Analysing your diagram… this usually takes 5–15 seconds.
+              </p>
+            )}
+            {engine ? (
+              <p className="small">
+                Diagram analysis: {engine.ocr} + {engine.model}
+                {engine.standIn ? " (test stand-in, not AWS)" : ""}. You review
+                every label, part and relationship before students see it.
+              </p>
+            ) : (
+              <p className="small">
+                OCR is not connected. You can add labels, parts, relationships
+                and reading order by hand.
+              </p>
+            )}
           </details>
+          <h2>
+            Your lessons <span>{lessons.length}</span>
+          </h2>
+          <div className="lesson-links">
+            {lessons.map((l) => (
+              <button
+                key={l.id}
+                className={selected === l.id ? "active" : ""}
+                onClick={() => onSelect(l.id)}
+              >
+                <BookGlyph />
+                <span>
+                  <strong>{l.title}</strong>
+                  <small>
+                    {l.status === "published"
+                      ? `Published · version ${l.version}`
+                      : "Draft · teacher review"}
+                  </small>
+                </span>
+                <ChevronRight aria-hidden="true" size={16} />
+              </button>
+            ))}
+          </div>
+          <DemoGuide onOpen={onSelect} onChange={onChange} report={report} />
+          <form
+            className="create-lesson"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void addFixture();
+            }}
+          >
+            <h3>Start with a lesson</h3>
+            <label>
+              Self-created diagram
+              <select
+                value={fixture}
+                onChange={(e) => setFixture(e.target.value)}
+              >
+                {fixtures.map((f) => (
+                  <option value={f.id} key={f.id}>
+                    {f.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="primary" disabled={busy}>
+              <Plus size={17} aria-hidden="true" />
+              Use sample diagram
+            </button>
+            <span className="simulation">Demo simulation</span>
+            <p className="small">
+              Authored labels and proposals. Real review and publishing. No
+              model has been called.
+              {engine && " To run the AI on a diagram, upload an image below."}
+            </p>
+          </form>
         </aside>
         <section className="lesson-main" aria-label="Lesson review">
           {error && (
@@ -418,6 +454,49 @@ export default function Teacher({
                       </button>
                     </div>
                   ) : (
+                    <>
+                    {!lesson.license && (
+                      <form
+                        className="license-needed"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void run(
+                            () =>
+                              api(`/lessons/${lesson.id}/license`, lessonSchema, "PUT", {
+                                revision: lesson.revision,
+                                license: source,
+                              }),
+                            "License recorded. Publishing is now possible once every item is decided.",
+                          );
+                        }}
+                      >
+                        <strong>Add the diagram’s license before publishing.</strong>
+                        <label>
+                          License
+                          <input
+                            required
+                            maxLength={120}
+                            value={source.licenseName}
+                            placeholder="e.g. CC BY 4.0, Self-created"
+                            onChange={(e) => setSource({ ...source, licenseName: e.target.value })}
+                          />
+                        </label>
+                        <label>
+                          Source type
+                          <select
+                            value={source.sourceType}
+                            onChange={(e) =>
+                              setSource({ ...source, sourceType: e.target.value as typeof source.sourceType })
+                            }
+                          >
+                            <option value="self_created">Self-created</option>
+                            <option value="open_license">Openly licensed</option>
+                            <option value="ncert_section_52">NCERT · Copyright Act s.52(1)(zb)</option>
+                          </select>
+                        </label>
+                        <button disabled={busy || !source.licenseName.trim()}>Save license</button>
+                      </form>
+                    )}
                     <div className="review-banner">
                       <div>
                         <strong>{pending} items need your decision</strong>
@@ -434,6 +513,7 @@ export default function Teacher({
                         {editor ? "Close editor" : "Edit map"}
                       </button>
                     </div>
+                    </>
                   )}
                   {editor && lesson.status !== "published" && (
                     <MapEditor
@@ -483,7 +563,11 @@ export default function Teacher({
                                 {l.id} ·{" "}
                                 {l.source === "demo_fixture"
                                   ? "Demo simulation"
-                                  : "Teacher entered"}
+                                  : l.source === "textract"
+                                    ? "Textract OCR"
+                                    : l.source === "local_ocr"
+                                      ? "Local OCR (test stand-in)"
+                                      : "Teacher entered"}
                               </span>
                               <small>
                                 OCR confidence:{" "}
@@ -830,6 +914,12 @@ export default function Teacher({
                             {q.status}
                           </span>
                           <p>{q.text}</p>
+                          {q.aiAnswer && (
+                            <div className="ai-answer-note">
+                              <strong>AI tutor answered the student{q.aiAnswer.outsideLesson ? " (goes beyond this lesson, please check)" : ""}:</strong>{" "}
+                              {q.aiAnswer.answer}
+                            </div>
+                          )}
                           {q.conceptId && (
                             <small>
                               Concept:{" "}

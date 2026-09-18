@@ -27,6 +27,7 @@ export function proposalToStructure(
   proposal: DiagramProposal,
   labels: OcrLabel[],
   existingStructure?: DiagramStructure,
+  labelSource: "textract" | "local_ocr" = "textract",
 ): ProposalConversion {
   const issues: ProposalConversion["issues"] = [];
   const labelById = new Map(labels.map((l) => [l.labelId, l]));
@@ -41,7 +42,7 @@ export function proposalToStructure(
 
   const partByModelId = new Map<string, string | null>();
   const structure: DiagramStructure = {
-    labels: [...(existingStructure?.labels ?? []), ...candidates.map(toDomainLabel)],
+    labels: [...(existingStructure?.labels ?? []), ...candidates.map((l) => toDomainLabel(l, labelSource))],
     parts: [...(existingStructure?.parts ?? [])],
     relations: [...(existingStructure?.relations ?? [])],
     flows: [...(existingStructure?.flows ?? [])],
@@ -192,12 +193,12 @@ export function proposalToStructure(
   return { structure: parsed.data, issues, ok: structure.parts.length > 0 };
 }
 
-function toDomainLabel(l: OcrLabel): DiagramLabel {
+function toDomainLabel(l: OcrLabel, source: "textract" | "local_ocr"): DiagramLabel {
   return {
     labelId: l.labelId,
     text: l.text,
     confidence: l.confidence,
-    source: "textract" as const,
+    source,
     x: l.x,
     y: l.y,
   };
