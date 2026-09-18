@@ -287,7 +287,10 @@ describe("LessonService", () => {
       decision: "reject", note: "Not needed", expectedVersionCreatedAt: draft4.version.createdAt,
     });
     expect(rejected.structure.parts[1].state).toBe("rejected");
-    expect(rejected.structure.relations[0].state).toBe("needs_review");
+    // Cascade: the dependent relation is auto-rejected with the part so the
+    // draft never strands unfixable dangling errors.
+    expect(rejected.structure.relations[0].state).toBe("rejected");
+    expect(rejected.structure.relations[0].reviewNote).toContain("Auto-rejected");
     void repos;
   });
 
