@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Anatomy, DiagramDefs, parts } from "./heartDiagram";
 import "./landing.css";
-import { Words } from "./motion";
+import { useScrollSteps, Words } from "./motion";
 
 const transcript =
   "Today we are following blood from the Right ventricle to the Pulmonary artery. The Pulmonary artery carries blood toward the Lungs. After gas exchange, blood returns through the Pulmonary veins to the Left atrium.";
@@ -43,14 +43,17 @@ function announcementFor(i: number) {
 export default function LandingSections({
   onExplore,
   onTeacher,
+  motion = true,
 }: {
   onExplore: () => void;
   onTeacher: () => void;
+  /** Scroll-driven steps; off with Calm motion or OS reduced motion. */
+  motion?: boolean;
 }) {
   return (
     <>
-      <Playground />
-      <TrustPipeline />
+      <Playground motion={motion} />
+      <TrustPipeline motion={motion} />
       <section className="finale" aria-labelledby="finale-heading">
         <div className="finale-grid" data-drift style={{ "--py": 120 } as CSSProperties} aria-hidden="true" />
         <p className="finale-kicker" data-reveal="wipe">
@@ -77,14 +80,47 @@ export default function LandingSections({
           </button>
         </div>
       </section>
+      <Wordmark motion={motion} />
     </>
   );
 }
 
+const WORD = "SAHPAATH";
+/** Closing wordmark: letters light up one by one as it scrolls into view, all at once on hover. */
+function Wordmark({ motion }: { motion: boolean }) {
+  const root = useRef<HTMLElement>(null);
+  const { progress } = useScrollSteps(root, WORD.length, motion, false);
+  const lit = motion ? Math.round(progress * WORD.length) : WORD.length;
+  const dot = Math.min(2, Math.floor((lit / WORD.length) * 3 - 0.001));
+  return (
+    <section ref={root} className="wordmark" aria-label="SahPaath">
+      <div className="wordmark-dots" aria-hidden="true">
+        {[0, 1, 2].map((i) => (
+          <span key={i} className={i === Math.max(0, dot) ? "is-on" : ""} />
+        ))}
+      </div>
+      <p className="wordmark-letters" aria-hidden="true">
+        {[...WORD].map((letter, i) => (
+          <span key={i} className={`wl ${i < lit ? "is-lit" : ""}`} style={{ "--i": i } as CSSProperties}>
+            {letter}
+          </span>
+        ))}
+      </p>
+      <p className="wordmark-line">Same lesson. Your way in.</p>
+    </section>
+  );
+}
+
 /** Hands-on demo of the three pathways around one shared term. Runs entirely in the browser. */
-function Playground() {
+function Playground({ motion }: { motion: boolean }) {
   const [tab, setTab] = useState<Tab>("explore");
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
+  const outer = useRef<HTMLElement>(null);
+  const scroll = useScrollSteps(outer, parts.length, motion && tab === "explore");
+  // Scrolling changes the part only when it reaches a new step, and a click wins
+  // while the page settles (clicking can scroll the card into view).
+  const lastScrollStep = useRef(-1);
+  const keepChoice = useRef(0);
   const [term, setTerm] = useState<number | null>(null);
   const [anchor, setAnchor] = useState(1);
   const [phrase, setPhrase] = useState<string | null>(null);
@@ -124,16 +160,34 @@ function Playground() {
     speechSynthesis.speak(utterance);
   }
 
-  function goTo(i: number) {
+  function goTo(i: number, fromClick = false) {
+    if (fromClick) keepChoice.current = performance.now() + 900;
     setStep(i);
     if (speaking) speechSynthesis.cancel();
     setSpeaking(false);
   }
 
+  useEffect(() => {
+    if (!motion || tab !== "explore") return;
+    if (performance.now() < keepChoice.current || lastScrollStep.current === scroll.step) {
+      lastScrollStep.current = scroll.step;
+      return;
+    }
+    lastScrollStep.current = scroll.step;
+    goTo(scroll.step);
+  }, [scroll.step, tab, motion]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const termPieces = transcript.split(new RegExp(`(${parts.map((p) => p.name).join("|")})`, "g"));
 
   return (
-    <section id="try-it" className="playground" aria-labelledby="try-heading">
+    <section
+      ref={outer}
+      id="try-it"
+      className={`scroll-pin ${scroll.pinned ? "is-pinned" : ""}`}
+      style={{ "--steps": parts.length } as CSSProperties}
+      aria-labelledby="try-heading"
+    >
+    <div className="playground">
       <div className="play-intro">
         <p className="land-kicker" data-reveal="wipe">
           Hands on · runs in your browser
@@ -179,10 +233,11 @@ function Playground() {
             </svg>
             <div className="explore-controls">
               <h3>Blood through the pulmonary circuit</h3>
+              {scroll.pinned && <p className="scroll-hint">Keep scrolling to follow the blood, part by part.</p>}
               <ol className="part-list">
                 {parts.map((part, i) => (
                   <li key={part.name}>
-                    <button aria-current={step === i ? "step" : undefined} onClick={() => goTo(i)}>
+                    <button aria-current={step === i ? "step" : undefined} onClick={() => goTo(i, true)}>
                       <span aria-hidden="true">{i + 1}</span>
                       {part.name}
                     </button>
@@ -193,10 +248,10 @@ function Playground() {
                 {announcementFor(step)}
               </p>
               <div className="explore-actions">
-                <button onClick={() => goTo(Math.max(0, step - 1))} disabled={step === 0}>
+                <button onClick={() => goTo(Math.max(0, step - 1), true)} disabled={step === 0}>
                   <ArrowLeft size={16} aria-hidden="true" /> Previous part
                 </button>
-                <button onClick={() => goTo(Math.min(parts.length - 1, step + 1))} disabled={step === parts.length - 1}>
+                <button onClick={() => goTo(Math.min(parts.length - 1, step + 1), true)} disabled={step === parts.length - 1}>
                   Next part <ArrowRight size={16} aria-hidden="true" />
                 </button>
                 {canSpeak && (
@@ -253,6 +308,8 @@ function Playground() {
                   <div className="term-actions">
                     <button
                       onClick={() => {
+                        // Keep this part when the explore panel opens.
+                        keepChoice.current = performance.now() + 900;
                         setStep(term);
                         setTab("explore");
                       }}
@@ -314,6 +371,7 @@ function Playground() {
           </div>
         )}
       </div>
+    </div>
     </section>
   );
 }
@@ -349,12 +407,36 @@ const pipeline = [
   },
 ];
 
-function TrustPipeline() {
+function TrustPipeline({ motion }: { motion: boolean }) {
   const [selected, setSelected] = useState(0);
+  const outer = useRef<HTMLElement>(null);
+  const scroll = useScrollSteps(outer, pipeline.length, motion);
+  // Scrolling changes the stage only when it reaches a new one, and a click wins
+  // while the page settles (clicking can scroll the card into view).
+  const lastScrollStep = useRef(-1);
+  const keepChoice = useRef(0);
+  useEffect(() => {
+    if (!motion) return;
+    if (performance.now() < keepChoice.current || lastScrollStep.current === scroll.step) {
+      lastScrollStep.current = scroll.step;
+      return;
+    }
+    lastScrollStep.current = scroll.step;
+    setSelected(scroll.step);
+  }, [scroll.step, motion]);
+  const reached = (i: number) => !motion || scroll.progress >= i / pipeline.length;
   const active = pipeline[selected];
   const ActiveIcon = active.icon;
   return (
-    <section id="how-it-works" className="trust-pipeline" aria-labelledby="pipeline-heading">
+    <>
+    <section
+      ref={outer}
+      id="how-it-works"
+      className={`scroll-pin ${scroll.pinned ? "is-pinned" : ""}`}
+      style={{ "--steps": pipeline.length, "--fill": motion ? scroll.progress : 1 } as CSSProperties}
+      aria-labelledby="pipeline-heading"
+    >
+    <div className="trust-pipeline">
       <p className="land-kicker" data-reveal="wipe">
         How it works
       </p>
@@ -362,15 +444,24 @@ function TrustPipeline() {
         <Words text={"Nothing reaches a student\nuntil a teacher says so."} />
       </h2>
       <div className="trust-track">
-        <span className="trust-line" data-reveal="draw" aria-hidden="true" />
+        <span className="trust-line" aria-hidden="true">
+          <span className="trust-line-fill" />
+        </span>
         <ol className="trust-steps">
            {pipeline.map(({ icon: Icon, chip, cls, title, text }, i) => (
-             <li key={title} data-reveal="up" style={{ "--d": i } as CSSProperties}>
+             <li
+               key={title}
+               className={`${reached(i) ? "is-reached" : "is-pending"} ${motion && selected === i ? "is-current" : ""}`}
+               style={{ "--d": i } as CSSProperties}
+             >
                <button
                  className={`trust-step-card ${selected === i ? "is-selected" : ""}`}
                  type="button"
                  aria-pressed={selected === i}
-                 onClick={() => setSelected(i)}
+                 onClick={() => {
+                   keepChoice.current = performance.now() + 900;
+                   setSelected(i);
+                 }}
                >
                  <span className="step-index" aria-hidden="true">
                    {String(i + 1).padStart(2, "0")}
@@ -397,10 +488,15 @@ function TrustPipeline() {
            {selected < 2 ? "Demo simulation · cloud processing is not connected" : "Runs locally · visible in the classroom workspace"}
          </span>
        </aside>
-       <p className="trust-note" data-reveal="up">
+     </div>
+    </section>
+    {/* Outside the pinned area so the timeline fits on one screen. */}
+    <div className="trust-after">
+      <p className="trust-note" data-reveal="up">
         In this local edition, the OCR and AI stages run as a labelled demo simulation. Validation, review,
         publishing and the shared vocabulary run for real. AWS is not connected yet.
       </p>
-    </section>
+    </div>
+    </>
   );
 }

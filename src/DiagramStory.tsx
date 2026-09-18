@@ -237,9 +237,6 @@ export default function DiagramStory({
           <span className="story-kicker">
             <ScanText size={16} aria-hidden="true" /> A real diagram, step by step
           </span>
-          <button onClick={() => setFlat(!flat)} aria-pressed={flat}>
-            {flat ? "Enable depth & scroll" : "Turn off depth & scroll"}
-          </button>
         </div>
 
         <div className="story-copy">

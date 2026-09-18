@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useState, type CSSProperties, type RefObject } from "react";
 import "./motion.css";
 
 /**
@@ -77,4 +77,60 @@ export function Words({ text, timed = false, delay = 0 }: { text: string; timed?
       </span>
     </>
   );
+}
+
+/**
+ * Scroll progress (0..1) through a section and the step it points at.
+ * With `pin`, the section is tall and its content is sticky, so scrolling
+ * moves through the steps while the content stays on screen. Pinning is only
+ * used on screens tall and wide enough for the content; otherwise progress
+ * follows the section as it passes through the viewport.
+ */
+export function useScrollSteps(ref: RefObject<HTMLElement | null>, steps: number, enabled: boolean, pin = true) {
+  const [state, setState] = useState({ progress: enabled ? 0 : 1, step: enabled ? 0 : steps - 1, pinned: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!enabled || !el) {
+      setState({ progress: 1, step: steps - 1, pinned: false });
+      return;
+    }
+    let frame = 0;
+    let last = "";
+    const tick = () => {
+      // Pin only when the content fits on screen; otherwise its bottom would be hidden.
+      // Measured from the content itself, so pinned padding and min-height do not matter.
+      const inner = el.firstElementChild as HTMLElement | null;
+      let contentHeight = 0;
+      if (inner && inner.children.length) {
+        const boxes = [...inner.children].map((c) => c.getBoundingClientRect());
+        contentHeight = Math.max(...boxes.map((r) => r.bottom)) - Math.min(...boxes.map((r) => r.top));
+      }
+      const pinned = pin && innerWidth > 900 && contentHeight + 100 <= innerHeight;
+      const rect = el.getBoundingClientRect();
+      const raw = pinned
+        ? -rect.top / Math.max(1, rect.height - innerHeight)
+        : (innerHeight * 0.85 - rect.top) / Math.max(1, rect.height * 0.9);
+      // A little dwell at both ends, so the first and last steps are readable.
+      const progress = Math.min(1, Math.max(0, (raw - 0.04) / 0.9));
+      const q = Math.round(progress * 200) / 200;
+      const step = Math.min(steps - 1, Math.floor(q * steps));
+      const key = `${q}|${pinned}`;
+      if (key !== last) {
+        last = key;
+        setState({ progress: q, step, pinned });
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    const io = new IntersectionObserver(([entry]) => {
+      cancelAnimationFrame(frame);
+      if (entry.isIntersecting) frame = requestAnimationFrame(tick);
+    });
+    io.observe(el);
+    frame = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frame);
+      io.disconnect();
+    };
+  }, [ref, steps, enabled, pin]);
+  return state;
 }
