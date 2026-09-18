@@ -320,6 +320,103 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
   }
   session(req);
   if (path === "/api/fixtures" && method === "GET") return json(res, fixtures);
+  // Diagram search for teachers: find a labelled diagram image on Wikimedia
+  // Commons and upload it directly, without leaving the workspace. Results are
+  // metadata only; the image is fetched server-side when the teacher picks one
+  // and then flows through the ordinary upload pipeline (analysis, review,
+  // license, publish) exactly like a manual file upload.
+  if (path === "/api/diagram-search" && method === "GET") {
+    teacher(req);
+    const q = (url.searchParams.get("q") || "").trim().slice(0, 120);
+    if (!q) return json(res, { results: [] });
+    const endpoint =
+      `https://en.wikipedia.org/w/api.php?action=query&generator=search` +
+      `&gsrsearch=${encodeURIComponent(`${q} filetype:bitmap`)}&gsrlimit=12` +
+      `&gsrnamespace=6&prop=imageinfo&iiprop=url|mime|size|extmetadata` +
+      `&iiurlwidth=320&format=json&origin=*&redirects=1`;
+    const upstream = await fetch(endpoint, {
+      headers: { "User-Agent": "SahPaath local classroom (education demo)" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!upstream.ok)
+      throw new HttpError(502, "Diagram search is unavailable right now. Try again or upload a file.");
+    const data = (await upstream.json()) as {
+      query?: {
+        pages?: Record<
+          string,
+          {
+            title?: string;
+            imageinfo?: Array<{
+              url?: string;
+              thumburl?: string;
+              mime?: string;
+              width?: number;
+              height?: number;
+              extmetadata?: {
+                LicenseShortName?: { value?: string };
+                Artist?: { value?: string };
+              };
+            }>;
+          }
+        >;
+      };
+    };
+    const results = Object.values(data.query?.pages ?? {})
+      .map((p) => {
+        const info = p.imageinfo?.[0];
+        if (!info?.url || !info.mime || !/image\/(png|jpeg)/.test(info.mime))
+          return null;
+        const raw = info.extmetadata?.LicenseShortName?.value ?? "";
+        const licenseName = raw.replace(/<[^>]+>/g, "").trim() || "See source";
+        const attribution =
+          (info.extmetadata?.Artist?.value ?? "").replace(/<[^>]+>/g, "").trim();
+        return {
+          title: (p.title ?? "").replace(/^File:/, "").replace(/\.(png|jpe?g)$/i, ""),
+          imageUrl: info.url,
+          thumbUrl: info.thumburl || info.url,
+          mime: info.mime as "image/png" | "image/jpeg",
+          width: info.width ?? null,
+          height: info.height ?? null,
+          licenseName,
+          attribution: attribution.slice(0, 300),
+          sourceUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent((p.title ?? "").replace(/ /g, "_"))}`,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .slice(0, 9);
+    return json(res, { results });
+  }
+  // Fetch the chosen search result's image bytes server-side (browsers cannot
+  // fetch cross-origin image bytes directly) and hand them back as base64,
+  // ready to POST into the existing /api/upload route.
+  if (path === "/api/diagram-search/fetch" && method === "POST") {
+    teacher(req);
+    const input = z
+      .object({ imageUrl: z.string().url().max(1000) })
+      .strict()
+      .parse(await body(req));
+    let parsed: URL;
+    try {
+      parsed = new URL(input.imageUrl);
+    } catch {
+      throw new HttpError(400, "Invalid image URL.");
+    }
+    if (parsed.protocol !== "https:" || !parsed.hostname.endsWith(".wikimedia.org"))
+      throw new HttpError(400, "Only Wikimedia Commons image URLs are supported.");
+    const upstream = await fetch(parsed, {
+      headers: { "User-Agent": "SahPaath local classroom (education demo)" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!upstream.ok)
+      throw new HttpError(502, "Could not download that image. Pick another result or upload a file.");
+    const bytes = Buffer.from(await upstream.arrayBuffer());
+    if (bytes.byteLength === 0 || bytes.byteLength > 5_000_000)
+      throw new HttpError(400, "The image is larger than the 5 MB upload limit. Pick another result.");
+    const mime = imageType(bytes);
+    if (mime !== "image/png" && mime !== "image/jpeg")
+      throw new HttpError(400, "Only PNG or JPEG images are supported.");
+    return json(res, { mime, base64: Buffer.from(bytes).toString("base64") });
+  }
   if (path === "/api/lessons" && method === "GET") {
     teacher(req);
     return json(res, store.list());
@@ -543,7 +640,18 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       const previous =
         items(lesson.map).find((i) => i.id === input.itemId)?.state ??
         "missing";
-      lesson.map = decide(lesson.map, input.itemId, input.decision, input.note);
+      try {
+        lesson.map = decide(
+          lesson.map,
+          input.itemId,
+          input.decision,
+          input.note,
+        );
+      } catch (error) {
+        // A refused decision (missing review note, structural error, illegal
+        // transition) is the request's fault, not a save conflict.
+        throw new HttpError(400, (error as Error).message);
+      }
       const saved = store.save(lesson, input.revision);
       store.audit(
         lessonId,

@@ -258,6 +258,9 @@ export function decide(
   const map = structuredClone(input);
   const item = items(map).find((i) => i.id === itemId);
   if (!item) throw new Error("Content item not found.");
+  // Relations and flows carry "from"; parts carry "name". Capture the item
+  // kind before the state machine below overwrites item.state.
+  const itemStateWasPart = !("from" in item) && !("steps" in item);
   if (decision === "approve") {
     // Evaluate rejected items as active before approving: rejection must not bypass validation.
     assertTrustTransition(item.state, "ai_proposed");
@@ -288,6 +291,36 @@ export function decide(
       other.state = "needs_review";
       other.reviewNote = "";
     }
+  // A rejected part must not strand its dependent relationships and flows as
+  // unfixable errors: "dangling" / "broken_step" blocks approving the dependant
+  // itself, so a teacher could otherwise never finish reviewing the map after
+  // rejecting one concept. Cascade-reject active dependants (and note the
+  // reason), mirroring the invalidate-approved cascade above. Approving the
+  // part again later is always possible via the rejected → ai_proposed path.
+  if (itemStateWasPart) {
+    const dependentIds = new Set([
+      ...map.relations
+        .filter(
+          (r) =>
+            r.state !== "rejected" && (r.from === itemId || r.to === itemId),
+        )
+        .map((r) => r.id),
+      ...map.flows
+        .filter(
+          (f) => f.state !== "rejected" && f.steps.includes(itemId),
+        )
+        .map((f) => f.id),
+    ]);
+    const rejectedPart = map.parts.find((p) => p.id === itemId);
+    for (const other of items(map))
+      if (dependentIds.has(other.id)) {
+        assertTrustTransition(other.state, "rejected");
+        other.state = "rejected";
+        other.reviewNote =
+          other.reviewNote ||
+          `Auto-rejected: it references “${rejectedPart?.name ?? itemId}”, which was rejected.`;
+      }
+  }
   return revalidate(map);
 }
 
@@ -315,7 +348,11 @@ export function publishSnapshot(lesson: Lesson, now: string): Published {
   const approved = <T extends { state: string }>(xs: T[]) =>
     xs.filter((x) => x.state === "teacher_approved");
   const parts = approved(lesson.map.parts);
-  const labelIds = new Set(parts.map((p) => p.labelId));
+  // Keep every label an approved part still cites — its primary labelId AND
+  // any extra evidence labels. Filtering on labelId alone dropped evidence
+  // labels, leaving published parts with invalid evidence that failed
+  // studentSerialize's structural re-check right after a successful publish.
+  const labelIds = new Set(parts.flatMap((p) => [p.labelId, ...(p.evidence ?? [])]));
   const map = {
     labels: lesson.map.labels.filter((l) => labelIds.has(l.id)),
     parts,
