@@ -22,6 +22,8 @@ export default defineConfig({
       SAHPAATH_PIPELINE_MODE: "local",
       SAHPAATH_AWS_USE_ROLE: "false",
       AWS_BEDROCK_MODEL_ID: "",
+      // Keep browser tests offline: never call Gemini even if .env has a key.
+      GEMINI_API_KEY: "",
       SAHPAATH_TEACHER_PASSWORD: "e2e-teacher",
     },
     timeout: 60000,

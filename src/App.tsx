@@ -16,6 +16,8 @@ import LandingSections from "./LandingSections";
 import { useMotion } from "./motion";
 import Teacher from "./Teacher";
 import Student from "./Student";
+import ExplainDiagram from "./ExplainDiagram";
+import WatchListen from "./WatchListen";
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -31,6 +33,8 @@ export default function App() {
   const [loginRole, setLoginRole] = useState<"teacher" | "student">("teacher");
   const [password, setPassword] = useState("");
   const [summary, setSummary] = useState<Summary | null>(null);
+  // Where to go after logging in, when a visitor picked a page first.
+  const [afterLogin, setAfterLogin] = useState<string | null>(null);
   const [preferences, setPreferences] = useState(() => {
     try {
       return z
@@ -111,8 +115,10 @@ export default function App() {
   function go(next: string) {
     setPage(next);
     setError("");
-    if (!["home", "login", "evaluation"].includes(next) && !session)
+    if (!["home", "login", "evaluation"].includes(next) && !session) {
+      setAfterLogin(next);
       setPage("login");
+    }
     setTimeout(() => main.current?.focus(), 0);
   }
   async function login() {
@@ -125,7 +131,8 @@ export default function App() {
       });
       setSession(s);
       setPassword("");
-      setPage(loginRole === "teacher" ? "teacher" : "explore");
+      setPage(afterLogin && (afterLogin !== "teacher" || loginRole === "teacher") ? afterLogin : loginRole === "teacher" ? "teacher" : "explore");
+      setAfterLogin(null);
       setAnnouncement("Local classroom opened.");
     } catch (e) {
       setError((e as Error).message);
@@ -187,12 +194,40 @@ export default function App() {
               >
                 Communicate
               </button>
+              <button
+                aria-current={page === "diagram" ? "page" : undefined}
+                onClick={() => go("diagram")}
+              >
+                Explain a diagram
+              </button>
+              <button
+                aria-current={page === "watch" ? "page" : undefined}
+                onClick={() => go("watch")}
+              >
+                Watch &amp; listen
+              </button>
             </>
           ) : (
             <>
               <a href="#how-it-works" onClick={() => setPage("home")}>
                 How it works
               </a>
+              <button
+                onClick={() => {
+                  setLoginRole("student");
+                  go("diagram");
+                }}
+              >
+                Explain a diagram
+              </button>
+              <button
+                onClick={() => {
+                  setLoginRole("student");
+                  go("watch");
+                }}
+              >
+                Watch &amp; listen
+              </button>
               <button onClick={() => go("evaluation")}>Our approach</button>
             </>
           )}
@@ -393,6 +428,8 @@ export default function App() {
             spatial={preferences.spatial}
           />
         )}
+        {page === "diagram" && session && <ExplainDiagram report={setAnnouncement} />}
+        {page === "watch" && session && <WatchListen report={setAnnouncement} />}
         {page === "evaluation" && (
           <section className="workspace evaluation">
             <span className="section-kicker">Evidence before claims</span>

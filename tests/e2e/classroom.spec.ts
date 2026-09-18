@@ -682,3 +682,36 @@ test("one login and one logout cover both the classroom API and the v1 backend",
   expect((await student.post("/api/v1/lessons", { data: { title: "Nope" } })).status()).toBe(403);
   await student.dispose();
 });
+
+test("AI helper pages work for students, explain clearly when AI is off, and load subtitles offline", async ({ page }) => {
+  // A logged-out visitor picks "Explain a diagram" and lands there after logging in.
+  await page.goto("/");
+  await page.getByRole("button", { name: "Explain a diagram" }).click();
+  await expect(page.getByLabel("I’m a student")).toBeChecked();
+  await page.getByRole("button", { name: "Enter classroom" }).click();
+  await expect(page.getByRole("heading", { name: "Explain any diagram." })).toBeVisible();
+  const picker = page.locator(".ai-upload input[type=file]");
+  await expect(picker).toBeEnabled();
+  await picker.setInputFiles("docs/samples/heart-flow-test.png");
+  await page.getByRole("button", { name: "Explain this diagram" }).click();
+  // Browser tests never call Gemini, so the page must say what to do.
+  await expect(page.getByRole("alert")).toContainText("AI help is not configured");
+  await scan(page, "explain-diagram");
+
+  await page.getByRole("button", { name: "Watch & listen" }).click();
+  await page.locator(".ai-upload input[type=file]").first().setInputFiles("docs/samples/heart-lecture-test.wav");
+  const vtt = "WEBVTT\n\n00:00.000 --> 00:02.900\nBlood leaves the right ventricle.\n\n00:03.400 --> 00:07.400\nIt travels to the lungs.\n";
+  await page.getByLabel("Or load subtitles (.vtt or .srt), free and instant").setInputFiles({ name: "lecture.vtt", mimeType: "text/vtt", buffer: Buffer.from(vtt) });
+  await expect(page.locator(".transcript-list li")).toHaveCount(2);
+  await page.locator(".transcript-list button").nth(1).click();
+  await expect(page.locator(".caption-now")).toContainText("It travels to the lungs.");
+  await scan(page, "watch-listen");
+});
+
+test("teacher can choose a diagram file without filling the form first", async ({ page }) => {
+  await teacherLogin(page);
+  const details = page.locator(".upload-panel");
+  if (!(await details.getAttribute("open"))) await page.getByText("Upload your diagram", { exact: true }).click();
+  await expect(page.locator(".upload-panel input[type=file]")).toBeEnabled();
+  await expect(page.getByText("You can upload now. Add the license before publishing to students.")).toBeVisible();
+});

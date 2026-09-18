@@ -144,7 +144,7 @@ export class DiagramSenseService {
       const labels = normalizeOcr(detections);
       stages.ocr = {
         status: "completed",
-        detail: `${labels.length} label${labels.length === 1 ? "" : "s"} normalized from the image.`,
+        detail: `${labels.length} label${labels.length === 1 ? "" : "s"} normalized from the image${this.textract?.engine ? ` by ${this.textract.engine}` : ""}.`,
         simulation: ocrSimulation,
         durationMs: Math.round(performance.now() - tOcr),
       };
@@ -186,13 +186,13 @@ export class DiagramSenseService {
       }
       stages.proposal = {
         status: "completed",
-        detail: `Proposal accepted (${PROMPT_VERSION}): ${proposal.parts.length} part(s) proposed.`,
+        detail: `Proposal accepted (${PROMPT_VERSION}${this.bedrock?.engine ? `, ${this.bedrock.engine}` : ""}): ${proposal.parts.length} part(s) proposed.`,
         simulation: false,
         durationMs: Math.round(performance.now() - tProp),
       };
 
       // -------------------------- Conversion --------------------------
-      const conversion = proposalToStructure(proposal, labels, draft.structure);
+      const conversion = proposalToStructure(proposal, labels, draft.structure, this.textract?.labelSource ?? "textract");
       if (!conversion.ok)
         return await fail("The proposal could not be grounded in the OCR labels.", { stage: "proposal" });
 

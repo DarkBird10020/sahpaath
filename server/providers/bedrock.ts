@@ -35,6 +35,8 @@ export class BedrockProposalError extends Error {
 }
 
 export interface BedrockProposalClient {
+  /** Human-readable engine name for stage details. */
+  readonly engine?: string;
   propose(input: { imageBytes: Buffer; mimeType: "image/png" | "image/jpeg"; ocrLabels: OcrLabel[]; lessonTitle: string }): Promise<DiagramProposal>;
 }
 

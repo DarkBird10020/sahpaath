@@ -4,6 +4,7 @@ import { ArrowRight, MessageCircle, Search, Download } from "lucide-react";
 import { api } from "./api";
 import CaptionCorrection from "./CaptionCorrection";
 import LiveCaptions from "./LiveCaptions";
+import WordExplainer from "./WordExplainer";
 import {
   captionSchema,
   termSurfacesSchema,
@@ -299,6 +300,7 @@ export default function Captions({
             Ask about this <MessageCircle size={16} aria-hidden="true" />
           </button>
         </div>
+        <WordExplainer lessonId={lesson.lessonId} />
         <SurfaceList term={term.name} published surfaces={surfaces ?? undefined} />
         <h3>All approved terms</h3>
         <ul className="glossary-list">

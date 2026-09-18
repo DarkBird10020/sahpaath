@@ -14,7 +14,7 @@ export const labelSchema = z
     id,
     text: text.max(120),
     confidence: z.number().min(0).max(100).nullable(),
-    source: z.enum(["demo_fixture", "teacher_entered", "textract"]),
+    source: z.enum(["demo_fixture", "teacher_entered", "textract", "local_ocr"]),
     x: z.number().min(0).max(1),
     y: z.number().min(0).max(1),
     boundingBox: z.object({
@@ -212,6 +212,11 @@ export const questionSchema = z.object({
   sessionCode: z.string(),
   createdAt: z.string(),
   status: questionStatusSchema.default("queued"),
+  /** What the AI tutor told the student, kept so the teacher can check it. */
+  aiAnswer: z
+    .object({ answer: z.string(), outsideLesson: z.boolean(), model: z.string() })
+    .nullable()
+    .default(null),
 });
 export const captionSchema = z.object({
   id,
@@ -323,7 +328,8 @@ export const uploadSchema = z
     title: text.max(140),
     mime: z.enum(["image/png", "image/jpeg"]),
     base64: z.string().min(1).max(6_700_000),
-    license: licenseSchema,
+    // Optional here: publishSnapshot blocks publishing until a license exists.
+    license: licenseSchema.nullable().default(null),
   })
   .strict();
 export const questionInput = z
