@@ -706,11 +706,11 @@
     padding-right: 16px;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .play-diagram .vessel-body {
-    transition: none;
-  }
+/* Calm motion chosen in settings: hold everything still. */
+:root:not(.motion-on) .play-diagram .vessel-body {
+  transition: none;
 }
+
 
 /* ---------- Scroll-pinned sections: scrolling moves through the steps ---------- */
 .scroll-pin.is-pinned {
@@ -850,13 +850,13 @@
   text-transform: uppercase;
   color: #c3ccd8;
 }
-@media (prefers-reduced-motion: reduce) {
-  .wl,
-  .trust-steps li .trust-step-card,
-  .trust-line-fill {
-    transition: none;
-  }
+/* Calm motion chosen in settings: hold everything still. */
+:root:not(.motion-on) .wl,
+:root:not(.motion-on) .trust-steps li .trust-step-card,
+:root:not(.motion-on) .trust-line-fill {
+  transition: none;
 }
+
 
 /* Desktop: the timeline is laid out to fit one screen so it can stay pinned. */
 @media (min-width: 901px) {
