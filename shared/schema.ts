@@ -218,6 +218,12 @@ export const questionSchema = z.object({
     .nullable()
     .default(null),
 });
+/** One row of the teacher's cross-lesson question inbox. */
+export const inboxRowSchema = questionSchema.extend({
+  lessonTitle: z.string(),
+  conceptName: z.string().nullable(),
+});
+export type InboxRow = z.infer<typeof inboxRowSchema>;
 export const captionSchema = z.object({
   id,
   lessonId: id,
