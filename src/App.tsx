@@ -322,6 +322,7 @@ export default function App() {
               }}
             />
             <LandingSections
+              motion={motion}
               onExplore={() => {
                 setLoginRole("student");
                 go("explore");
