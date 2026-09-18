@@ -39,3 +39,17 @@ Current ledger, 2026-09-18: live balance **553.5 credits**, down **44 credits** 
 - The first scroll-world image job was submitted at 1 credit. Final actual spending and balance will be recorded after rendering; do not infer usage from estimates.
 - Before generation: inspect actual available capability and price, record a bounded asset plan, reserve credits for necessary revisions, and do not exceed the verified remaining balance or the user's 598-credit ceiling.
 - No educational facts or fake UI screenshots may be generated. Record every generated asset in CREDITS.md.
+
+## Higgsfield spend, 2026-09-18 (Claude Code session)
+
+Balances read from `higgsfield workspace list`, not estimated.
+
+| Step | Credits | Outcome |
+|---|---|---|
+| 2 test stills (GPT Image 2 2K, Nano Banana Pro 4K) | 10.5 | Architectural miniature style; rejected by the user as off-context |
+| 4 style-locked scene stills (GPT Image 2 2K) | 26 | Same; rejected |
+| 5 dive clips, Kling 3.0 **4K** mode, 5 s each | 150 | Rejected: scenes did not show the product. 4K was unnecessary (1080p "pro" mode is 8.75 credits) |
+| 5 student scene stills (GPT Image 2 2K medium) | 10 | Rejected: user wants the product's teaching power shown, not students' disabilities |
+| **Total** | **196.5** | 549.5 → 353 |
+
+None of these assets ship. The landing story (`src/DiagramStory.tsx`) is built in code from the heart demo fixture and uses no generated imagery.

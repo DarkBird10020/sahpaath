@@ -1,17 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import {
-  ArrowRight,
-  BookOpen,
-  Check,
-  AudioLines,
-  MessageCircle,
-  Network,
-  Settings2,
-  LogOut,
-  ShieldCheck,
-  GraduationCap,
-} from "lucide-react";
+import { ArrowRight, BookOpen, Settings2, LogOut, GraduationCap } from "lucide-react";
 import { api, okSchema } from "./api";
 import {
   lessonSchema,
@@ -21,8 +10,8 @@ import {
   type Published,
   type Session,
 } from "../shared/schema";
-import LessonJourney from "./LessonJourney";
-import PathwayEmblem from "./PathwayEmblem";
+import DiagramStory from "./DiagramStory";
+import LandingSections from "./LandingSections";
 import Teacher from "./Teacher";
 import Student from "./Student";
 
@@ -267,149 +256,19 @@ export default function App() {
         )}
         {page === "home" && (
           <>
-            <LessonJourney
+            <DiagramStory
               onExplore={() => {
                 setLoginRole("student");
                 go("explore");
               }}
             />
-            <section className="trust-ribbon" aria-label="Our approach">
-              <span>
-                <Check size={18} aria-hidden="true" />
-                Teacher approval comes first
-              </span>
-              <span>
-                <Network size={18} aria-hidden="true" />
-                One vocabulary, everywhere
-              </span>
-              <span>
-                <BookOpen size={18} aria-hidden="true" />
-                Keyboard & text pathways
-              </span>
-            </section>
-            <section id="how-it-works" className="how-section">
-              <div className="section-heading">
-                <span className="section-kicker">
-                  A thoughtful path from lesson to learner
-                </span>
-                <h2>
-                  Different ways in.
-                  <br />
-                  The same place to belong.
-                </h2>
-                <p>
-                  A diagram becomes a structured lesson. Your teacher checks the
-                  concepts. You choose how to engage.
-                </p>
-              </div>
-              <div className="pathway-features">
-                <article>
-                  <PathwayEmblem kind="explore" />
-                  <h3>Explore, one concept at a time.</h3>
-                  <p>
-                    Follow a diagram through its parts and connections. Read,
-                    listen, or use the keyboard to move at your pace.
-                  </p>
-                  <button onClick={() => go("explore")}>
-                    Open Diagram Explorer{" "}
-                    <ArrowRight size={17} aria-hidden="true" />
-                  </button>
-                </article>
-                <article>
-                  <PathwayEmblem kind="read" />
-                  <h3>Keep the words within reach.</h3>
-                  <p>
-                    Read classroom transcripts and open a definition without
-                    losing your place. Every highlighted term belongs to the
-                    approved lesson.
-                  </p>
-                  <button onClick={() => go("captions")}>
-                    Open ClassCaption{" "}
-                    <ArrowRight size={17} aria-hidden="true" />
-                  </button>
-                </article>
-                <article>
-                  <PathwayEmblem kind="ask" />
-                  <h3>A question is a way in, too.</h3>
-                  <p>
-                    Ask for a little more time, a repeat, or help with a
-                    specific concept. Your words arrive with their context.
-                  </p>
-                  <button onClick={() => go("communicate")}>
-                    Open Communication{" "}
-                    <ArrowRight size={17} aria-hidden="true" />
-                  </button>
-                </article>
-              </div>
-            </section>
-            <section className="teacher-story">
-              <div>
-                <span className="section-kicker">
-                  Built around a teacher’s judgment
-                </span>
-                <h2>
-                  Technology proposes.
-                  <br />
-                  You make it a lesson.
-                </h2>
-                <p>
-                  A valid structure is just the beginning. Check the source,
-                  make corrections, and decide what students see. Published
-                  versions stay intact.
-                </p>
-                <button className="primary" onClick={openTeacher}>
-                  Try the teacher workspace{" "}
-                  <ArrowRight size={18} aria-hidden="true" />
-                </button>
-              </div>
-              <div className="trust-example">
-                <span className="small">
-                  A concept, shared across the classroom
-                </span>
-                <div className="example-term">
-                  <span className="status teacher_approved">
-                    <Check size={15} aria-hidden="true" />
-                    Illustrative teacher approval
-                  </span>
-                  <h3>Pulmonary artery</h3>
-                  <p>
-                    One canonical term connects its description, diagram and
-                    student questions.
-                  </p>
-                </div>
-                <div className="example-surfaces">
-                  <span>Explorer</span>
-                  <span>Glossary</span>
-                  <span>Captions</span>
-                  <span>Questions</span>
-                </div>
-                <small>
-                  Illustration of the workflow. Create and approve your own
-                  local lesson to try it.
-                </small>
-              </div>
-            </section>
-            <section className="closing">
-              <img
-                className="classroom-art"
-                src="/assets/shared-classroom.png"
-                width="1344"
-                height="752"
-                loading="lazy"
-                alt=""
-              />
-              <div className="closing-copy">
-                <h2>One lesson. Multiple ways in.</h2>
-                <p>No student left outside the lesson.</p>
-                <button className="primary" onClick={openTeacher}>
-                  Start with a lesson{" "}
-                  <ArrowRight size={18} aria-hidden="true" />
-                </button>
-                <small className="art-credit">
-                  Classroom artwork generated with Higgsfield.
-                </small>
-              </div>
-            </section>
+            <LandingSections
+              onExplore={() => {
+                setLoginRole("student");
+                go("explore");
+              }}
+              onTeacher={openTeacher}
+            />
           </>
         )}
         {page === "login" && (
