@@ -171,7 +171,7 @@ test("teacher repairs, approves, publishes, explores and sends a contextual ques
   });
   await page.getByRole("button", { name: "Attach endpoint labels" }).click();
   const approve = page.getByRole("button", { name: "Approve", exact: true });
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 12; i++) {
     const next = approve.filter({ visible: true }).all();
     const buttons = await next;
     const enabled = [];

@@ -129,6 +129,17 @@ describe("Deterministic trust boundaries", () => {
     lesson.map = m;
     expect(() => publishSnapshot(lesson, "2026-09-19T00:00:00Z")).not.toThrow();
   });
+  it("approving a part leaves its relations and flows alone", () => {
+    // The cascade belongs to rejection only: approving a part used to reject
+    // every relation and flow that mentioned it, so the lesson could never be
+    // published and a teacher's approvals were silently thrown away.
+    const m = decide(fixtureMap("heart", false), "part-1", "approve", "Checked.");
+    expect(m.parts.find((p) => p.id === "part-1")!.state).toBe("teacher_approved");
+    expect(m.relations.filter((r) => r.from === "part-1" || r.to === "part-1").map((r) => r.state)).not.toContain(
+      "rejected",
+    );
+    expect(m.flows[0].state).not.toBe("rejected");
+  });
   it("resets every decision after an edit", () => {
     const m = revalidate(approveAll(fixtureMap("heart", false)), true);
     expect(items(m).some((i) => i.state === "teacher_approved")).toBe(false);
