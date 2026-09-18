@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/",
-  "timestamp": "2026-09-18T17:18:39.389Z",
+  "timestamp": "2026-09-18T17:51:38.348Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",

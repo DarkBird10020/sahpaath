@@ -17,7 +17,7 @@ import { z } from "zod";
 import { Store } from "./store";
 import { awsEngine, createLesson, imageType } from "./providers";
 import { GeminiProposalAdapter, LocalOcrAdapter, localOcrLines, localTestEngine, readGeminiConfig } from "./local-ai";
-import { answerFromLesson, explainDiagram, explainWord, transcribeMedia } from "./tutor";
+import { answerAboutDiagram, answerFromLesson, diagramContextSchema, explainDiagram, explainWord, transcribeMedia } from "./tutor";
 import { readAwsConfig } from "./aws";
 import { AudioService, pollySynthesizer, readPollyConfig } from "./audio";
 import { demoState, resetDemo, startDemo } from "./demo";
@@ -689,9 +689,34 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     const bytes = Buffer.from(input.base64, "base64");
     if (imageType(bytes) !== input.mime) throw new HttpError(400, "Choose a PNG or JPEG image below 5 MB.");
     const config = needTutor();
+    // OCR runs once and feeds both the explanation and the explorer map.
+    let ocrRun: ReturnType<typeof localOcrLines> | null = null;
+    const ocr = () => (ocrRun ??= localOcrLines(bytes, ocrCacheDir));
     try {
-      return json(res, { ...(await explainDiagram(config, { bytes, mime: input.mime }, () => localOcrLines(bytes, ocrCacheDir), input.question || null)), model: config.model });
+      const [explanation, structure] = await Promise.all([
+        explainDiagram(config, { bytes, mime: input.mime }, ocr, input.question || null),
+        // The explorer map is optional: if it fails, the explanation still opens.
+        localTestEngine(config, ocrCacheDir, fetch, () => ocr()).run({ bytes, mime: input.mime }).catch(() => null),
+      ]);
+      return json(res, {
+        ...explanation,
+        model: config.model,
+        map: structure?.ok ? structure.map : null,
+        mapFindings: structure?.ok ? structure.issues.length : null,
+      });
     } catch (error) { aiFailure(error); }
+  }
+  if (path === "/api/ai/ask-diagram" && method === "POST") {
+    const s = session(req);
+    limited(`ai-ask:${s.code}`, 20);
+    const input = z.object({
+      context: diagramContextSchema,
+      question: z.string().trim().min(1).max(300),
+      focus: z.string().trim().max(120).nullable().default(null),
+    }).strict().parse(await body(req));
+    const config = needTutor();
+    try { return json(res, { answer: await answerAboutDiagram(config, input.context, input.question, input.focus), model: config.model }); }
+    catch (error) { aiFailure(error); }
   }
   if (path === "/api/ai/ask" && method === "POST") {
     const s = session(req);

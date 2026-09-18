@@ -2781,3 +2781,67 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+.ai-overview {
+  margin: 16px 0;
+}
+.ai-overview h2 {
+  margin: 8px 0;
+}
+.ask-part {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin-top: 18px;
+}
+.ask-part label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 220px;
+}
+.ask-part button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Uploaded diagrams in the AI explorer: visible numbered markers. */
+.diagram.show-spots .hotspot {
+  opacity: 1;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgba(22, 59, 105, 0.85);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.diagram.show-spots .hotspot.selected {
+  background: #b8432c;
+  outline: 3px solid #ffd27a;
+  z-index: 1;
+}
+.explorer-layout.ai-explorer {
+  grid-template-columns: 240px minmax(300px, 1fr) minmax(320px, 1.1fr);
+}
+@media (max-width: 1100px) {
+  .explorer-layout.ai-explorer {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+  .explorer-layout.ai-explorer .student-diagram {
+    grid-column: 1 / -1;
+  }
+  .explorer-layout.ai-explorer .student-diagram .diagram {
+    max-width: none;
+  }
+}
+@media (max-width: 760px) {
+  .explorer-layout.ai-explorer {
+    grid-template-columns: 1fr;
+  }
+}
