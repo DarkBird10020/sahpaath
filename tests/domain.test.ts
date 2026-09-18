@@ -105,8 +105,29 @@ describe("Deterministic trust boundaries", () => {
       "reject",
       "Removed",
     );
-    expect(m.relations[0].state).toBe("needs_review");
-    expect(m.flows[0].state).toBe("needs_review");
+    // Dependent relation/flow are cascade-rejected so the map stays finishable.
+    expect(m.relations[0].state).toBe("rejected");
+    expect(m.relations[0].reviewNote).toContain("Auto-rejected");
+    expect(m.flows[0].state).toBe("rejected");
+  });
+  it("rejecting a part leaves no unfixable dangling errors blocking publish", async () => {
+    // Regression: a rejected part used to strand dependent relations/flows as
+    // "dangling" errors — unapprovable and unrejectable via the UI cascade —
+    // deadlocking the publish button.
+    const lesson = await createLesson("heart");
+    const full = fixtureMap("heart", false);
+    let m = full;
+    for (const item of items(full).filter((i) => i.id !== "part-1"))
+      m = decide(m, item.id, "approve", "Checked.");
+    m = decide(m, "part-1", "reject", "Not in this lesson");
+    expect(validateMap(m).some((i) => i.severity === "error")).toBe(false);
+    expect(
+      items(m).every((i) =>
+        ["teacher_approved", "rejected"].includes(i.state),
+      ),
+    ).toBe(true);
+    lesson.map = m;
+    expect(() => publishSnapshot(lesson, "2026-09-19T00:00:00Z")).not.toThrow();
   });
   it("resets every decision after an edit", () => {
     const m = revalidate(approveAll(fixtureMap("heart", false)), true);
