@@ -693,7 +693,7 @@ test("AI helper pages work for students, explain clearly when AI is off, and loa
   const picker = page.locator(".ai-upload input[type=file]");
   await expect(picker).toBeEnabled();
   await picker.setInputFiles("docs/samples/heart-flow-test.png");
-  await page.getByRole("button", { name: "Explain this diagram" }).click();
+  await page.getByRole("button", { name: "Open in diagram explorer" }).click();
   // Browser tests never call Gemini, so the page must say what to do.
   await expect(page.getByRole("alert")).toContainText("AI help is not configured");
   await scan(page, "explain-diagram");

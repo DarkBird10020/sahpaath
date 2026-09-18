@@ -53,17 +53,24 @@ export function Diagram({
   selected,
   onSelect,
   image,
+  imageSrc,
+  showSpots = false,
 }: {
   map: DiagramMap;
   selected?: string;
   onSelect?: (id: string) => void;
   image?: string | null;
+  /** A local picture (e.g. a learner's upload) instead of a stored lesson image. */
+  imageSrc?: string;
+  /** Always show numbered markers (they otherwise appear on hover/focus). */
+  showSpots?: boolean;
 }) {
   const [imageError, setImageError] = useState(false);
-  useEffect(() => setImageError(false), [image]);
+  useEffect(() => setImageError(false), [image, imageSrc]);
+  const src = imageSrc ?? (image ? `/api/images/${image}` : null);
   return (
-    <div className={`diagram ${image ? "original" : ""}`}>
-      {image ? (
+    <div className={`diagram ${src ? "original" : ""} ${showSpots ? "show-spots" : ""}`}>
+      {src ? (
         imageError ? (
           <div className="empty" role="alert">
             <p>
@@ -75,7 +82,7 @@ export function Diagram({
         ) : (
           <img
             onError={() => setImageError(true)}
-            src={`/api/images/${image}`}
+            src={src}
             alt="Original teacher-uploaded diagram. Its reviewed text equivalent is alongside."
           />
         )
@@ -165,8 +172,17 @@ export function Diagram({
             <button
               key={p.id}
               className={`hotspot ${selected === p.id ? "selected" : ""}`}
-              style={{ left: `${l.x * 100}%`, top: `${l.y * 100}%` }}
+              style={
+                // Visible markers sit just left of the label so its text stays readable.
+                // Labels at the far left get the marker on their right instead.
+                showSpots && l.boundingBox
+                  ? l.boundingBox.left > 0.08
+                    ? { left: `${l.boundingBox.left * 100}%`, top: `${l.y * 100}%`, transform: "translate(-115%, -50%)" }
+                    : { left: `${(l.boundingBox.left + l.boundingBox.width) * 100}%`, top: `${l.y * 100}%`, transform: "translate(15%, -50%)" }
+                  : { left: `${l.x * 100}%`, top: `${l.y * 100}%` }
+              }
               aria-label={`Locate ${p.name}`}
+              aria-pressed={showSpots ? selected === p.id : undefined}
               onClick={() => onSelect(p.id)}
             >
               {index + 1}
@@ -351,7 +367,7 @@ export function ConceptTree({
   selected,
   onSelect,
 }: {
-  lesson: Published;
+  lesson: Pick<Published, "title"> & { map: { parts: { id: string; name: string }[] } };
   selected: string;
   onSelect: (id: string) => void;
 }) {
