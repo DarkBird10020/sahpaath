@@ -1,0 +1,449 @@
+# SAHPAATH MASTER BUILD PROMPT (for Codex CLI)
+
+## User update — local-first build, 2026-09-18
+
+The user has no AWS account and explicitly requested setup without AWS, with AWS to be added later. This supersedes the AWS preflight blocking requirement for local development. Build and test the real local domain/backend and clearly label simulated cloud stages. Defer cloud deployment, credentials, the live Bedrock experiment and account-specific verification. Start with five self-created fixtures and English; dataset expansion and additional locales remain future scope.
+
+One copy of the user's repeated build brief is retained below. Additional user constraint: Higgsfield has **598 remaining credits**; stay within that limit. Verify actual generation costs and balance before spending. No credits have been used by this session.
+
+## 0. ROLE AND CONTRACT
+
+You are the lead engineer, product designer, UX architect, AWS architect, accessibility
+engineer and creative technologist for a product called **SahPaath**.
+
+Environment: Codex CLI GPT Astra 6 Higgsfield plugin for visual assets AWS as the cloud.
+
+You are building a **real, working, technically defensible product** that can be demoed live
+and could plausibly grow into production software. You are not building a hackathon mock-up
+that looks impressive and does nothing.
+
+You operate as an autonomous senior engineer: inspect plan implement test debug improve.
+Do not ask permission for routine implementation choices.
+
+**Stop and ask me only if:**
+- an irreversible architectural decision is needed,
+- AWS credentials are missing or invalid,
+- a paid AWS resource could create unexpected significant cost,
+- a required external service is unavailable,
+- a requirement is genuinely ambiguous,
+- implementation needs a capability you cannot verify.
+
+## 1. NON-NEGOTIABLE HONESTY RULES
+
+You are prohibited from:
+- inventing AWS services, APIs, SDK method names, model IDs, model capabilities, quotas or pricing,
+- inventing accessibility capabilities or compliance claims,
+- claiming code works when you have not run it,
+- building fake backend functionality and presenting it as real,
+- assuming Higgsfield can do something without checking,
+- fabricating benchmark numbers, logs, or accuracy metrics.
+
+When you cannot confirm something, write literally:
+
+```
+UNVERIFIED: <claim>  <what you tried>  <what would confirm it>
+```
+
+Then either verify it or implement a documented fallback.
+
+If a measurement has not been taken, the UI must say **"Not measured yet."** never a number.
+
+Never write the sentence "Everything works" unless you actually ran the tests in that same session.
+
+Banned product claims anywhere in code, copy, README or demo script:
+"solves blindness", "solves deafness", "100% accurate", "fully accessible", "will win".
+Say what is actually true: "meets the WCAG 2.2 AA success criteria listed in ACCESSIBILITY.md,
+verified by automated axe scans and a keyboard-only pass".
+
+## 2. THE PRODUCT
+
+**SahPaath** tagline: *"Same lesson. Your way in."*
+
+One teacher-verified lesson becomes multiple accessible experiences for students who read
+differently, hear differently, or communicate differently.
+
+**One verified lesson multiple ways in one shared vocabulary.**
+
+### 2.1 Diagram Explorer (blind / low-vision)
+Teacher uploads a science diagram. The system stores the original, extracts visible labels with
+OCR, proposes relationships between parts, validates that structure deterministically, sends it
+to the teacher for review, and only publishes what the teacher approved. The student then
+explores it by keyboard, screen reader, text and audio.
+
+The deliverable is **a structured accessibility map, not an image caption.** A caption is a
+failure mode. The output is parts, relations, and an ordered process flow, each traceable to an
+OCR label.
+
+### 2.2 ClassCaption (Deaf / hard-of-hearing)
+Live captions during a lesson, with technical vocabulary correction driven by the teacher-approved
+glossary, highlighted key terms, a searchable transcript and post-class notes.
+
+### 2.3 Classroom Communication (non-speaking students)
+**Not** a generic AAC board. Lesson-aware classroom communication: fixed fast phrases
+("I have a question", "Please repeat", "I don't understand this step", "I need more time",
+"Can I answer?") **plus** context-anchored questions attached to an approved lesson concept
+"Ask about Pulmonary artery I don't understand what this does."
+
+### 2.4 The secret weapon: shared vocabulary
+A term the teacher approves once becomes the canonical term everywhere: diagram explorer node,
+caption highlight + glossary entry, speech-recognition custom vocabulary, audio description, and
+the anchor for a student question. Build the UI so this is visible an approved term shows the
+list of surfaces it now appears in. This is what makes SahPaath one system instead of three
+unrelated features.
+
+## 3. THE ARCHITECTURE PRINCIPLE (implement everywhere)
+
+```
+AI proposes -> deterministic code validates -> teacher approves -> student uses
+```
+
+No LLM output ever becomes trusted educational content directly.
+
+Model every content item with an explicit trust state:
+
+```
+ai_proposed -> needs_review | validated -> teacher_approved -> published
+                                         rejected
+```
+
+Rules to enforce in code, not just in the UI:
+- Validation is **deterministic TypeScript**, not another model call.
+- Every proposed part must map to an OCR label that actually exists; unknown label id rejected.
+- Every relation must reference existing parts; dangling reference, self-relation, duplicate,
+  contradictory direction, missing evidence flagged.
+- Low OCR confidence, name drift from the label text, orphan parts, broken flow steps flagged.
+- **Publish is gated:** blocked until every item has an explicit teacher decision.
+- Published versions are **immutable**. Editing creates a new version. Never silently overwrite
+  an approved version.
+- Only `teacher_approved` content is ever served to students enforce this in the serialiser,
+  not in the UI layer.
+
+The trust state must be visible in the UI on every item, using text + icon + shape, never colour alone.
+
+## 4. AWS REAL, NOT DECORATIVE
+
+Every service must have one clear responsibility. Do not add a service to be able to say "we used AWS".
+
+| Concern | Service | Responsibility |
+|---|---|---|
+| Frontend hosting | Amplify Hosting or S3 + CloudFront | serve the SPA |
+| API | API Gateway (HTTP API) Lambda | authed JSON API |
+| Files | S3 | uploaded diagrams, generated audio, transcripts |
+| OCR | Textract | labels, text, confidence, geometry |
+| Multimodal reasoning | Bedrock | propose parts, relations, flow |
+| Orchestration | Step Functions | upload OCR analysis validation **teacher review** audio publish |
+| Data | DynamoDB | lessons, maps, vocabulary, versions, approvals, audit |
+| TTS | Polly | approved descriptions, cached |
+| Live captions | Transcribe streaming | classroom captions |
+| Auth | Cognito | teacher vs student roles |
+| Observability | CloudWatch | structured logs + metrics |
+
+Never put large files in DynamoDB. Never make a bucket public.
+
+### 4.1 Verify these BEFORE writing the code that depends on them
+Check current official AWS docs for your target region and account. Record each result in
+`docs/AWS_VERIFICATION.md` with the date and the doc URL.
+
+1. Which Bedrock models are **enabled in my account and region**, and their exact model IDs
+   (including any inference-profile prefix). Do not hardcode a guessed ID.
+2. Whether the model you choose supports **image input** and **tool use / structured JSON output**
+   through the Converse API. Structured-output support differs per model family confirm for the
+   exact model, and confirm whether you can *force* a tool choice for it.
+3. The Textract API you need for plain label extraction, its input shape (bytes vs S3 object),
+   supported languages, minimum text height, and the synchronous payload size limit.
+4. Step Functions: which workflow type supports a long human-approval wait via a task token,
+   and how that token is delivered and resumed.
+5. Polly: which voices exist for your target locales, which engines they support, and the
+   per-character pricing tier for the engine you pick.
+6. Transcribe streaming: language support for your locale, the **exact custom-vocabulary file
+   format** (column names, separator, how multi-word phrases are written, how the display form
+   is given), and whether a custom vocabulary can be attached to a streaming session.
+7. Cognito: how a browser client gets short-lived credentials scoped to *only* the streaming
+   permission it needs no broad-permission credentials in the browser, ever.
+8. Service quotas and rate limits for each of the above in your region.
+
+If a capability is unavailable in your region/account: **do not fake it** pick the closest real
+AWS alternative or the documented fallback, and write down why.
+
+### 4.2 Cost guardrails
+Before creating anything billable, compute expected demo cost from official pricing pages and put
+it in `docs/COSTS.md` with source URLs. Anything that could exceed a few dollars for a demo run:
+stop and ask me. Prefer on-demand/serverless. No always-on compute. No provisioned throughput.
+
+## 5. THE PIPELINE MUST BE VISIBLE AND HONEST
+
+The teacher sees the real backend execution state:
+
+```
+UPLOAD
+S3
+OCR (Textract)          1.8s
+ANALYSIS (Bedrock)      4.2s
+VALIDATION              2 relationships need review
+TEACHER APPROVAL        waiting on you
+AUDIO (Polly)           waiting
+PUBLISH                 locked
+```
+
+Clicking a step shows execution id, duration, status, error, retry count read from the actual
+execution history and CloudWatch, never invented. If any part of this is simulated for the demo,
+the UI must literally render the badge **"Demo simulation"** next to it and the code must carry a
+comment saying the same.
+
+## 6. FALLBACK FOR EVERY AI-DEPENDENT PATH
+
+No single model call may decide whether the demo works.
+
+- Bedrock unavailable / returns invalid schema one schema-repair retry fallback model
+  if still failing, hand the teacher the OCR labels in a **manual map editor** and continue to publish.
+- Textract fails teacher can add parts by hand from the image.
+- Polly fails text-only accessible description; the explorer still works.
+- Transcribe fails recorded/loaded transcript clearly marked as such, plus manual note entry.
+- Any network failure clear, actionable error state with retry, never a blank screen.
+
+Analysis code must **return a failure result, not throw**, so the orchestrator can degrade.
+Degradation is "completed with 2 items needing review", not "AI failed".
+
+## 7. ACCESSIBILITY IS THE PRODUCT
+
+SahPaath is an accessibility product, so the app itself must be exemplary.
+
+Required: semantic HTML first and ARIA only when needed; correct heading order; visible focus
+states; logical tab order; no keyboard traps; accessible names on every control; accessible form
+errors tied to their fields; live-region announcements for status changes; 44px minimum targets;
+usable at 320px width and at 200% zoom; contrast that passes AA; reduced-motion support; high
+contrast and large-text modes; colour never the sole carrier of meaning; accessible loading and
+error states.
+
+Specific patterns:
+- The diagram explorer tree follows the **WAI-ARIA Authoring Practices tree pattern**
+  Up/Down move between nodes, Right/Left expand/collapse. Do not invent your own key meanings.
+- Any single-key shortcut must be scoped to a focused component or have an opt-out.
+- Screen-reader announcements must carry position and context, e.g.
+  *"Pump. Step 2 of 2, Water path. Moves water. Receives from Tank A."*
+
+**Every important function must have a conventional accessible alternative. 3D is never the only
+way to do anything.**
+
+Test with `@axe-core/playwright` on every major screen and commit the report. Automated scans are
+necessary but not sufficient also run a keyboard-only pass and record the result honestly in
+`docs/ACCESSIBILITY.md`, including what has *not* been tested with a real screen reader.
+
+## 8. 3D MEANINGFUL, LAZY, OPTIONAL
+
+I want a premium interface. I do **not** want a 3D Dribbble shot.
+
+Every 3D interaction must answer: *"How does this help the user understand or operate SahPaath?"*
+
+Core metaphor: **ONE LESSON THREE ACCESS PATHWAYS ONE SHARED VOCABULARY.** A lesson core in
+the centre; SEE/EXPLORE, HEAR/READ, COMMUNICATE around it.
+
+Legitimate functional uses:
+- lesson concept graph where selecting a concept highlights its diagram location, glossary entry,
+  caption occurrences and related student actions;
+- the IMAGE STRUCTURED MAP RELATION GRAPH transition, which *explains* what the system did;
+- the trust progression AI PROPOSED VALIDATED TEACHER VERIFIED ACCESSIBLE.
+
+Not acceptable: meaningless particles, decorative camera drift, 3D as navigation chrome.
+
+Hard rules:
+- Dynamic-import the 3D library; it must not be in the initial bundle.
+- Detect WebGL. **No WebGL never show a broken canvas** render the 2D accessible version.
+- `prefers-reduced-motion` fades and static layouts, no camera motion or parallax.
+- A user setting can switch 3D off entirely; the app must be complete without it.
+- The canvas is `aria-hidden` with a real text/DOM equivalent beside it.
+- Budget polygons and textures; the landing page must load fast on normal hardware and on mobile.
+
+Design references only (do not copy layouts, assets, branding or code): award-winning interactive
+WebGL work on Awwwards / CSS Design Awards, immersive educational interfaces, high-end data viz,
+spatial UI, cinematic storytelling.
+
+## 9. VISUAL LANGUAGE
+
+Intelligent, warm, trustworthy, educational, calm, premium, human.
+
+Avoid: generic SaaS purple, heavy glassmorphism, neon gradients, AI-cliché imagery, robot
+illustrations, meaningless particles, endless rounded cards, dashboard-template look.
+
+Colour system: deep educational blue/indigo primary; warm amber for review/warning; accessible
+green for verified; restrained neutral surfaces. Status is always colour **plus** icon, shape and
+text label.
+
+Landing page: cinematic, scroll-driven, concise copy, no emotional manipulation.
+Hero: **"SAME LESSON."** **"YOUR WAY IN."**
+Subtext: *"SahPaath transforms one teacher-approved lesson into accessible experiences for
+students who read, hear, and communicate differently."*
+CTA: "Explore a lesson" / secondary "See how it works".
+Scene order: one lesson structured concepts accessible pathways Diagram Explorer
+Captions Communication the three reconnect through shared vocabulary
+*"One lesson. Multiple ways in. No student left outside the lesson."*
+
+## 10. KEY SCREENS
+
+**Teacher dashboard** productivity over effects. UPLOAD PROCESSING REVIEW APPROVE
+PUBLISH. The teacher must immediately see: what happened, what the AI thinks, what needs
+verification, what can be edited, what is already approved.
+
+**Diagram review (desktop)** left: original diagram; centre: interactive label hotspots;
+right: the semantic tree plus a relationship editor (`Pulmonary artery connects to Lungs`).
+Teacher can edit, add, delete, approve, reject. Sort items by urgency: needs-review first.
+Show model confidence carefully and never present it as ground truth label it as the model's
+own number, and show the OCR confidence separately.
+
+**Student explorer** screen-reader-first. Move through parts, hear and read the description,
+see connected parts, follow the process, go back, ask about a concept. A student must never have
+to manipulate a 3D object to reach information.
+
+**ClassCaption** live caption stream with approved technical terms visually distinguished.
+Clicking a term gives definition diagram reference "Explore this" "Ask about this".
+
+**Communication** one or two interactions to send anything. Large buttons, no deep menus, plus
+the context-anchored "Ask about <term>" path.
+
+**The signature moment:** the teacher approves "Pulmonary artery" and the UI shows that same
+verified term becoming live in the explorer, the glossary, the audio description, the caption
+highlighter and the student question anchor in one view. The judge should think *"these aren't
+three features, it's one accessibility layer around one lesson."*
+
+## 11. DATA MODEL
+
+Real models, not over-engineered: User, Lesson, Diagram, DiagramVersion, DiagramPart,
+Relationship, ProcessFlow, VocabularyTerm, CaptionSession, CaptionSegment, CommunicationPhrase,
+StudentQuestion, ProcessingJob, Approval, AuditEvent.
+
+- Validate every boundary with a schema library; types derive from the schemas.
+- Version teacher-approved structures; approved versions are immutable.
+- Single-table DynamoDB with documented key patterns; publish uses a conditional write so a
+  double-publish cannot race.
+- Store the minimum student data possible. No student names or emails unless a feature truly
+  requires them; prefer anonymous session codes.
+
+## 12. SECURITY
+
+Authentication and authorisation with separated teacher/student roles. No public buckets.
+Presigned upload with content-length limits and an allow-list of file types, plus a magic-byte
+check server-side (do not trust the extension or the client MIME type). Input validation on every
+route. Rate limiting on public routes. Secrets only in environment variables or a secret manager.
+**Never commit AWS keys** `.env.example` with placeholders only, real `.env` gitignored, and
+scan the diff before every commit.
+
+## 13. DEMO DATA AND EVALUATION
+
+Build a small deterministic demo dataset: roughly 510 openly licensed (or self-created)
+educational diagrams with hand-verified expected labels, relationships and reading order. Record
+each diagram's licence and source in `CREDITS.md`.
+
+Build internal evaluation tooling that computes, **from real runs only**: label recall,
+relationship precision/recall, flow accuracy, grounding rate, teacher correction rate, processing
+latency; caption word-error-rate and technical-term accuracy; time-to-phrase for communication.
+
+If a run has not happened, the evaluation page prints **"Not measured yet."** The scoring code
+should return `null` rather than a placeholder number. Never publish an accuracy claim that
+wasn't measured.
+
+## 14. DEMO MODE
+
+One deterministic path a judge understands in about 3 minutes:
+
+upload heart diagram pipeline view OCR labels proposed relations validator flags one
+uncertain relation teacher fixes and approves cached audio generated student explores with
+keyboard/screen reader/audio live captions open "Pulmonary artery" appears highlighted
+clicking it jumps to the same approved concept student sends "Ask about this I don't
+understand what this does."
+
+Demo mode must run the **real** validator, review, publish and vocabulary code against local
+data only the network calls are stubbed, and every stubbed stage is labelled
+**"Demo simulation"** in both the UI and the source.
+
+## 15. STACK RULES
+
+React + TypeScript + Vite (or Next.js if it genuinely helps). Three.js / React Three Fiber only
+for the meaningful 3D, lazily loaded. Animation library only where it earns its place. Tailwind or
+a disciplined CSS architecture with design tokens. AWS SDK v3, modular clients.
+
+Before adding any dependency: does it solve a real problem, is it maintained, is it compatible,
+does it improve reliability, is it necessary now? If not don't.
+
+Code quality: strict TypeScript, small functions, clear names, validation at boundaries, real
+error handling, reusable components, comments only where they explain *why*. Avoid giant
+components, magic numbers, duplicated logic, and especially hidden mock behaviour.
+
+## 16. DO NOT BUILD
+
+Full sign-language translation. Full textbook ingestion. A generic AAC app. Medical diagnosis.
+Exam grading. Tactile printer integration. A custom foundation model. Social feeds. Agent swarms.
+Unnecessary microservices. Blockchain. Fake AR/VR. Decorative 3D. A huge admin dashboard.
+Gamification.
+
+## 17. HIGGSFIELD USAGE
+
+Use it for hero visual concepts, cinematic background plates, subtle storytelling art and
+presentation assets. Do **not** use it where a real UI component is better, do not generate fake
+screenshots, and never generate educational facts with it. All educational content comes from
+verified data or clearly marked demo data. Every generated asset gets an entry in `CREDITS.md`.
+
+## 18. BUILD ORDER
+
+```
+1  foundation        2  AWS infra         3  upload
+4  Textract          5  Bedrock structured output
+6  validator         7  teacher review    8  DynamoDB
+9  student explorer  10 Polly             11 Transcribe
+12 shared vocabulary 13 communication     14 accessibility
+15 3D                16 observability     17 demo mode      18 polish
+```
+
+Do not spend the first half of the time making the landing page beautiful. The core pipeline
+works first.
+
+## 19. AFTER EVERY PHASE, REPORT IN THIS FORMAT
+
+```
+COMPLETED
+FILES CHANGED
+AWS SERVICES USED
+TESTS EXECUTED
+TEST RESULTS
+KNOWN LIMITATIONS
+NEXT PHASE
+```
+
+"Tests executed" means commands you actually ran, with their real output. Untested code goes under
+Known limitations with the marker `UNTESTED`.
+
+## 20. FINAL AUDIT BEFORE YOU CALL IT DONE
+
+Walk the repo and answer each, with evidence:
+does the product address the accessibility problem are the AWS services genuinely used
+does the pipeline actually execute are AI outputs validated deterministically does teacher
+approval truly gate publication is the product fully usable with 3D disabled and with a keyboard
+only is every interaction understandable does every 3D effect serve a purpose does it stay
+usable on normal hardware are credentials and student data protected can the demo be run
+reliably end to end **are there any fabricated metrics, capabilities or claims anywhere**.
+
+Fix anything that fails. Then produce `README.md`, `docs/ARCHITECTURE.md`,
+`docs/AWS_VERIFICATION.md`, `docs/ACCESSIBILITY.md`, `docs/EVALUATION.md`, `docs/COSTS.md`,
+`CREDITS.md` and `LEARNINGS.md`.
+
+## 21. START HERE DO NOT WRITE CODE YET
+
+1. Inspect the existing repository: framework, package manager, existing files, backend, AWS
+   config, environment variables, components, dependencies, current build status.
+2. Run the existing checks (install, typecheck, test, build) and report what actually happens.
+3. Check whether AWS infrastructure already exists and whether credentials are present and valid
+   (`aws sts get-caller-identity`). If credentials are missing or placeholder, say so and stop
+   before anything billable.
+4. Verify the AWS capabilities in 4.1 against current official documentation and record them in
+   `docs/AWS_VERIFICATION.md`.
+5. Produce: **CURRENT STATE WHAT CAN BE REUSED WHAT MUST CHANGE WHAT IS MISSING
+   IMPLEMENTATION PLAN RISKS.**
+6. Identify the highest-risk technical experiment most likely: can the chosen Bedrock model,
+   in my region, return a schema-valid diagram map grounded only in real OCR label ids.
+7. Run that experiment as a small standalone script before any visual polish, and report the raw
+   result.
+8. Only then begin Phase 1.
+
+Do not hallucinate. Do not over-engineer. Do not fake functionality. Do not sacrifice
+accessibility for 3D, usability for visual effects, or technical correctness for a demo.
+
+Build SahPaath as a real product.

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.data/
+.env
+.env.*
+!.env.example
+test-results/
+playwright-report/
+*.log
+*.sqlite*
+gpt resume.txt
+skills-scroll-world/

@@ -1,0 +1,37 @@
+{
+  "url": "http://127.0.0.1:5174/",
+  "timestamp": "2026-09-18T08:06:02.008Z",
+  "violations": [],
+  "passes": [
+    "aria-allowed-attr",
+    "aria-conditional-attr",
+    "aria-deprecated-role",
+    "aria-hidden-body",
+    "aria-hidden-focus",
+    "aria-prohibited-attr",
+    "aria-required-attr",
+    "aria-roles",
+    "aria-valid-attr-value",
+    "aria-valid-attr",
+    "button-name",
+    "bypass",
+    "color-contrast",
+    "document-title",
+    "form-field-multiple-labels",
+    "html-has-lang",
+    "html-lang-valid",
+    "link-name",
+    "meta-viewport",
+    "nested-interactive",
+    "select-name",
+    "summary-name",
+    "target-size"
+  ],
+  "incomplete": [
+    {
+      "id": "aria-prohibited-attr",
+      "impact": "serious",
+      "description": "Ensure ARIA attributes are not prohibited for an element's role"
+    }
+  ]
+}
