@@ -4,6 +4,8 @@
 
 This is a working **local classroom application**, with an optional real DiagramSense AWS processing backend. SQLite stores classroom drafts, immutable publications, decisions, captions, questions and audit events. Local sample extraction/proposals remain authored fixtures marked **Demo simulation**; unconfigured uploads use the manual editor. The optional cloud path uses private S3, Step Functions, Textract, Bedrock and DynamoDB, and returns drafts for teacher review. See [DiagramSense setup and contracts](docs/CLASSROOM_DIAGRAM_PIPELINE.md). Live cloud execution/model compatibility remain **UNVERIFIED**; live captions use browser speech recognition or typed lines; Amazon Transcribe is not wired.
 
+A second, versioned backend lives under `/api/v1` (layered services, SQLite/memory/DynamoDB repositories, signed upload grants, Textract/Bedrock adapters). It runs alongside the classroom API and shares its login. See the [API contract](docs/API_CONTRACT.md), [v1 diagram pipeline](docs/DIAGRAM_PIPELINE.md), [DynamoDB layout](docs/DYNAMODB.md) and [backend audit](docs/BACKEND_AUDIT.md).
+
 ## Run locally
 
 Requires Node.js 24 or newer.
