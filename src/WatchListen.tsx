@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Captions as CaptionsIcon, FileText, Sparkles } from "lucide-react";
+import { Captions as CaptionsIcon, FileText, Film, Search, Sparkles } from "lucide-react";
 import { api, fileBase64 } from "./api";
 import WordExplainer from "./WordExplainer";
 import { decodeToMono, encodeWav, MAX_SECONDS, planChunks, SAMPLE_RATE } from "./audioChunks";
+import { loadYouTubeApi, type YouTubePlayer } from "./youtubePlayer";
 
 type Segment = { startMs: number; endMs: number; text: string };
 type HardWord = { word: string; meaning: string };
@@ -12,6 +13,17 @@ const transcriptSchema = z.object({
   hardWords: z.array(z.object({ word: z.string(), meaning: z.string() })),
   model: z.string(),
 });
+const videoSchema = z.object({
+  videoId: z.string(),
+  title: z.string(),
+  channel: z.string(),
+  publishedAt: z.string(),
+  thumbUrl: z.string(),
+  durationSeconds: z.number(),
+  tooLong: z.boolean(),
+});
+type Video = z.infer<typeof videoSchema>;
+const searchSchema = z.object({ results: z.array(videoSchema) });
 
 /** Parses WebVTT or SRT subtitles into timed segments. */
 export function parseSubtitles(text: string): Segment[] {
@@ -35,6 +47,7 @@ export function parseSubtitles(text: string): Segment[] {
 }
 
 const clock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
+const length = (seconds: number) => clock(seconds * 1000);
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Splits a caption into plain text and hard-word buttons. */
@@ -66,10 +79,114 @@ export default function WatchListen({ report }: { report: (m: string) => void })
   const [progress, setProgress] = useState("");
   const [audioOnly, setAudioOnly] = useState(false);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Video[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [video, setVideo] = useState<Video | null>(null);
   const media = useRef<HTMLVideoElement & HTMLAudioElement>(null);
+  const mount = useRef<HTMLDivElement>(null);
+  const player = useRef<YouTubePlayer | null>(null);
   useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url]);
   const isVideo = !!file?.type.startsWith("video/");
   const current = segments.findIndex((s) => now >= s.startMs && now < Math.max(s.endMs, s.startMs + 500));
+
+  /** Builds the embedded player for the chosen video and follows its clock. */
+  useEffect(() => {
+    if (!video) return;
+    let stop = false;
+    let timer = 0;
+    void loadYouTubeApi()
+      .then((YT) => {
+        if (stop || !mount.current) return;
+        player.current = new YT.Player(mount.current, {
+          videoId: video.videoId,
+          host: "https://www.youtube-nocookie.com",
+          playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
+          events: {
+            onReady: () => {
+              // Four times a second is enough for a caption line and costs
+              // nothing next to the video itself.
+              timer = window.setInterval(() => {
+                const t = player.current?.getCurrentTime();
+                if (typeof t === "number") setNow(t * 1000);
+              }, 250);
+            },
+          },
+        });
+      })
+      .catch((e: Error) => setError(e.message));
+    return () => {
+      stop = true;
+      clearInterval(timer);
+      player.current?.destroy();
+      player.current = null;
+    };
+  }, [video]);
+
+  /** One source at a time: picking a video clears a loaded file, and vice versa. */
+  function reset() {
+    setSegments([]);
+    setHardWords([]);
+    setSource("");
+    setPicked(null);
+    setError("");
+    setNow(0);
+  }
+  function chooseVideo(chosen: Video | null) {
+    reset();
+    setFile(null);
+    setUrl("");
+    setAudioOnly(false);
+    setVideo(chosen);
+  }
+
+  async function search(e: React.FormEvent) {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setSearching(true);
+    setError("");
+    try {
+      const found = await api(`/youtube/search?q=${encodeURIComponent(query.trim())}`, searchSchema);
+      setResults(found.results);
+      report(found.results.length ? `${found.results.length} videos found.` : "No videos found.");
+    } catch (err) {
+      setError((err as Error).message);
+      setResults(null);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  /** Captions for the chosen YouTube video: one call, read by the AI from its address. */
+  async function captionVideo() {
+    if (!video) return;
+    setBusy(true);
+    reset();
+    try {
+      setProgress(`Watching “${video.title}” and writing captions…`);
+      const t = await api("/ai/transcribe-youtube", transcriptSchema, "POST", { videoId: video.videoId });
+      setSegments(t.segments);
+      setHardWords(t.hardWords);
+      setSource(`AI captions (${t.model}). They can contain mistakes.`);
+      report(`Captions ready: ${t.segments.length} lines, ${t.hardWords.length} hard words.`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+      setProgress("");
+    }
+  }
+
+  /** Jumps whichever player is showing to a caption's start time. */
+  function seek(startMs: number) {
+    if (player.current) {
+      player.current.seekTo(startMs / 1000, true);
+      player.current.playVideo();
+    } else if (media.current) {
+      media.current.currentTime = startMs / 1000;
+      void media.current.play().catch(() => {});
+    }
+  }
 
   /** One part to the AI, waiting and retrying if the free-tier limit is hit. */
   async function transcribePart(base64: string, mime: string, offsetMs: number) {
@@ -145,34 +262,100 @@ export default function WatchListen({ report }: { report: (m: string) => void })
       <span className="section-kicker">Watch &amp; listen</span>
       <h1>Captions that explain the hard words.</h1>
       <p className="ai-intro">
-        Load a lesson video, a lecture recording or an audiobook chapter (up to 30 minutes). Get captions that follow
-        along, then tap any highlighted word for a simple meaning.
+        Search YouTube for a lesson, or load a video, a lecture recording or an audiobook chapter of your own (up to 30
+        minutes). Get captions that follow along, then tap any highlighted word for a simple meaning.
       </p>
-      <div className="ai-upload">
+      <form className="yt-search" onSubmit={(e) => void search(e)}>
         <label>
-          Video or audio file
+          Search YouTube for a lesson, or paste a video link
           <input
-            type="file"
-            accept="video/*,audio/*"
-            onChange={(e) => {
-              const chosen = e.target.files?.[0] ?? null;
-              setFile(chosen);
-              setUrl(chosen ? URL.createObjectURL(chosen) : "");
-              setSegments([]);
-              setHardWords([]);
-              setSource("");
-              setPicked(null);
-              setAudioOnly(false);
-              setError("");
-            }}
+            type="search"
+            value={query}
+            placeholder="e.g. pulmonary circulation class 10"
+            onChange={(e) => setQuery(e.target.value)}
           />
         </label>
-        <button className="primary" disabled={!file || busy} onClick={() => void createCaptions()}>
-          <Sparkles size={17} aria-hidden="true" />
-          {busy ? "Creating captions…" : "Create captions with AI"}
+        <button className="primary" disabled={!query.trim() || searching}>
+          <Search size={17} aria-hidden="true" />
+          {searching ? "Searching…" : "Search"}
         </button>
+      </form>
+      {results !== null && (
+        <div className="yt-results" role="group" aria-label="Search results">
+          {results.length === 0 && <p className="small">No videos found. Try different words, or load a file below.</p>}
+          {results.map((r) => (
+            <button
+              key={r.videoId}
+              type="button"
+              className="yt-result"
+              aria-pressed={video?.videoId === r.videoId}
+              onClick={() => chooseVideo(r)}
+            >
+              <img src={r.thumbUrl} alt="" width={120} height={90} loading="lazy" />
+              <span className="yt-result-meta">
+                <strong>{r.title}</strong>
+                <small>
+                  {r.channel} · {length(r.durationSeconds)}
+                  {r.tooLong ? " · too long for AI captions" : ""}
+                </small>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {video && (
+        <div className="ai-upload">
+          <p className="yt-chosen">
+            <Film size={17} aria-hidden="true" /> {video.title}
+            <small>
+              {video.channel} · {length(video.durationSeconds)}
+            </small>
+          </p>
+          <button className="primary" disabled={busy || video.tooLong} onClick={() => void captionVideo()}>
+            <Sparkles size={17} aria-hidden="true" />
+            {busy ? "Creating captions…" : "Create captions with AI"}
+          </button>
+          <button type="button" onClick={() => chooseVideo(null)}>
+            Clear
+          </button>
+          {video.tooLong && (
+            <p className="small">
+              This video is {length(video.durationSeconds)} long. AI captions support up to 30 minutes — you can still
+              watch it here with YouTube's own captions.
+            </p>
+          )}
+        </div>
+      )}
+      <div className="ai-upload">
+        {/* Hidden while a YouTube video is chosen: two identical "Create
+            captions with AI" buttons on screen at once asked the reader to
+            work out which one they meant. Clear brings this back. */}
+        {!video && (
+          <>
+            <label>
+              Video or audio file
+              <input
+                type="file"
+                accept="video/*,audio/*"
+                onChange={(e) => {
+                  const chosen = e.target.files?.[0] ?? null;
+                  reset();
+                  setVideo(null);
+                  setFile(chosen);
+                  setUrl(chosen ? URL.createObjectURL(chosen) : "");
+                  setAudioOnly(false);
+                }}
+              />
+            </label>
+            <button className="primary" disabled={!file || busy} onClick={() => void createCaptions()}>
+              <Sparkles size={17} aria-hidden="true" />
+              {busy ? "Creating captions…" : "Create captions with AI"}
+            </button>
+          </>
+        )}
         <label>
-          Or load subtitles (.vtt or .srt), free and instant
+          {/* Subtitles work for a chosen video too: our own player follows them. */}
+          {video ? "Subtitles for this video (.vtt or .srt), free and instant" : "Or load subtitles (.vtt or .srt), free and instant"}
           <input
             type="file"
             accept=".vtt,.srt,text/vtt"
@@ -202,10 +385,14 @@ export default function WatchListen({ report }: { report: (m: string) => void })
           {error}
         </p>
       )}
-      {url && (
+      {(url || video) && (
         <div className="watch-layout">
           <section aria-label="Player">
-            {isVideo ? (
+            {video ? (
+              <div className="yt-player">
+                <div ref={mount} />
+              </div>
+            ) : isVideo ? (
               <video
                 ref={media}
                 src={url}
@@ -259,12 +446,7 @@ export default function WatchListen({ report }: { report: (m: string) => void })
                     <li key={i}>
                       <button
                         aria-current={i === current ? "true" : undefined}
-                        onClick={() => {
-                          if (media.current) {
-                            media.current.currentTime = s.startMs / 1000;
-                            void media.current.play().catch(() => {});
-                          }
-                        }}
+                        onClick={() => seek(s.startMs)}
                       >
                         <span className="small">{clock(s.startMs)}</span> {s.text}
                       </button>

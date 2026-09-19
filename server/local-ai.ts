@@ -59,7 +59,7 @@ type Fetch = typeof fetch;
 /** One generateContent call returning the text answer. Retries once on 429/503. */
 export async function geminiGenerate(
   config: GeminiConfig,
-  input: { prompt: string; image?: { bytes: Buffer; mime: string }; jsonSchema?: unknown },
+  input: { prompt: string; image?: { bytes: Buffer; mime: string }; videoUrl?: string; jsonSchema?: unknown },
   fetchImpl: Fetch = fetch,
   waitMs = 2000,
 ): Promise<string> {
@@ -68,6 +68,10 @@ export async function geminiGenerate(
       role: "user",
       parts: [
         ...(input.image ? [{ inlineData: { mimeType: input.image.mime, data: input.image.bytes.toString("base64") } }] : []),
+        // Gemini fetches a public YouTube page itself, so nothing is downloaded
+        // here and no copy of the video is made. A minute of video costs roughly
+        // 300 tokens, which is why the caller limits the length.
+        ...(input.videoUrl ? [{ fileData: { fileUri: input.videoUrl } }] : []),
         { text: input.prompt },
       ],
     }],
@@ -86,7 +90,9 @@ export async function geminiGenerate(
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": config.apiKey },
         body,
-        signal: AbortSignal.timeout(120_000),
+        // A whole video is read by Gemini in one call and takes far longer than
+        // a picture or a few minutes of audio.
+        signal: AbortSignal.timeout(input.videoUrl ? 540_000 : 120_000),
       });
     } catch (error) {
       // One retry for dropped connections, as for busy responses.
