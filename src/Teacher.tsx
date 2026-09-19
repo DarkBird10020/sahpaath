@@ -24,7 +24,7 @@ import {
   type Lesson,
   type Question,
   type Audit,
-} from "../shared/schema";import { items, validateMap, itemGrounded } from "../shared/domain";
+} from "../shared/schema";import { items, validateMap, itemGrounded, sequencePartIds } from "../shared/domain";
 import { fixtures } from "../shared/catalog";
 
 const searchResultSchema = z.object({
@@ -108,6 +108,7 @@ export default function Teacher({
     return () => { cancelled = true; clearTimeout(timer); };
   }, [selected, processing, onChange]);
   const issues = lesson ? validateMap(lesson.map) : [];
+  const sequence = lesson ? sequencePartIds(lesson.map) : [];
   const pending = lesson
     ? items(lesson.map).filter(
         (i) => !["teacher_approved", "rejected"].includes(i.state),
@@ -839,14 +840,28 @@ export default function Teacher({
                     <div className="review-items">
                       <div className="panel-heading">
                         <h3>Structured lesson</h3>
-                        <span className="small">Flagged items first</span>
+                        <span className="small">
+                          Flagged first · then diagram sequence
+                        </span>
                       </div>
                       {[...items(lesson.map)]
-                        .sort(
-                          (a, b) =>
+                        .sort((a, b) => {
+                          const flagged =
                             Number(issues.some((i) => i.itemId === b.id)) -
-                            Number(issues.some((i) => i.itemId === a.id)),
-                        )
+                            Number(issues.some((i) => i.itemId === a.id));
+                          if (flagged) return flagged;
+                          // Within each group, follow the diagram's own
+                          // sequence (numbered callouts, then flow, then
+                          // geometric reading order) — parts keep their
+                          // position; relations and flows sit after them.
+                          const isPart = (x: typeof a) => "description" in x;
+                          if (isPart(a) && isPart(b))
+                            return (
+                              sequence.indexOf(a.id) - sequence.indexOf(b.id)
+                            );
+                          if (isPart(a) !== isPart(b)) return isPart(a) ? -1 : 1;
+                          return 0;
+                        })
                         .map((item) => {
                           const findings = issues.filter(
                             (i) => i.itemId === item.id,
