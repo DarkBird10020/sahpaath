@@ -57,6 +57,52 @@ export const items = (map: DiagramMap) => [
   ...map.flows,
 ];
 
+/** True when the text is a bare callout number, optionally with decoration
+ * such as a trailing dot or bracket ("7.", "(12)", "23"). */
+export const isCalloutNumber = (text: string) => /^[^\p{L}\p{N}]*\d{1,4}[^\p{L}\p{N}]*$/u.test(text.trim());
+
+/**
+ * The sequence a lesson is meant to be explained in, as part ids.
+ *
+ * Numbered-callout diagrams ("1"–"23" scattered over the image) must be
+ * explained in callout order, not in whatever order the model happened to
+ * emit parts. Numbered labels win; then the teacher/model reading flow; then
+ * plain geometric reading order (top-to-bottom rows, left-to-right), so even
+ * an unnumbered map has a stable, human order instead of a random one.
+ * Parts not present in the chosen sequence keep their relative order behind it.
+ */
+export function sequencePartIds(map: DiagramMap): string[] {
+  const rank = new Map(map.labels.map((l) => [l.id, l]));
+  const numeric = map.parts
+    .map((p) => {
+      const label = rank.get(p.labelId);
+      return { p, n: label && isCalloutNumber(label.text) ? Number(label.text.replace(/\D+/g, "")) : null };
+    })
+    .filter((x): x is { p: DiagramMap["parts"][number]; n: number } => x.n !== null);
+  // A callout set only reads as numbering when a clear majority of parts carry
+  // one; otherwise "1" and "2" could be stray digits and reorder everything.
+  let callout: string[] | null = null;
+  if (map.parts.length >= 2 && numeric.length * 2 > map.parts.length) {
+    const byNumber = new Map<number, string>();
+    for (const { p, n } of numeric) if (!byNumber.has(n)) byNumber.set(n, p.id);
+    callout = [...byNumber.entries()].sort((a, b) => a[0] - b[0]).map(([, id]) => id);
+  }
+  const rest = map.parts.map((p) => p.id).filter((id) => !callout?.includes(id));
+  const flow = map.flows.find((f) => f.state !== "rejected");
+  const flowSteps = (flow?.steps ?? []).filter((s) => rest.includes(s));
+  const flowRest = rest.filter((id) => !flowSteps.includes(id));
+  // Geometric fallback: row bands of ~7% image height, then left→right.
+  const geo = [...flowRest].sort((a, b) => {
+    const pa = map.parts.find((p) => p.id === a)!;
+    const pb = map.parts.find((p) => p.id === b)!;
+    const la = rank.get(pa.labelId);
+    const lb = rank.get(pb.labelId);
+    const row = (l: typeof la) => (l ? Math.floor(l.y / 0.07) : Number.MAX_SAFE_INTEGER);
+    return row(la) - row(lb) || (la?.x ?? 1) - (lb?.x ?? 1);
+  });
+  return [...(callout ?? []), ...flowSteps, ...geo];
+}
+
 export function validateMap(input: DiagramMap): Issue[] {
   const map = mapSchema.parse(input);
   const issues: Issue[] = [];
@@ -462,7 +508,8 @@ export function buildExplorer(
     lessonId: value.lessonId,
     version: value.version,
     title: value.title,
-    readingOrder: flow ? flow.steps : parts.map((p) => p.id),
+    // The diagram's own sequence: numbered callouts, then flow, then geometry.
+    readingOrder: sequencePartIds(value.map),
     parts: nodes,
     audioEngine: nodes.some((n) => n.audio) ? "polly" : "browser_speech",
   };

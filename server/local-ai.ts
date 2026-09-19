@@ -191,15 +191,32 @@ export function splitLineWords(input: OcrWord[]): OcrWord[][] {
     const cleaned = word.text.replace(edgeStrokes, "");
     const hadStrokes = cleaned.length !== word.text.length;
     const alnum = (cleaned.match(/[\p{L}\p{N}]/gu) ?? []).length;
-    if (alnum === 0 || ((hadStrokes || word.nextToArrow) && alnum <= 1)) {
+    // A bare number that arrows/strokes touched is a diagram callout ("1"–"23"),
+    // not stray noise: numbered diagrams name their parts this way. It becomes
+    // its own one-word label so the part can be grounded and sequenced by number.
+    const isolated = hadStrokes || word.nextToArrow;
+    const callout = isolated && /^\d{1,4}$/.test(cleaned);
+    if (alnum === 0 || (isolated && alnum <= 1 && !callout)) {
       if (current.length) pieces.push(current);
+      current = [];
+      continue;
+    }
+    if (callout) {
+      if (current.length) pieces.push(current);
+      pieces.push([{ ...word, text: cleaned.trim() }]);
       current = [];
       continue;
     }
     current.push({ ...word, text: cleaned.trim() });
   }
   if (current.length) pieces.push(current);
-  return pieces;
+  // A run of bare numbers on one line ("1 2 3" beside arrows) is one callout
+  // each, not a single label — numbered diagrams name their parts this way.
+  return pieces.flatMap((piece) =>
+    piece.length > 1 && piece.every((word) => /^\d{1,4}$/.test(word.text))
+      ? piece.map((word) => [word])
+      : [piece],
+  );
 }
 /**
  * Line-level OCR on this machine. Sparse-text mode suits diagrams, whose labels
@@ -214,32 +231,49 @@ export async function localOcrLines(bytes: Buffer, cacheDir: string): Promise<Oc
   mkdirSync(cacheDir, { recursive: true });
   const worker = await createWorker("eng", 1, { cachePath: cacheDir, logger: () => {}, errorHandler: () => {} });
   try {
-    await worker.setParameters({ tessedit_pageseg_mode: "11" as never });
-    const { data } = await worker.recognize(bytes, {}, { blocks: true });
-    const lines: OcrLine[] = [];
-    for (const block of data.blocks ?? [])
-      for (const paragraph of block.paragraphs)
-        for (const line of paragraph.lines)
-          for (const piece of splitLineWords(line.words)) {
-            const text = piece.map((w) => w.text).join(" ").replace(/\s+/g, " ").trim();
-            const confidence = piece.reduce((sum, w) => sum + w.confidence, 0) / piece.length;
-            // Skip noise without letters or digits and very uncertain reads.
-            if (!text || text.length > 120 || !/[\p{L}\p{N}]/u.test(text) || confidence < 30) continue;
-            const x0 = Math.min(...piece.map((w) => w.bbox.x0));
-            const y0 = Math.min(...piece.map((w) => w.bbox.y0));
-            const x1 = Math.max(...piece.map((w) => w.bbox.x1));
-            const y1 = Math.max(...piece.map((w) => w.bbox.y1));
-            lines.push({
-              text,
-              confidence,
-              box: { x: x0 / size.width, y: y0 / size.height, width: (x1 - x0) / size.width, height: (y1 - y0) / size.height },
-            });
-            if (lines.length >= 200) return lines;
-          }
-    return lines;
+    // Sparse text (psm 11) suits scattered diagram labels; the uniform-block
+    // pass (psm 6) reads small scattered numerals and single characters that
+    // psm 11 misses. Both run and the richer result wins — the passes disagree
+    // erratically on sparse diagrams, and one bad psm-11 read must not hide a
+    // good psm-6 one. Sequential: both passes share one worker, and the page
+    // mode is worker state, so concurrent passes would race it.
+    const sparse = await recognizeLines(worker, bytes, size, "11");
+    const uniform = await recognizeLines(worker, bytes, size, "6");
+    return sparse.length >= uniform.length ? sparse : uniform;
   } finally {
     await worker.terminate();
   }
+}
+
+async function recognizeLines(
+  worker: Awaited<ReturnType<typeof import("tesseract.js").createWorker>>,
+  bytes: Buffer,
+  size: { width: number; height: number },
+  pagesegMode: "11" | "6",
+): Promise<OcrLine[]> {
+  await worker.setParameters({ tessedit_pageseg_mode: pagesegMode as never });
+  const { data } = await worker.recognize(bytes, {}, { blocks: true });
+  const lines: OcrLine[] = [];
+  for (const block of data.blocks ?? [])
+    for (const paragraph of block.paragraphs)
+      for (const line of paragraph.lines)
+        for (const piece of splitLineWords(line.words)) {
+          const text = piece.map((w) => w.text).join(" ").replace(/\s+/g, " ").trim();
+          const confidence = piece.reduce((sum, w) => sum + w.confidence, 0) / piece.length;
+          // Skip noise without letters or digits and very uncertain reads.
+          if (!text || text.length > 120 || !/[\p{L}\p{N}]/u.test(text) || confidence < 30) continue;
+          const x0 = Math.min(...piece.map((w) => w.bbox.x0));
+          const y0 = Math.min(...piece.map((w) => w.bbox.y0));
+          const x1 = Math.max(...piece.map((w) => w.bbox.x1));
+          const y1 = Math.max(...piece.map((w) => w.bbox.y1));
+          lines.push({
+            text,
+            confidence,
+            box: { x: x0 / size.width, y: y0 / size.height, width: (x1 - x0) / size.width, height: (y1 - y0) / size.height },
+          });
+          if (lines.length >= 200) return lines;
+        }
+  return lines;
 }
 
 /** Classroom-pipeline labels from local OCR lines (same shape as Textract labels). */
