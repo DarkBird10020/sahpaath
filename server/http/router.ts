@@ -50,6 +50,7 @@ export class Router {
   get(path: string, handler: Handler) { return this.add("GET", path, handler); }
   post(path: string, handler: Handler) { return this.add("POST", path, handler); }
   put(path: string, handler: Handler) { return this.add("PUT", path, handler); }
+  patch(path: string, handler: Handler) { return this.add("PATCH", path, handler); }
   delete(path: string, handler: Handler) { return this.add("DELETE", path, handler); }
 
   async dispatch(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {

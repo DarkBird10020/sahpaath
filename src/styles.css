@@ -1683,6 +1683,55 @@ input.note-required {
   width: 100%;
   margin-top: 20px;
 }
+/* Account dashboard: reuses the login layout, adds user details + auth form. */
+.account-page {
+  grid-template-columns: 1fr 1fr;
+}
+.account-details {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  display: grid;
+  gap: 12px;
+}
+.account-details li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.account-details svg {
+  flex: none;
+  margin-top: 2px;
+  color: #7390a8;
+}
+.account-auth-form {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.account-auth-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.link-button {
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.account-card .link-button + .link-button {
+  margin-top: 10px;
+}
 .student-top h1 {
   font-size: 2rem;
 }
