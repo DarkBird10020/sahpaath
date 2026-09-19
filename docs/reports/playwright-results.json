@@ -2,12 +2,11 @@
   "config": {
     "argv": [
       "C:\\Program Files\\nodejs\\node.exe",
-      "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\node_modules\\@playwright\\test\\cli.js",
-      "test",
-      "tests/e2e/classroom.spec.ts"
+      "C:\\Users\\Administrator\\Desktop\\fir-comit\\node_modules\\@playwright\\test\\cli.js",
+      "test"
     ],
-    "configFile": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\playwright.config.ts",
-    "rootDir": "C:/Users/aaayu/OneDrive/Desktop/Shahpaath/sahpaath/tests/e2e",
+    "configFile": "C:\\Users\\Administrator\\Desktop\\fir-comit\\playwright.config.ts",
+    "rootDir": "C:/Users/Administrator/Desktop/fir-comit/tests/e2e",
     "failOnFlakyTests": false,
     "forbidOnly": false,
     "fullyParallel": false,
@@ -23,7 +22,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "C:/Users/aaayu/OneDrive/Desktop/Shahpaath/sahpaath/test-results",
+        "outputDir": "C:/Users/Administrator/Desktop/fir-comit/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -31,7 +30,7 @@
         },
         "id": "",
         "name": "",
-        "testDir": "C:/Users/aaayu/OneDrive/Desktop/Shahpaath/sahpaath/tests/e2e",
+        "testDir": "C:/Users/Administrator/Desktop/fir-comit/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -83,6 +82,286 @@
   },
   "suites": [
     {
+      "title": "account.spec.ts",
+      "file": "account.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "a standard Supabase JWT creates a real classroom session and profile",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 141,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:49:28.816Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ad4620ead4e6d9cc2627-089331d86d8c55632163",
+          "file": "account.spec.ts",
+          "line": 7,
+          "column": 1
+        },
+        {
+          "title": "restored landing keeps authentication accessible through the menu",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3584,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:49:28.990Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ad4620ead4e6d9cc2627-63d98f2d120cdb830beb",
+          "file": "account.spec.ts",
+          "line": 38,
+          "column": 1
+        },
+        {
+          "title": "Google button requests OAuth with an application callback",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1704,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:49:32.811Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ad4620ead4e6d9cc2627-2b74bdf6446ec9da0a3e",
+          "file": "account.spec.ts",
+          "line": 50,
+          "column": 1
+        },
+        {
+          "title": "email sign-in opens the dashboard, preserves navigation and shows the correct role",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7309,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:49:34.536Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ad4620ead4e6d9cc2627-0517ad82b05c3db041bc",
+          "file": "account.spec.ts",
+          "line": 101,
+          "column": 1
+        },
+        {
+          "title": "sign-up with an immediate session opens the classroom",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3082,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:49:41.857Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ad4620ead4e6d9cc2627-34df30c652ffb62159c8",
+          "file": "account.spec.ts",
+          "line": 132,
+          "column": 1
+        },
+        {
+          "title": "sign-up requiring confirmation stays on the form with email instructions",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1827,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:49:44.953Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ad4620ead4e6d9cc2627-627aa39b196a85c7541d",
+          "file": "account.spec.ts",
+          "line": 145,
+          "column": 1
+        },
+        {
+          "title": "classroom errors after authentication stay recoverable on the sign-in form",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1770,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:49:46.790Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ad4620ead4e6d9cc2627-97093ffa1f5d7f3c34ca",
+          "file": "account.spec.ts",
+          "line": 154,
+          "column": 1
+        },
+        {
+          "title": "dashboard and navbar animate, and unpinning after a mouse click hides the bar",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3647,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:49:48.573Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ad4620ead4e6d9cc2627-4cf69d990dd8ff4faec9",
+          "file": "account.spec.ts",
+          "line": 162,
+          "column": 1
+        }
+      ]
+    },
+    {
       "title": "classroom.spec.ts",
       "file": "classroom.spec.ts",
       "column": 0,
@@ -104,12 +383,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 8270,
+                  "duration": 7458,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:20:43.082Z",
+                  "startTime": "2026-09-19T10:49:52.318Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -138,12 +417,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 4241,
+                  "duration": 4417,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:20:51.581Z",
+                  "startTime": "2026-09-19T10:49:59.789Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -172,12 +451,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 18194,
+                  "duration": 15432,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:20:55.840Z",
+                  "startTime": "2026-09-19T10:50:04.219Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -206,12 +485,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1696,
+                  "duration": 1662,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:21:14.050Z",
+                  "startTime": "2026-09-19T10:50:19.665Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -226,7 +505,7 @@
         },
         {
           "title": "keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback",
-          "ok": false,
+          "ok": true,
           "tags": [],
           "tests": [
             {
@@ -239,45 +518,18 @@
                 {
                   "workerIndex": 0,
                   "parallelIndex": 0,
-                  "status": "timedOut",
-                  "duration": 60238,
-                  "error": {
-                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
-                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
-                  },
-                  "errors": [
-                    {
-                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
-                    },
-                    {
-                      "location": {
-                        "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
-                        "column": 65,
-                        "line": 38
-                      },
-                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Menu', exact: true })\u001b[22m\n\n\n  36 | async function fromMenu(page: Page, name: string | RegExp) {\n  37 |   await page.evaluate(() => scrollTo(0, 0));\n> 38 |   await page.getByRole(\"button\", { name: \"Menu\", exact: true }).click();\n     |                                                                 ^\n  39 |   await page.getByRole(\"dialog\", { name: \"Menu\" }).getByRole(\"button\", { name }).click();\n  40 | }\n  41 | async function teacherLogin(page: Page) {\n    at fromMenu (C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:38:65)\n    at C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:367:3"
-                    }
-                  ],
+                  "status": "passed",
+                  "duration": 7923,
+                  "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:21:15.764Z",
+                  "startTime": "2026-09-19T10:50:21.338Z",
                   "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-keyboard-only-ph-36226-trast-and-no-WebGL-fallback\\error-context.md"
-                    },
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-keyboard-only-ph-36226-trast-and-no-WebGL-fallback\\trace.zip"
-                    }
-                  ]
+                  "attachments": []
                 }
               ],
-              "status": "unexpected"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-1a381d0eafd599091398",
@@ -287,7 +539,7 @@
         },
         {
           "title": "manual upload fallback can be reviewed and published without an OCR service",
-          "ok": false,
+          "ok": true,
           "tags": [],
           "tests": [
             {
@@ -298,32 +550,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "failed",
-                  "duration": 0,
-                  "error": {
-                    "message": "Error: worker process exited unexpectedly (code=3221225794, signal=null)"
-                  },
-                  "errors": [
-                    {
-                      "message": "Error: worker process exited unexpectedly (code=3221225794, signal=null)"
-                    }
-                  ],
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3673,
+                  "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.419Z",
+                  "startTime": "2026-09-19T10:50:29.272Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "unexpected"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-00054c036f0349deac81",
           "file": "classroom.spec.ts",
-          "line": 426,
+          "line": 427,
           "column": 1
         },
         {
@@ -339,25 +584,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1694,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.419Z",
+                  "startTime": "2026-09-19T10:50:32.957Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-660c5d00c60dfe79d162",
           "file": "classroom.spec.ts",
-          "line": 478,
+          "line": 479,
           "column": 1
         },
         {
@@ -373,25 +618,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2928,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.419Z",
+                  "startTime": "2026-09-19T10:50:34.662Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-ab460472543833a5d348",
           "file": "classroom.spec.ts",
-          "line": 560,
+          "line": 561,
           "column": 1
         },
         {
@@ -407,25 +652,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1261,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:50:37.606Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-4e4cf130989dbaf1ae4b",
           "file": "classroom.spec.ts",
-          "line": 588,
+          "line": 589,
           "column": 1
         },
         {
@@ -441,25 +686,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4012,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:50:38.881Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-57bf4592d9fe5e513f87",
           "file": "classroom.spec.ts",
-          "line": 602,
+          "line": 603,
           "column": 1
         },
         {
@@ -475,25 +720,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6381,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:50:42.905Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-9e6bf4a4ea9bfb681e07",
           "file": "classroom.spec.ts",
-          "line": 618,
+          "line": 619,
           "column": 1
         },
         {
@@ -509,25 +754,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1833,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:50:49.298Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-e106b85699215d27ef00",
           "file": "classroom.spec.ts",
-          "line": 659,
+          "line": 660,
           "column": 1
         },
         {
@@ -543,25 +788,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8351,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:50:51.143Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-613b156a8c34a4706058",
           "file": "classroom.spec.ts",
-          "line": 696,
+          "line": 697,
           "column": 1
         },
         {
@@ -577,25 +822,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3015,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:50:59.506Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-3112d07b1e4e272eb5ec",
           "file": "classroom.spec.ts",
-          "line": 722,
+          "line": 723,
           "column": 1
         },
         {
@@ -611,25 +856,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6103,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:51:02.535Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-6789ede08585315cb713",
           "file": "classroom.spec.ts",
-          "line": 744,
+          "line": 745,
           "column": 1
         },
         {
@@ -645,25 +890,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1013,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:51:08.651Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-0c23dd8522776ec62567",
           "file": "classroom.spec.ts",
-          "line": 775,
+          "line": 778,
           "column": 1
         },
         {
@@ -679,25 +924,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13231,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:51:09.676Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-c5a0f4cfd67512eb03be",
           "file": "classroom.spec.ts",
-          "line": 806,
+          "line": 809,
           "column": 1
         },
         {
@@ -713,25 +958,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 95,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:51:22.917Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-96c41adc07b17ddb5724",
           "file": "classroom.spec.ts",
-          "line": 880,
+          "line": 884,
           "column": 1
         },
         {
@@ -747,25 +992,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6010,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:51:23.021Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-d51c513c5e68094054b9",
           "file": "classroom.spec.ts",
-          "line": 909,
+          "line": 913,
           "column": 1
         },
         {
@@ -781,25 +1026,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3683,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:51:29.041Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-7536576f477741be3116",
           "file": "classroom.spec.ts",
-          "line": 943,
+          "line": 947,
           "column": 1
         },
         {
@@ -815,25 +1060,25 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": -1,
-                  "parallelIndex": -1,
-                  "status": "skipped",
-                  "duration": 0,
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1960,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "startTime": "2026-09-19T10:51:32.736Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "skipped"
+              "status": "expected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-a8533a37253f937f545d",
           "file": "classroom.spec.ts",
-          "line": 966,
+          "line": 970,
           "column": 1
         }
       ]
@@ -841,11 +1086,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-19T10:20:40.551Z",
-    "duration": 96142.984,
-    "expected": 4,
-    "skipped": 15,
-    "unexpected": 2,
+    "startTime": "2026-09-19T10:49:26.017Z",
+    "duration": 129222.282,
+    "expected": 29,
+    "skipped": 0,
+    "unexpected": 0,
     "flaky": 0
   }
 }
