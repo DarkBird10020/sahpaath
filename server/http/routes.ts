@@ -2,13 +2,17 @@ import { z } from "zod";
 import { Router } from "./router";
 import { clientKey, rateLimit, readJson, requireSession, requireTeacher, readSessionCookie, type AuthResolver } from "./context";
 import { json } from "./router";
+import { requireAdmin, requireAuth, type AuthComponents, type Principal } from "./auth";
+import { forbiddenError } from "../core/errors";
 import type { LessonService, Actor } from "../services/lesson-service";
 import type { ClassroomService } from "../services/classroom-service";
 import { sha256Hex } from "../core/ids";
 import { entityId, isoTimestamp } from "../../shared/model";
+import { appRoleSchema } from "../../shared/schema";
 import { notFoundError, validationError } from "../core/errors";
 import type { BinaryStorage } from "../core/storage";
 import type { AppConfig } from "../core/config";
+import type { AppUser } from "../../shared/schema";
 import type { DiagramUploadService } from "../services/diagram-upload-service";
 import type { DiagramSenseService } from "../services/diagram-sense-service";
 import { readMultipart } from "./multipart";
@@ -101,6 +105,17 @@ const correctInput = z
   .strict();
 
 export interface RouteDeps {
+  /** Supabase bearer + cookie authentication components. */
+  appAuth: AuthComponents;
+  listAppUsers: () => AppUser[];
+  findAppUser: (id: string) => AppUser | undefined;
+  setAppUserRole: (id: string, role: AppUser["role"]) => AppUser;
+  auditAdmin: (
+    action: string,
+    detail: string,
+    actorUserId: string,
+    extra?: { targetUserId: string; previousRole: string; newRole: string },
+  ) => void;
   lessons: LessonService;
   classroom: ClassroomService;
   uploads: DiagramUploadService;
@@ -119,8 +134,16 @@ export function registerRoutes(router: Router, deps: RouteDeps): Router {
   const { lessons, classroom, uploads, sense } = deps;
 
   /** Session resolution for v1: core store first, then the optional legacy bridge. */
-  const auth: AuthResolver = async (token) =>
-    (await deps.auth(token)) ?? (deps.legacyAuth ? await deps.legacyAuth(token) : null);
+  const auth: AuthResolver = async (token, req) =>
+    (await deps.auth(token, req)) ??
+    // Bearer tokens skip the legacy cookie bridge by design: a Supabase
+    // identity is authoritative and must not fall back to an anonymous
+    // classroom session.
+    (!req || !req.headers.authorization
+      ? deps.legacyAuth
+        ? await deps.legacyAuth(token)
+        : null
+      : null);
 
   /* --------------------------------- Health --------------------------------- */
 
@@ -159,6 +182,60 @@ export function registerRoutes(router: Router, deps: RouteDeps): Router {
     }
     ctx.res.setHeader("Set-Cookie", "sahpaath=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");
     return { ok: true };
+  });
+
+  /* ------------------------------ Current user ------------------------------ */
+
+  /**
+   * The signed-in account: full application user for Supabase identities.
+   * Cookie sessions keep their existing shape (role + class code), so the
+   * current frontend contract is untouched.
+   */
+  router.get("/api/v1/me", async (ctx) => {
+    const principal = await requireAuth(ctx.req, deps.appAuth);
+    if (principal.via === "supabase") {
+      const user = deps.findAppUser(principal.userId);
+      if (!user) throw notFoundError("Application user not found.");
+      return { kind: "app" as const, user, supabaseConfigured: true };
+    }
+    return { kind: "local" as const, user: null, supabaseConfigured: !!deps.appAuth.supabase };
+  });
+
+  /* --------------------------- Admin: user roles --------------------------- */
+
+  /** Application users are a Supabase-bearer concept; role data is app-DB only. */
+  const requireBearerAdmin = async (ctx: { req: import("node:http").IncomingMessage }) => {
+    const principal = await requireAdmin(ctx.req, deps.appAuth);
+    if (principal.via !== "supabase")
+      throw forbiddenError("Admin APIs require a Supabase authenticated administrator.");
+    return principal;
+  };
+
+  router.get("/api/v1/admin/users", async (ctx) => {
+    await requireBearerAdmin(ctx);
+    return deps.listAppUsers();
+  });
+
+  const roleChangeInput = z
+    .object({ role: appRoleSchema })
+    .strict();
+
+  router.patch("/api/v1/admin/users/:userId/role", async (ctx) => {
+    const admin = await requireBearerAdmin(ctx);
+    const input = await readJson(ctx.req, roleChangeInput);
+    if (ctx.params.userId === admin.userId)
+      throw forbiddenError("Administrators cannot change their own role.");
+    const target = deps.findAppUser(ctx.params.userId);
+    if (!target) throw notFoundError("User not found.");
+    // No self-service promotion: an ADMIN grant can only come from another
+    // admin (or the bootstrap allowlist), never from the target themselves.
+    const updated = deps.setAppUserRole(ctx.params.userId, input.role);
+    deps.auditAdmin("role_changed", `Role of user ${updated.email} changed to ${input.role}.`, admin.userId, {
+      targetUserId: updated.id,
+      previousRole: target.role,
+      newRole: updated.role,
+    });
+    return updated;
   });
 
   /* --------------------------------- Lessons -------------------------------- */

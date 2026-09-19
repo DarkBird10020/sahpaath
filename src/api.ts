@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { getAccessToken } from "./lib/supabase";
+
 export async function api<T>(
   path: string,
   schema: z.ZodType<T>,
@@ -7,11 +9,17 @@ export async function api<T>(
 ): Promise<T> {
   let response: Response;
   try {
+    // Supabase identity, when present, rides along as a Bearer token; the
+    // server prefers it over the local classroom cookie. Neither existing
+    // call site changes.
+    const token = await getAccessToken();
     response = await fetch(`/api${path}`, {
       method,
       credentials: "same-origin",
-      headers:
-        value === undefined ? {} : { "Content-Type": "application/json" },
+      headers: {
+        ...(value === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: value === undefined ? undefined : JSON.stringify(value),
     });
   } catch {
