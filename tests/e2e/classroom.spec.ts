@@ -710,7 +710,10 @@ test("the menu opens over the page, travels the story and hands focus back", asy
   await expect(trigger).toBeFocused();
   // A chapter closes the menu and travels the story, still without a reload.
   await trigger.click();
-  await page.getByRole("button", { name: /Chapter 05/ }).click();
+  // The list counts 01, 02, 03… with no gaps, yet each entry still travels to
+  // its own chapter of the story: menu 04 is the story's 05 Captions.
+  await expect(menu.locator(".menu-num")).toHaveText(["Chapter 01", "Chapter 02", "Chapter 03", "Chapter 04", "Chapter 05"]);
+  await menu.getByRole("button", { name: /^Chapter 04/ }).click();
   await expect(menu).toHaveCount(0);
   await expect(page.getByRole("button", { name: "05 Captions", exact: true })).toHaveAttribute("aria-current", "step", { timeout: 10000 });
   expect(await page.evaluate(() => (window as unknown as { kept: number }).kept)).toBe(7);
