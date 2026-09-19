@@ -5,7 +5,7 @@ import {
   emptyStructure,
 } from "../../shared/model";
 import type { DiagramProposal, OcrLabel } from "../../shared/proposal";
-import { sequencePartIds } from "../../shared/domain";
+import { isCalloutNumber, sequencePartIds } from "../../shared/domain";
 import { mapSchema, type DiagramMap } from "../../shared/schema";
 
 /**
@@ -73,9 +73,23 @@ export function proposalToStructure(
       partByModelId.set(p.id, null);
       continue;
     }
-    // The part name must be the OCR text; drift is caught by the validator
-    // (warning), but we never adopt model-invented wording as the name.
-    if (normalize(p.name) !== normalize(label.text)) {
+    // Words on the image are authoritative: the model's wording never replaces
+    // them. A numbered callout is different - the image shows only a number, so
+    // the name is the model's identification of what it points to. It is used,
+    // and the teacher is told plainly that it was not read from the image.
+    const callout = isCalloutNumber(label.text);
+    const named = callout && p.name.trim() && !isCalloutNumber(p.name);
+    if (callout) {
+      const n = label.text.replace(/\D+/g, "");
+      issues.push({
+        code: named ? "callout_named_by_ai" : "callout_unnamed",
+        severity: "warning",
+        itemId: p.id,
+        message: named
+          ? `The diagram shows only the number ${n}. “${p.name.trim()}” was identified by the AI, not read from the image: check it against your key.`
+          : `Callout ${n} has no name yet. Add the structure it points to.`,
+      });
+    } else if (normalize(p.name) !== normalize(label.text)) {
       issues.push({
         code: "name_drift",
         severity: "warning",
@@ -89,7 +103,7 @@ export function proposalToStructure(
     structure.parts.push({
       partId,
       labelId: p.ocrLabelId,
-      name: label.text,
+      name: named ? p.name.trim() : label.text,
       description: p.description,
       descriptionShort: p.descriptionShort,
       descriptionDetailed: p.descriptionDetailed,

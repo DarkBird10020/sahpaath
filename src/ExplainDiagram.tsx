@@ -336,7 +336,17 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
               <h2>Explore the parts</h2>
               <ConceptTree
                 key={result.title + explorer.nodes.length}
-                lesson={{ title: result.title, map: { parts: explorer.order.map((id) => explorer.nodes.find((n) => n.id === id)!) } }}
+                lesson={{
+                  title: result.title,
+                  map: {
+                    // Carry each part's label, so a numbered diagram keeps its own numbers.
+                    parts: explorer.order.map((id) => ({
+                      ...explorer.nodes.find((n) => n.id === id)!,
+                      labelId: explorer.map.parts.find((p) => p.id === id)?.labelId,
+                    })),
+                    labels: explorer.map.labels,
+                  },
+                }}
                 selected={node.id}
                 onSelect={setSelected}
               />

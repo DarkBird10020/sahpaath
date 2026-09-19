@@ -61,6 +61,22 @@ export const items = (map: DiagramMap) => [
  * such as a trailing dot or bracket ("7.", "(12)", "23"). */
 export const isCalloutNumber = (text: string) => /^[^\p{L}\p{N}]*\d{1,4}[^\p{L}\p{N}]*$/u.test(text.trim());
 
+/** The callout number a part sits on, or null when its label is words. */
+export function calloutOf(map: Pick<DiagramMap, "labels">, part: { labelId: string }): number | null {
+  const label = map.labels.find((l) => l.id === part.labelId);
+  return label && isCalloutNumber(label.text) ? Number(label.text.replace(/\D+/g, "")) : null;
+}
+
+/**
+ * The number a reader sees for a part: the diagram's own callout number when it
+ * has one, otherwise its position. Counting positions on a numbered diagram
+ * would shift every number after a callout the OCR missed, so "7" on screen
+ * would no longer be 7 on the page.
+ */
+export function partNumber(map: Pick<DiagramMap, "labels">, part: { labelId: string }, index: number): number {
+  return calloutOf(map, part) ?? index + 1;
+}
+
 /**
  * The sequence a lesson is meant to be explained in, as part ids.
  *
@@ -140,7 +156,20 @@ export function validateMap(input: DiagramMap): Issue[] {
         "This part is not grounded in an existing source label.",
       );
     else {
-      if (normalize(p.name) !== normalize(label.text))
+      if (isCalloutNumber(label.text)) {
+        // A numbered callout carries no name on the image, so the name is the
+        // AI's identification of what the number points to. Say exactly that.
+        const n = label.text.replace(/\D+/g, "");
+        if (isCalloutNumber(p.name))
+          add(p.id, "callout_unnamed", "warning", `Callout ${n} has no name yet. Add the structure it points to.`);
+        else
+          add(
+            p.id,
+            "callout_named_by_ai",
+            "warning",
+            `The diagram shows only the number ${n}. “${p.name}” was identified by the AI, not read from the image: check it against your key.`,
+          );
+      } else if (normalize(p.name) !== normalize(label.text))
         add(
           p.id,
           "name_drift",

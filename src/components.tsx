@@ -11,6 +11,7 @@ import {
   Network,
 } from "lucide-react";
 import type { DiagramMap, Published, TermSurfaces } from "../shared/schema";
+import { partNumber } from "../shared/domain";
 
 export function Status({ state }: { state: string }) {
   const info: Record<string, [string, typeof Check]> = {
@@ -158,7 +159,7 @@ export function Diagram({
                   fontSize="16"
                   fontFamily="Arial"
                 >
-                  {index + 1}. {p.name}
+                  {partNumber(map, p, index)}. {p.name}
                 </text>
               </g>
             ) : null;
@@ -185,7 +186,7 @@ export function Diagram({
               aria-pressed={showSpots ? selected === p.id : undefined}
               onClick={() => onSelect(p.id)}
             >
-              {index + 1}
+              {partNumber(map, p, index)}
             </button>
           ) : null;
         })}
@@ -367,7 +368,9 @@ export function ConceptTree({
   selected,
   onSelect,
 }: {
-  lesson: Pick<Published, "title"> & { map: { parts: { id: string; name: string }[] } };
+  lesson: Pick<Published, "title"> & {
+    map: { parts: { id: string; name: string; labelId?: string }[]; labels?: DiagramMap["labels"] };
+  };
   selected: string;
   onSelect: (id: string) => void;
 }) {
@@ -468,7 +471,9 @@ export function ConceptTree({
                     refs.current[p.id]?.focus();
                   }}
                 >
-                  <span className="node-number">{i + 1}</span>
+                  <span className="node-number">
+                    {lesson.map.labels && p.labelId ? partNumber({ labels: lesson.map.labels }, { labelId: p.labelId }, i) : i + 1}
+                  </span>
                   {p.name}
                   <ArrowUpRight size={16} aria-hidden="true" />
                 </li>
