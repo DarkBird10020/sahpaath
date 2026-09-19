@@ -103,3 +103,31 @@ describe("bounded pipeline execution", () => {
     expect(parseTextract({ Blocks: [{ ...block, Geometry: { BoundingBox: { Left: .9, Top: .2, Width: .3, Height: .1 } } }] })).toEqual([]);
   });
 });
+
+describe("Diagram sequence ordering", () => {
+  it("orders parts by numbered callouts even when the model emitted them backwards", () => {
+    const numberLabels: Label[] = Array.from({ length: 3 }, (_, i) => ({
+      id: `label-${i + 1}`, text: String(i + 1), confidence: 99, source: "textract" as const,
+      x: 0.1 + i * 0.1, y: 0.2,
+    }));
+    const p = diagramProposalSchema.parse({
+      parts: numberLabels.map((l, i) => ({ id: `p${i}`, name: l.text, ocrLabelId: l.id,
+        description: `Part ${l.text}.`, descriptions: { short: l.text, normal: `Part ${l.text}.`, detailed: `Detailed part ${l.text}.` },
+        evidence: [l.id] })),
+      relationships: [],
+      processFlow: [],
+    });
+    // The model listed 3, 2, 1.
+    p.parts.reverse();
+    const result = validateProposal(p, numberLabels);
+    expect(result.map.parts.map((x) => x.labelId)).toEqual(["label-1", "label-2", "label-3"]);
+  });
+  it("falls back to the process flow, then geometric reading order, when labels are not numbered", () => {
+    const p = proposal();
+    // Emitted backwards: Lungs (label-b, upper right) before Heart (label-a, upper left).
+    const reversed = diagramProposalSchema.parse({ ...p, parts: [...p.parts].reverse() });
+    const result = validateProposal(reversed, labels);
+    // Geometric order: both on the same row band; Heart (x .2) before Lungs (x .7).
+    expect(result.map.parts.map((x) => x.labelId)).toEqual(["label-a", "label-b"]);
+  });
+});
