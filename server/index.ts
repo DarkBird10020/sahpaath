@@ -168,13 +168,13 @@ function session(req: IncomingMessage): Session {
     ?.slice(9);
   const row = token
     ? (store.db
-        .prepare("SELECT role,code,expires FROM sessions WHERE token=?")
+        .prepare("SELECT s.role,s.code,s.expires,a.role_selected FROM sessions s LEFT JOIN account_sessions a ON a.token=s.token WHERE s.token=?")
         .get(hash(token).toString("hex")) as
-        (Session & { expires: number }) | undefined)
+        (Session & { expires: number; role_selected: number | null }) | undefined)
     : undefined;
   if (!row || row.expires < Date.now())
     throw new HttpError(401, "Choose a classroom role to continue.");
-  return { role: row.role, code: row.code };
+  return { role: row.role, code: row.code, ...(row.role_selected === null ? {} : { needsRoleSelection: !row.role_selected }) };
 }
 function teacher(req: IncomingMessage) {
   const s = session(req);
@@ -411,14 +411,19 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     });
   if (path === "/api/session" && method === "POST") {
     limited(`login:${req.socket.remoteAddress}`, 20);
-    // Supabase identity, when presented, mint the classroom session from the
-    // VERIFIED identity's application role — no local password involved.
-    // Role decisions always come from the users table, never the client.
-    // Checked before body parsing so an empty body works for Supabase login.
+    // Verify the identity before creating a pending classroom session or saving
+    // the authenticated user's teacher/student onboarding choice.
     const bearer = readBearerToken(req);
     if (bearer) {
-      try {
         const principal = await auth.verifyBearer(bearer);
+        const choice = z.object({ role: z.enum(["teacher", "student"]).optional() }).strict().parse(await body(req));
+        // Classroom onboarding is self-service after verified sign-in. ADMIN is
+        // never assignable here and existing administrators keep their role.
+        if (choice.role && principal.role !== "ADMIN") {
+          const updated = store.setUserRole(principal.userId, choice.role === "teacher" ? "TEACHER" : "USER");
+          principal.role = updated.role;
+        }
+        const user = appUserSchema.parse(store.findUserById(principal.userId));
         const token = randomBytes(32).toString("hex");
         const code = randomBytes(3).toString("hex").toUpperCase();
         store.db.prepare("DELETE FROM sessions WHERE expires < ?").run(Date.now());
@@ -434,20 +439,13 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
           "Set-Cookie",
           `sahpaath=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`,
         );
+        store.db.prepare("INSERT INTO account_sessions (token,role_selected) VALUES (?,?)").run(sha256Hex(token), choice.role ? 1 : 0);
         return json(res, {
           role: legacyRoleFor(principal.role),
           code,
-          user: appUserSchema.parse({
-            id: principal.userId,
-            supabaseUserId: "",
-            email: principal.email,
-            name: principal.name,
-            role: principal.role,
-          }),
+          user,
+          needsRoleSelection: !choice.role,
         });
-      } catch {
-        // Invalid bearer falls through to the local-password flow.
-      }
     }
     const input = z
       .object({
@@ -516,11 +514,14 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     limited(`diagram-search:${searcher.code}`, 20);
     const q = (url.searchParams.get("q") || "").trim().slice(0, 120);
     if (!q) return json(res, { results: [] });
+    // Wikimedia Commons' own search: it indexes the full image library (the
+    // wikipedia file search misses many diagrams Commons has).
     const endpoint =
-      `https://en.wikipedia.org/w/api.php?action=query&generator=search` +
-      `&gsrsearch=${encodeURIComponent(`${q} filetype:bitmap`)}&gsrlimit=12` +
-      `&gsrnamespace=6&prop=imageinfo&iiprop=url|mime|size|extmetadata` +
-      `&iiurlwidth=320&format=json&origin=*&redirects=1`;
+      `https://commons.wikimedia.org/w/api.php?action=query&generator=search` +
+      `&gsrsearch=${encodeURIComponent(`${q} filetype:bitmap`)}` +
+      `&gsrlimit=12&gsrnamespace=6&prop=imageinfo` +
+      `&iiprop=url|mime|size|extmetadata&iiurlwidth=320` +
+      `&format=json&origin=*&redirects=1`;
     const upstream = await fetch(endpoint, {
       headers: { "User-Agent": "SahPaath local classroom (education demo)" },
       signal: AbortSignal.timeout(10_000),
@@ -566,7 +567,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
           height: info.height ?? null,
           licenseName,
           attribution: attribution.slice(0, 300),
-          sourceUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent((p.title ?? "").replace(/ /g, "_"))}`,
+          sourceUrl: `https://commons.wikimedia.org/wiki/${encodeURIComponent((p.title ?? "").replace(/ /g, "_"))}`,
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null)
@@ -590,7 +591,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       throw new HttpError(400, "Invalid image URL.");
     }
     if (parsed.protocol !== "https:" || !parsed.hostname.endsWith(".wikimedia.org"))
-      throw new HttpError(400, "Only Wikimedia Commons image URLs are supported.");
+      throw new HttpError(400, "Only Wikimedia image URLs are supported.");
     const upstream = await fetch(parsed, {
       headers: { "User-Agent": "SahPaath local classroom (education demo)" },
       signal: AbortSignal.timeout(15_000),
@@ -635,7 +636,10 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     teacher(req);
     const input = z
       .object({
-        fixtureId: z.enum(["heart", "water", "plant", "circuit", "pump"]),
+        fixtureId: z.enum([
+          "heart", "water", "plant", "circuit", "pump",
+          "solar", "atom", "ev", "states", "food",
+        ]),
       })
       .strict()
       .parse(await body(req));

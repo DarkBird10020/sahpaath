@@ -314,6 +314,7 @@ export const auditSchema = z.object({
 export const sessionSchema = z.object({
   role: z.enum(["teacher", "student"]),
   code: z.string(),
+  needsRoleSelection: z.boolean().optional(),
 });
 
 /* ------------------------- Application users (Supabase) ------------------- */

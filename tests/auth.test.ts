@@ -40,8 +40,8 @@ function signToken(payload: Record<string, unknown>, overrides?: { alg?: string;
   const signer = createSign("SHA256");
   // ES256 signs SHA-256 of the input; node's createSign with an EC key does this.
   signer.update(`${head}.${body}`);
-  const sig = signer.sign(overrides?.key ?? privateKey);
-  // Raw ECDSA signature (r||s) is what node produces; JOSE wants the same raw form.
+  // JOSE uses raw r||s. Node defaults to DER unless explicitly told otherwise.
+  const sig = signer.sign({ key: overrides?.key ?? privateKey, dsaEncoding: "ieee-p1363" });
   return `${head}.${body}.${b64url(sig)}`;
 }
 
@@ -142,7 +142,7 @@ function accessToken(overrides: {
     email: overrides.email === undefined ? "student@example.com" : overrides.email,
     role: overrides.role ?? "authenticated",
     iss: overrides.iss ?? `${projectUrl}/auth/v1`,
-    aud: overrides.aud ?? "leijvzvbxmqevoxzshbe",
+    aud: overrides.aud ?? "authenticated",
     iat: now,
     exp: now + (overrides.expOffset ?? 3600),
   });
@@ -151,6 +151,16 @@ function accessToken(overrides: {
 /* --------------------------------- tests ----------------------------------- */
 
 describe("Supabase config guard", () => {
+  it("uses the standard Supabase audience and public JWKS endpoint", () => {
+    expect(readSupabaseAuthConfig({ SUPABASE_URL: `${projectUrl}/` })).toMatchObject({
+      projectUrl, audience: "authenticated", jwksUrl: `${projectUrl}/auth/v1/.well-known/jwks.json`,
+    });
+  });
+  it("rejects a JWKS host that only starts with the project hostname", () => {
+    expect(() => readSupabaseAuthConfig({
+      SUPABASE_URL: projectUrl, SUPABASE_JWKS_URL: `${projectUrl}.evil.example/keys`,
+    })).toThrow(/does not match/);
+  });
   it("rejects a JWKS URL outside the configured project", () => {
     expect(() =>
       readSupabaseAuthConfig({
@@ -165,6 +175,18 @@ describe("Supabase config guard", () => {
 });
 
 describe("token verification", () => {
+  it("rejects an unknown signing key after a bounded refresh", async () => {
+    const cfg = readSupabaseAuthConfig({ SUPABASE_URL: projectUrl, SUPABASE_JWKS_URL: jwksUrl })!;
+    const cache = createJwksCache(cfg);
+    await verifySupabaseToken(accessToken(), cfg, cache);
+    const before = jwksHits;
+    const token = signToken({
+      sub: "unknown-key-user", role: "authenticated", iss: `${projectUrl}/auth/v1`,
+      aud: "authenticated", exp: Math.floor(Date.now() / 1000) + 600,
+    }, { kid: "retired-key" });
+    await expect(verifySupabaseToken(token, cfg, cache)).rejects.toMatchObject({ status: 401 });
+    expect(jwksHits - before).toBe(1);
+  });
   it("1. valid token authenticates and provisions a default USER", async () => {
     const auth = makeAuth();
     const principal = await requireAuth(bearerReq(accessToken()), auth);
@@ -184,7 +206,7 @@ describe("token verification", () => {
     const auth = makeAuth();
     const { privateKey: other } = generateKeyPairSync("ec", { namedCurve: "P-256" });
     const token = signToken(
-      { sub: "sb-x", role: "authenticated", iss: `${projectUrl}/auth/v1`, aud: "leijvzvbxmqevoxzshbe", exp: Math.floor(Date.now() / 1000) + 600 },
+      { sub: "sb-x", role: "authenticated", iss: `${projectUrl}/auth/v1`, aud: "authenticated", exp: Math.floor(Date.now() / 1000) + 600 },
       { key: other },
     );
     await expect(requireAuth(bearerReq(token), auth)).rejects.toMatchObject({ status: 401 });
@@ -203,7 +225,7 @@ describe("token verification", () => {
     const noneHeader = (() => {
       const now = Math.floor(Date.now() / 1000);
       const head = b64url(JSON.stringify({ alg: "none", typ: "JWT" }));
-      const body = b64url(JSON.stringify({ sub: "sb-x", role: "authenticated", iss: `${projectUrl}/auth/v1`, aud: "leijvzvbxmqevoxzshbe", exp: now + 600 }));
+      const body = b64url(JSON.stringify({ sub: "sb-x", role: "authenticated", iss: `${projectUrl}/auth/v1`, aud: "authenticated", exp: now + 600 }));
       return `${head}.${body}.`;
     })();
     await expect(requireAuth(bearerReq(noneHeader), auth)).rejects.toMatchObject({ status: 401 });
@@ -302,7 +324,7 @@ describe("provisioning", () => {
       email: "sneaky@example.com",
       role: "authenticated",
       iss: `${projectUrl}/auth/v1`,
-      aud: "leijvzvbxmqevoxzshbe",
+      aud: "authenticated",
       app_metadata: { role: "ADMIN" },
       exp: Math.floor(Date.now() / 1000) + 600,
     });

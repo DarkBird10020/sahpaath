@@ -1,6 +1,6 @@
 {
-  "url": "http://127.0.0.1:5174/",
-  "timestamp": "2026-09-19T08:54:33.114Z",
+  "url": "http://127.0.0.1:5174/#/communicate",
+  "timestamp": "2026-09-19T10:21:10.887Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -13,7 +13,6 @@
     "aria-roles",
     "aria-valid-attr-value",
     "aria-valid-attr",
-    "avoid-inline-spacing",
     "button-name",
     "bypass",
     "color-contrast",

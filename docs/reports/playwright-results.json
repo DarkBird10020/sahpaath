@@ -4,8 +4,7 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\node_modules\\@playwright\\test\\cli.js",
       "test",
-      "-g",
-      "manual upload fallback|the quiet bar|the YouTube search|keyboard-only phrase|guided demo"
+      "tests/e2e/classroom.spec.ts"
     ],
     "configFile": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\playwright.config.ts",
     "rootDir": "C:/Users/aaayu/OneDrive/Desktop/Shahpaath/sahpaath/tests/e2e",
@@ -90,6 +89,142 @@
       "line": 0,
       "specs": [
         {
+          "title": "scroll story supports chapter navigation, reduced motion and narrow screens",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8270,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:20:43.082Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-755d09eaa3c333103449",
+          "file": "classroom.spec.ts",
+          "line": 83,
+          "column": 1
+        },
+        {
+          "title": "landing, login and narrow layout accessibility",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4241,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:20:51.581Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-e0c16fa0ad393c62d4cb",
+          "file": "classroom.spec.ts",
+          "line": 131,
+          "column": 1
+        },
+        {
+          "title": "teacher repairs, approves, publishes, explores and sends a contextual question",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 18194,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:20:55.840Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-81f99d1539866b45f798",
+          "file": "classroom.spec.ts",
+          "line": 164,
+          "column": 1
+        },
+        {
+          "title": "API roles, forged approval, races and malicious uploads",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1696,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:21:14.050Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-afe6f123e13c82eceea3",
+          "file": "classroom.spec.ts",
+          "line": 269,
+          "column": 1
+        },
+        {
           "title": "keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback",
           "ok": false,
           "tags": [],
@@ -105,7 +240,7 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "timedOut",
-                  "duration": 60212,
+                  "duration": 60238,
                   "error": {
                     "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
                     "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
@@ -126,7 +261,7 @@
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:29:26.610Z",
+                  "startTime": "2026-09-19T10:21:15.764Z",
                   "annotations": [],
                   "attachments": [
                     {
@@ -152,40 +287,6 @@
         },
         {
           "title": "manual upload fallback can be reviewed and published without an OCR service",
-          "ok": true,
-          "tags": [],
-          "tests": [
-            {
-              "timeout": 60000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "",
-              "projectName": "",
-              "results": [
-                {
-                  "workerIndex": 1,
-                  "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 3447,
-                  "errors": [],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2026-09-19T10:30:27.695Z",
-                  "annotations": [],
-                  "attachments": []
-                }
-              ],
-              "status": "expected"
-            }
-          ],
-          "id": "ee123a1e90c2c71e0969-00054c036f0349deac81",
-          "file": "classroom.spec.ts",
-          "line": 426,
-          "column": 1
-        },
-        {
-          "title": "the quiet bar is the landing's alone, and it can be pinned open",
           "ok": false,
           "tags": [],
           "tests": [
@@ -197,60 +298,372 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 1,
-                  "parallelIndex": 0,
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
                   "status": "failed",
-                  "duration": 11218,
+                  "duration": 0,
                   "error": {
-                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('.site-header nav button')\nExpected: \u001b[32m3\u001b[39m\nReceived: \u001b[31m4\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" locator('.site-header nav button') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.site-header nav button')\u001b[22m\n\u001b[2m    14 × locator resolved to 4 elements\u001b[22m\n\u001b[2m       - unexpected value \"4\"\u001b[22m\n",
-                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('.site-header nav button')\nExpected: \u001b[32m3\u001b[39m\nReceived: \u001b[31m4\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" locator('.site-header nav button') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.site-header nav button')\u001b[22m\n\u001b[2m    14 × locator resolved to 4 elements\u001b[22m\n\u001b[2m       - unexpected value \"4\"\u001b[22m\n\n    at C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:771:57",
-                    "location": {
-                      "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
-                      "column": 57,
-                      "line": 771
-                    },
-                    "snippet": "\u001b[0m \u001b[90m 769 |\u001b[39m   \u001b[36mawait\u001b[39m expect(header)\u001b[33m.\u001b[39mtoHaveClass(\u001b[35m/is-plain/\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 770 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m\"button\"\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m\"Menu\"\u001b[39m\u001b[33m,\u001b[39m exact\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m }))\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m0\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 771 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m\".site-header nav button\"\u001b[39m))\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m3\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                                         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 772 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m\"button\"\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m\"Accessibility settings\"\u001b[39m }))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 773 |\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m 774 |\u001b[39m\u001b[0m"
+                    "message": "Error: worker process exited unexpectedly (code=3221225794, signal=null)"
                   },
                   "errors": [
                     {
-                      "location": {
-                        "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
-                        "column": 57,
-                        "line": 771
-                      },
-                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('.site-header nav button')\nExpected: \u001b[32m3\u001b[39m\nReceived: \u001b[31m4\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" locator('.site-header nav button') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.site-header nav button')\u001b[22m\n\u001b[2m    14 × locator resolved to 4 elements\u001b[22m\n\u001b[2m       - unexpected value \"4\"\u001b[22m\n\n\n  769 |   await expect(header).toHaveClass(/is-plain/);\n  770 |   await expect(page.getByRole(\"button\", { name: \"Menu\", exact: true })).toHaveCount(0);\n> 771 |   await expect(page.locator(\".site-header nav button\")).toHaveCount(3);\n      |                                                         ^\n  772 |   await expect(page.getByRole(\"button\", { name: \"Accessibility settings\" })).toBeVisible();\n  773 | });\n  774 |\n    at C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:771:57"
+                      "message": "Error: worker process exited unexpectedly (code=3221225794, signal=null)"
                     }
                   ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:30:31.310Z",
+                  "startTime": "2026-09-19T10:22:16.419Z",
                   "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-the-quiet-bar-is-9ac82-e-and-it-can-be-pinned-open\\error-context.md"
-                    },
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-the-quiet-bar-is-9ac82-e-and-it-can-be-pinned-open\\trace.zip"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
-                    "column": 57,
-                    "line": 771
-                  }
+                  "attachments": []
                 }
               ],
               "status": "unexpected"
             }
           ],
+          "id": "ee123a1e90c2c71e0969-00054c036f0349deac81",
+          "file": "classroom.spec.ts",
+          "line": 426,
+          "column": 1
+        },
+        {
+          "title": "caption correction uses the published glossary and retains original text; local storage is private",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.419Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-660c5d00c60dfe79d162",
+          "file": "classroom.spec.ts",
+          "line": 478,
+          "column": 1
+        },
+        {
+          "title": "landing playground links a caption term to the diagram and a question by keyboard",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.419Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-ab460472543833a5d348",
+          "file": "classroom.spec.ts",
+          "line": 560,
+          "column": 1
+        },
+        {
+          "title": "trust pipeline exposes each stage with an accessible inspector",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-4e4cf130989dbaf1ae4b",
+          "file": "classroom.spec.ts",
+          "line": 588,
+          "column": 1
+        },
+        {
+          "title": "calm motion setting stops scroll animation and pins nothing",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-57bf4592d9fe5e513f87",
+          "file": "classroom.spec.ts",
+          "line": 602,
+          "column": 1
+        },
+        {
+          "title": "scrolling the landing page never fights the reader",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-9e6bf4a4ea9bfb681e07",
+          "file": "classroom.spec.ts",
+          "line": 618,
+          "column": 1
+        },
+        {
+          "title": "stepped sections lock in place first, then move one point at a time",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-e106b85699215d27ef00",
+          "file": "classroom.spec.ts",
+          "line": 659,
+          "column": 1
+        },
+        {
+          "title": "the menu opens over the page, travels the story and hands focus back",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-613b156a8c34a4706058",
+          "file": "classroom.spec.ts",
+          "line": 696,
+          "column": 1
+        },
+        {
+          "title": "the header takes the colour of the section it is locked over",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-3112d07b1e4e272eb5ec",
+          "file": "classroom.spec.ts",
+          "line": 722,
+          "column": 1
+        },
+        {
+          "title": "the quiet bar is the landing's alone, and it can be pinned open",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
           "id": "ee123a1e90c2c71e0969-6789ede08585315cb713",
           "file": "classroom.spec.ts",
           "line": 744,
+          "column": 1
+        },
+        {
+          "title": "the scanning beam belongs to the chapter that is reading labels",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-0c23dd8522776ec62567",
+          "file": "classroom.spec.ts",
+          "line": 775,
           "column": 1
         },
         {
@@ -266,20 +679,20 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 2,
-                  "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 34820,
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:30:43.472Z",
+                  "startTime": "2026-09-19T10:22:16.420Z",
                   "annotations": [],
                   "attachments": []
                 }
               ],
-              "status": "expected"
+              "status": "skipped"
             }
           ],
           "id": "ee123a1e90c2c71e0969-c5a0f4cfd67512eb03be",
@@ -288,8 +701,8 @@
           "column": 1
         },
         {
-          "title": "the YouTube search says what is missing instead of failing quietly",
-          "ok": false,
+          "title": "one login and one logout cover both the classroom API and the v1 backend",
+          "ok": true,
           "tags": [],
           "tests": [
             {
@@ -300,60 +713,127 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 2,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 7071,
-                  "error": {
-                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('form', { name: 'Sign in', exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('form', { name: 'Sign in', exact: true }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('form', { name: 'Sign in', exact: true })\u001b[22m\n",
-                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('form', { name: 'Sign in', exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('form', { name: 'Sign in', exact: true }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('form', { name: 'Sign in', exact: true })\u001b[22m\n\n    at C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:948:74",
-                    "location": {
-                      "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
-                      "column": 74,
-                      "line": 948
-                    },
-                    "snippet": "\u001b[0m \u001b[90m 946 |\u001b[39m   \u001b[90m// The button stays out of reach until there is something to search for.\u001b[39m\n \u001b[90m 947 |\u001b[39m   \u001b[36mconst\u001b[39m button \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mgetByRole(\u001b[32m\"button\"\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m\"Search\"\u001b[39m })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 948 |\u001b[39m   \u001b[36mawait\u001b[39m expect(button)\u001b[33m.\u001b[39mtoBeDisabled()\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                                                     \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 949 |\u001b[39m   \u001b[36mawait\u001b[39m box\u001b[33m.\u001b[39mfill(\u001b[32m\"blood flow through the heart\"\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 950 |\u001b[39m   \u001b[36mawait\u001b[39m expect(button)\u001b[33m.\u001b[39mtoBeEnabled()\u001b[33m;\u001b[39m\n \u001b[90m 951 |\u001b[39m   \u001b[36mawait\u001b[39m button\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\u001b[0m"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
-                        "column": 74,
-                        "line": 948
-                      },
-                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('form', { name: 'Sign in', exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('form', { name: 'Sign in', exact: true }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('form', { name: 'Sign in', exact: true })\u001b[22m\n\n\n  946 |   // The button stays out of reach until there is something to search for.\n  947 |   const button = page.getByRole(\"button\", { name: \"Search\" });\n> 948 |   await expect(button).toBeDisabled();\n      |                                                                     ^\n  949 |   await box.fill(\"blood flow through the heart\");\n  950 |   await expect(button).toBeEnabled();\n  951 |   await button.click();\n    at C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:948:74"
-                    }
-                  ],
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T10:31:18.456Z",
+                  "startTime": "2026-09-19T10:22:16.420Z",
                   "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-the-YouTube-sear-9cc10--instead-of-failing-quietly\\error-context.md"
-                    },
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-the-YouTube-sear-9cc10--instead-of-failing-quietly\\trace.zip"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
-                    "column": 74,
-                    "line": 948
-                  }
+                  "attachments": []
                 }
               ],
-              "status": "unexpected"
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-96c41adc07b17ddb5724",
+          "file": "classroom.spec.ts",
+          "line": 880,
+          "column": 1
+        },
+        {
+          "title": "AI helper pages work for students, explain clearly when AI is off, and load subtitles offline",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-d51c513c5e68094054b9",
+          "file": "classroom.spec.ts",
+          "line": 909,
+          "column": 1
+        },
+        {
+          "title": "the YouTube search says what is missing instead of failing quietly",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
             }
           ],
           "id": "ee123a1e90c2c71e0969-7536576f477741be3116",
           "file": "classroom.spec.ts",
           "line": 943,
+          "column": 1
+        },
+        {
+          "title": "teacher can choose a diagram file without filling the form first",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": -1,
+                  "parallelIndex": -1,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-19T10:22:16.420Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "ee123a1e90c2c71e0969-a8533a37253f937f545d",
+          "file": "classroom.spec.ts",
+          "line": 966,
           "column": 1
         }
       ]
@@ -361,11 +841,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-19T10:29:24.156Z",
-    "duration": 122037.51400000001,
-    "expected": 2,
-    "skipped": 0,
-    "unexpected": 3,
+    "startTime": "2026-09-19T10:20:40.551Z",
+    "duration": 96142.984,
+    "expected": 4,
+    "skipped": 15,
+    "unexpected": 2,
     "flaky": 0
   }
 }

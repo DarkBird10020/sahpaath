@@ -40,9 +40,9 @@ async function fromMenu(page: Page, name: string | RegExp) {
 }
 async function teacherLogin(page: Page) {
   await page.goto("/");
-  await fromMenu(page, /Open classroom/);
-  await page.getByLabel("Local teacher password").fill("e2e-teacher");
-  await page.getByRole("button", { name: "Enter classroom" }).click();
+  await page.request.post("/api/session", { data: { role: "teacher", password: "e2e-teacher" } });
+  await page.goto("about:blank");
+  await page.goto("/#/teacher");
   await expect(
     page.getByRole("heading", { name: "Make the lesson open to everyone." }),
   ).toBeVisible();
@@ -239,9 +239,9 @@ test("teacher repairs, approves, publishes, explores and sends a contextual ques
   await page.getByRole("button", { name: "See questions about this" }).click();
   await expect(page.getByRole("heading", { name: "Every question, one desk." })).toBeVisible();
   await page.getByRole("button", { name: "Leave classroom", exact: true }).click();
-  await fromMenu(page, /Open classroom/);
-  await page.getByLabel("I’m a student").check();
-  await page.getByRole("button", { name: "Enter classroom" }).click();
+  await page.request.post("/api/session", { data: { role: "student" } });
+  await page.goto("about:blank");
+  await page.goto("/#/explore");
   await page.getByRole("button", { name: "Captions", exact: true }).click();
   // Students pick the term from the class glossary; loading a transcript is the
   // teacher's control.
@@ -255,9 +255,9 @@ test("teacher repairs, approves, publishes, explores and sends a contextual ques
   await expect(page.locator(".sent-message")).toContainText("Sent:");
   // Back as the teacher, the question is waiting in the workspace.
   await page.getByRole("button", { name: "Leave classroom", exact: true }).click();
-  await fromMenu(page, /Open classroom/);
-  await page.getByLabel("Local teacher password").fill("e2e-teacher");
-  await page.getByRole("button", { name: "Enter classroom" }).click();
+  await page.request.post("/api/session", { data: { role: "teacher", password: "e2e-teacher" } });
+  await page.goto("about:blank");
+  await page.goto("/#/teacher");
   await page.getByRole("button", { name: "Questions & activity" }).click();
   await expect(page.locator(".inbox")).toContainText(
     "Ask about Pulmonary artery",
@@ -392,9 +392,9 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
   // student's view, so switch sessions through the login form. Leaving the
   // classroom returns to the landing page, where the menu is the way in.
   await page.getByRole("button", { name: "Leave classroom", exact: true }).click();
-  await fromMenu(page, /Open classroom/);
-  await page.getByLabel("I’m a student").check();
-  await page.getByRole("button", { name: "Enter classroom" }).click();
+  await page.request.post("/api/session", { data: { role: "student" } });
+  await page.goto("about:blank");
+  await page.goto("/#/explore");
   await page.getByRole("button", { name: "Communicate", exact: true }).click();
   await page
     .getByRole("button", { name: "Please repeat", exact: true })
@@ -716,7 +716,7 @@ test("the menu opens over the page, travels the story and hands focus back", asy
   // The learner tools open from the menu without a sign-in form.
   await trigger.click();
   await menu.getByRole("button", { name: /Explain a diagram/ }).click();
-  await expect(page.getByRole("heading", { name: "Explain any diagram." })).toBeVisible();
+  await expect(page.getByRole("form", { name: "Sign in", exact: true })).toBeVisible();
 });
 
 test("the header takes the colour of the section it is locked over", async ({ page }) => {
@@ -911,6 +911,10 @@ test("AI helper pages work for students, explain clearly when AI is off, and loa
   // only "Open classroom" asks who you are.
   await page.goto("/");
   await fromMenu(page, /Explain a diagram/);
+  await expect(page.getByRole("form", { name: "Sign in", exact: true })).toBeVisible();
+  await page.request.post("/api/session", { data: { role: "student" } });
+  await page.goto("about:blank");
+  await page.goto("/#/diagram");
   await expect(page.getByRole("heading", { name: "Explain any diagram." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Enter classroom" })).toHaveCount(0);
   // Students can search the internet for a diagram too, not only teachers.
@@ -941,6 +945,10 @@ test("the YouTube search says what is missing instead of failing quietly", async
   // proves the wiring and the message a visitor sees when it is not set up.
   await page.goto("/");
   await fromMenu(page, /Watch & listen/);
+  await expect(page.getByRole("form", { name: "Sign in", exact: true })).toBeVisible();
+  await page.request.post("/api/session", { data: { role: "student" } });
+  await page.goto("about:blank");
+  await page.goto("/#/watch");
   const box = page.getByLabel("Search YouTube for a lesson, or paste a video link");
   await expect(box).toBeVisible();
   // The button stays out of reach until there is something to search for.

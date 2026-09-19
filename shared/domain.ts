@@ -437,8 +437,10 @@ export function buildExplorer(
     return {
       partId: p.id,
       name: p.name,
-      shortDescription: p.description.slice(0, 280),
-      detailedDescription: p.description,
+      shortDescription: (p.descriptions?.short ?? p.description).slice(0, 280),
+      // The three-level proposals keep a full paragraph for learners who
+      // cannot see the image; plain descriptions simply repeat.
+      detailedDescription: p.descriptions?.detailed ?? p.description,
       vocabularyTermId: p.id,
       connectedParts: connected,
       flow:

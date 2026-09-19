@@ -15,6 +15,7 @@ export default defineConfig({
     ["json", { outputFile: "docs/reports/playwright-results.json" }],
   ],
   use: {
+    channel: process.env.PLAYWRIGHT_CHANNEL,
     baseURL: "http://127.0.0.1:5174",
     viewport: { width: 1440, height: 1000 },
     trace: "retain-on-failure",
@@ -31,6 +32,8 @@ export default defineConfig({
       AWS_BEDROCK_MODEL_ID: "",
       // Keep browser tests offline: never call Gemini even if .env has a key.
       GEMINI_API_KEY: "",
+      VITE_SUPABASE_URL: "http://127.0.0.1:5174/test-auth",
+      VITE_SUPABASE_ANON_KEY: "test-public-key",
       // Likewise for YouTube, whose free quota is only ~99 searches a day and
       // would otherwise be spent by every test run.
       YOUTUBE_API_KEY: "",
