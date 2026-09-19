@@ -521,10 +521,12 @@ test("caption correction uses the published glossary and retains original text; 
       )
     ).status(),
   ).toBe(404);
+  // Refused by the path, not by chance: these hold whether or not the file is
+  // there, which is what broke this check on a fresh machine.
   expect((await page.request.get("/.data/sahpaath.sqlite")).status()).toBe(403);
-  expect((await page.request.get("/.data/e2e/sahpaath.sqlite")).status()).toBe(
-    403,
-  );
+  expect((await page.request.get("/.data/e2e/sahpaath.sqlite")).status()).toBe(403);
+  expect((await page.request.get("/.data/nothing-here.sqlite")).status()).toBe(403);
+  expect((await page.request.get("/.env")).status()).toBe(403);
   expect((await page.request.get("/shared/fixtures.ts")).status()).toBe(403);
   await page.request.post("/api/session", { data: { role: "student" } });
   const explorer = await (
