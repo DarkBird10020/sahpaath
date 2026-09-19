@@ -3512,60 +3512,88 @@ code {
 }
 
 /* ---------- Full-screen menu ---------- */
-/* Opened from the header without leaving the page: the story as a list of chapters
-   on one side, what you can do right now on the other. */
+/* Built after the cornrevolution.resn.global menu, studied in the live site:
+   - its .menu has no background and no backdrop-filter; what you see is the
+     chapter's WebGL scene blurred (three passes, radius tweened 0 -> 100 over
+     1s, easeInOutSine) until only its colours are left, so the menu is green
+     over the intro and amber over Science;
+   - the words sit straight on that colour: a thin "CHAPTER 1" at 30% opacity
+     over a 72px uppercase title, outlined buttons with a 0.8px border at 30%,
+     one underlined link, a small footer, all on one screen;
+   - choosing a chapter sets it up behind the menu and wipes the old view away
+     diagonally toward the top-left.
+   Here the blur is backdrop-filter over the real page, the colour is read from
+   the section behind (NavMenu's toneBehind), and the words turn ink on a light
+   section and cream on a dark one, because this page, unlike that one, has both. */
 .nav-menu {
+  --m-fg: 255 253 248;
+  --m-accent: #e0a049;
   position: fixed;
   inset: 0;
   z-index: 80;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(20px, 4vh, 48px);
-  padding: clamp(18px, 3vw, 40px) clamp(20px, 5vw, 76px) clamp(20px, 3vh, 40px);
-  color: #fffdf8;
-  /* No panel of its own: the page you were reading stays behind the menu,
-     blurred, the way cornrevolution.resn.global does it (there the blur is
-     three WebGL passes whose radius tweens 0 -> 100 over 1s, easeInOutSine,
-     when the menu opens). The tint is ours: that site's scene is dark green,
-     this page is cream, and white text needs a dark ground to stay readable. */
-  background-color: rgba(10, 19, 34, 0.72);
-  background-image:
-    radial-gradient(ellipse 60% 80% at 82% 20%, rgba(196, 110, 36, 0.2), transparent 68%),
-    radial-gradient(ellipse 70% 90% at 5% 90%, rgba(44, 95, 179, 0.22), transparent 70%);
-  -webkit-backdrop-filter: blur(32px) saturate(135%);
-  backdrop-filter: blur(32px) saturate(135%);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(12px, 3vh, 32px);
+  height: 100dvh;
+  box-sizing: border-box;
+  padding: clamp(16px, 4.5vh, 40px) clamp(20px, 8.3vw, 128px) clamp(14px, 4vh, 36px);
+  color: rgb(var(--m-fg));
+  /* The section's own colour, strong enough that words on it stay readable over
+     whatever the blur still lets through. */
+  background-color: rgb(var(--ground) / 0.55);
+  -webkit-backdrop-filter: blur(96px) saturate(160%);
+  backdrop-filter: blur(96px) saturate(160%);
   overflow: auto;
-  animation: menu-in 0.9s cubic-bezier(0.37, 0, 0.63, 1) both;
+  animation: menu-in 1s cubic-bezier(0.37, 0, 0.63, 1) both;
 }
-/* The blur grows over the page rather than a panel sliding over it. */
+.nav-menu[data-tone="light"] {
+  --m-fg: 15 36 64;
+  --m-accent: #9a5b12;
+}
 @keyframes menu-in {
   from {
-    background-color: rgba(10, 19, 34, 0);
+    background-color: rgb(var(--ground) / 0);
     -webkit-backdrop-filter: blur(0) saturate(100%);
     backdrop-filter: blur(0) saturate(100%);
   }
 }
+/* The words arrive once the page has gone soft behind them. */
 .nav-menu > * {
-  animation: menu-content-in 0.5s ease 0.2s both;
+  animation: menu-content-in 0.5s ease 0.35s both;
 }
 @keyframes menu-content-in {
   from {
     opacity: 0;
   }
 }
-/* Closing reverses it: the words go first, then the page sharpens again. */
+/* Closing: the words go first, then the page sharpens again. */
 .nav-menu.is-leaving {
   pointer-events: none;
-  animation: menu-out 0.6s cubic-bezier(0.37, 0, 0.63, 1) both;
 }
 .nav-menu.is-leaving > * {
-  animation: menu-content-out 0.25s ease both;
+  animation: menu-content-out 0.2s ease both;
+}
+.nav-menu.is-fade {
+  animation: menu-out 0.7s cubic-bezier(0.37, 0, 0.63, 1) both;
 }
 @keyframes menu-out {
   to {
-    background-color: rgba(10, 19, 34, 0);
+    background-color: rgb(var(--ground) / 0);
     -webkit-backdrop-filter: blur(0) saturate(100%);
     backdrop-filter: blur(0) saturate(100%);
+  }
+}
+/* Going somewhere: the place is already set up behind; the menu is wiped off it
+   along a diagonal that runs out through the top-left corner. */
+.nav-menu.is-wipe {
+  animation: menu-wipe 1s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes menu-wipe {
+  from {
+    clip-path: polygon(0 0, 220% 0, 0 220%);
+  }
+  to {
+    clip-path: polygon(0 0, 0 0, 0 0);
   }
 }
 @keyframes menu-content-out {
@@ -3573,241 +3601,245 @@ code {
     opacity: 0;
   }
 }
-/* Without backdrop blur the page would show through sharp; keep it solid. */
+@media (max-width: 900px) {
+  /* The reference also blurs less on phones (radius 20 instead of 100). */
+  .nav-menu {
+    -webkit-backdrop-filter: blur(40px) saturate(160%);
+    backdrop-filter: blur(40px) saturate(160%);
+  }
+}
+/* Without backdrop blur the page would show through sharp; use its colour solid. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .nav-menu {
-    background-color: #0a1322;
+    background-color: rgb(var(--ground) / 0.97);
   }
 }
 /* High contrast cannot promise contrast over a picture: a solid ground. */
 :root[data-contrast="true"] .nav-menu {
+  --m-fg: 255 255 255;
+  --m-accent: #ffd27a;
   background: #000;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+
 .menu-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
 }
 .menu-brand {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  font-family: "Manrope Variable", Arial, sans-serif;
-  font-size: 1.4rem;
+  gap: 12px;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 .menu-brand .brand-mark {
-  border-color: rgba(255, 253, 248, 0.45);
-  margin-right: 10px;
+  border-color: rgb(var(--m-fg) / 0.45);
+  color: inherit;
 }
 .nav-menu .brand-dot {
-  color: #e0a049;
+  color: var(--m-accent);
 }
 .menu-close {
-  width: 54px;
-  height: 54px;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
   padding: 0;
   border-radius: 50%;
   background: transparent;
-  border: 1px solid rgba(255, 253, 248, 0.4);
-  color: #fffdf8;
-  transition: background 0.25s ease, transform 0.35s cubic-bezier(0.2, 0.75, 0.15, 1);
+  border: 1px solid rgb(var(--m-fg) / 0.4);
+  color: inherit;
+  transition: border-color 0.3s ease;
 }
 .menu-close:hover:not(:disabled) {
-  background: rgba(255, 253, 248, 0.16);
-  border-color: #fffdf8;
-  transform: rotate(90deg);
+  background: transparent;
+  border-color: rgb(var(--m-fg));
 }
+
 .menu-body {
-  flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.85fr);
-  gap: clamp(28px, 6vw, 96px);
-  align-content: center;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 96px);
+  align-items: center;
+  min-height: 0;
 }
 .menu-kicker {
-  margin: 0 0 clamp(12px, 2vh, 26px);
-  font-size: 12px;
+  margin: 0 0 clamp(10px, 3.5vh, 36px);
+  font-size: clamp(10px, 1.4vh, 12px);
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 253, 248, 0.78);
+  color: rgb(var(--m-fg));
 }
+
+/* Chapters: a thin label over a big title; hover lights the label, nothing moves. */
 .menu-chapters ol {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: clamp(2px, 0.6vh, 10px);
+}
+.menu-chapters li + li {
+  margin-top: clamp(8px, 3vh, 36px);
 }
 .menu-chapters button {
-  width: 100%;
-  min-height: 0;
   display: flex;
-  justify-content: flex-start;
-  align-items: baseline;
-  gap: clamp(12px, 2vw, 26px);
-  padding: clamp(4px, 0.8vh, 10px) 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(2px, 0.8vh, 8px);
+  padding: 0;
   border: 0;
   background: none;
   color: inherit;
   text-align: left;
-  transition: transform 0.35s cubic-bezier(0.2, 0.75, 0.15, 1), color 0.25s ease;
+  cursor: pointer;
 }
 .menu-num {
-  flex: none;
-  width: 9ch;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-size: clamp(11px, 1.9vh, 16px);
+  font-weight: 400;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 253, 248, 0.74);
+  /* 30% in the reference; this is the least that keeps 4.5:1 on both grounds. */
+  color: rgb(var(--m-fg) / 0.72);
+  transition: color 0.5s ease;
 }
 .menu-title {
-  font-family: "Manrope Variable", Arial, sans-serif;
-  /* Sized by the window's height as well as its width, so all seven chapters fit
-     on a laptop screen without the list scrolling. */
-  font-size: clamp(26px, min(4.2vw, 5.4vh), 58px);
+  font-size: clamp(30px, 7.2vh, 72px);
   font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 1.04;
+  line-height: 1;
+  letter-spacing: -0.02em;
   text-transform: uppercase;
-  color: rgba(255, 253, 248, 0.9);
-  transition: color 0.25s ease;
+  color: rgb(var(--m-fg));
 }
-/* Hover brightens the line itself. The app-wide pale button hover would drop a
-   bright box behind the words, which is exactly what it must not do here. */
 .menu-chapters button:hover:not(:disabled),
 .menu-chapters button:focus-visible {
   background: none;
   border-color: transparent;
-  transform: translateX(14px);
-}
-.menu-chapters button:hover .menu-title,
-.menu-chapters button:focus-visible .menu-title {
-  color: #fffdf8;
 }
 .menu-chapters button:hover .menu-num,
 .menu-chapters button:focus-visible .menu-num {
-  color: #e0a049;
+  color: rgb(var(--m-fg));
 }
+
+/* Actions: outlined buttons with labels only, then one underlined link. */
 .menu-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.menu-side .menu-kicker {
+  align-self: stretch;
+  text-align: center;
+}
+.menu-actions {
   display: grid;
-  align-content: center;
-  gap: 12px;
+  grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+  gap: clamp(8px, 1.8vh, 16px);
+  width: min(100%, calc(var(--cols, 1) * 384px + (var(--cols, 1) - 1) * 16px));
 }
 .menu-action {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  min-height: 72px;
-  padding: 14px 20px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 253, 248, 0.3);
-  background: rgba(255, 253, 248, 0.05);
-  color: #fffdf8;
-  text-align: left;
+  position: relative;
+  min-height: clamp(44px, 8.5vh, 64px);
+  padding: 8px 20px;
+  border: 1px solid rgb(var(--m-fg) / 0.35);
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font-size: clamp(12px, 1.9vh, 15px);
   font-weight: 700;
-  transition: background 0.25s ease, border-color 0.25s ease, transform 0.35s cubic-bezier(0.2, 0.75, 0.15, 1);
-}
-.menu-action span {
-  flex: 1;
-  display: grid;
-  gap: 3px;
-}
-.menu-action small {
-  font-size: 0.78rem;
-  font-weight: 500;
-  line-height: 1.45;
-  color: rgba(255, 253, 248, 0.8);
-}
-.menu-action svg:last-child {
-  transition: transform 0.25s cubic-bezier(0.2, 0.75, 0.15, 1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  transition: border-color 0.3s ease;
 }
 .menu-action:hover:not(:disabled),
 .menu-action:focus-visible {
-  background: rgba(255, 253, 248, 0.1);
-  border-color: rgba(255, 253, 248, 0.85);
-  transform: translateY(-2px);
+  background: transparent;
+  border-color: rgb(var(--m-fg));
 }
-.menu-action:hover:not(:disabled) svg:last-child {
-  transform: translateX(5px);
-}
-/* The primary is a brighter outline, not a slab of white: a filled card next to
-   these dim ones glares. */
-.menu-action.is-primary {
-  background: rgba(255, 253, 248, 0.12);
-  border-color: rgba(255, 253, 248, 0.75);
-}
-.menu-action.is-primary:hover:not(:disabled) {
-  background: rgba(255, 253, 248, 0.2);
-  border-color: #fffdf8;
-}
+/* The page you are on: a full border and an amber mark, not colour alone. */
 .menu-action[aria-current="page"] {
-  border-color: rgba(255, 253, 248, 0.75);
-  background: rgba(255, 253, 248, 0.14);
+  border-color: rgb(var(--m-fg));
 }
 .menu-action[aria-current="page"]::before {
   content: "";
-  width: 3px;
-  align-self: stretch;
-  margin: -14px 2px -14px -12px;
-  border-radius: 3px;
-  background: #e0a049;
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--m-accent);
 }
+.menu-cta {
+  margin-top: clamp(12px, 3vh, 32px);
+  padding: 8px 0 6px;
+  border: 0;
+  border-bottom: 1px solid rgb(var(--m-fg));
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font-size: clamp(12px, 1.9vh, 15px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.menu-cta:hover:not(:disabled),
+.menu-cta:focus-visible {
+  background: none;
+  border-bottom-color: var(--m-accent);
+}
+
 .menu-foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding-top: clamp(12px, 2vh, 22px);
-  border-top: 1px solid rgba(255, 253, 248, 0.16);
-  font-size: 0.78rem;
-  color: rgba(255, 253, 248, 0.8);
-}
-.menu-foot span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  gap: 8px 24px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--m-fg) / 0.8);
 }
 .menu-foot-links {
-  gap: 22px;
+  display: inline-flex;
   flex-wrap: wrap;
+  gap: 8px 24px;
 }
 .menu-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 4px;
+  padding: 6px 0;
   border: 0;
+  border-bottom: 1px solid rgb(var(--m-fg) / 0.5);
+  border-radius: 0;
   background: none;
-  color: #fffdf8;
-  font-size: 0.82rem;
-  font-weight: 650;
-  text-decoration: underline;
-  text-underline-offset: 6px;
-  text-decoration-thickness: 1px;
+  color: rgb(var(--m-fg));
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
 }
-.menu-link:hover:not(:disabled) {
+.menu-link:hover:not(:disabled),
+.menu-link:focus-visible {
   background: none;
-  text-decoration-thickness: 2px;
+  border-bottom-color: rgb(var(--m-fg));
 }
-/* The list arrives a line at a time, like the page it opens over. */
+
+/* The list arrives a line at a time over the softened page. */
 .motion-on .menu-chapters li,
-.motion-on .menu-action {
-  animation: menu-line 0.55s cubic-bezier(0.2, 0.75, 0.15, 1) both;
-  animation-delay: calc(0.05s * var(--i, 0) + 0.12s);
+.motion-on .menu-action,
+.motion-on .menu-cta {
+  animation: menu-line 0.6s cubic-bezier(0.2, 0.75, 0.15, 1) both;
+  animation-delay: calc(0.05s * var(--i, 0) + 0.4s);
 }
 @keyframes menu-line {
   from {
     opacity: 0;
-    transform: translateY(24px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -3827,7 +3859,8 @@ code {
   .menu-title {
     font-size: clamp(26px, 8vw, 40px);
   }
-  .menu-action {
-    min-height: 64px;
+  .menu-actions {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
   }
 }
