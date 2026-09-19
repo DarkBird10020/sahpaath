@@ -48,7 +48,14 @@ npm run test:e2e
 npm run evaluate
 ```
 
-Browser tests use a separate database under `.data/e2e` and port 5174. Axe reports and the Playwright summary are written to `docs/reports`. Evaluation without a measured run returns null metrics; the UI displays **Not measured yet.**
+Browser tests start from an empty database under `.data/e2e` on port 5174. Axe reports and the Playwright summary are written to `docs/reports`. Evaluation without a measured run returns null metrics; the UI displays **Not measured yet.**
+
+The same build, unit tests and browser tests run on GitHub for every push to
+`main` and every pull request (`.github/workflows/checks.yml`), so a change that
+breaks the landing page, the navigation or the trust model shows up as a failed
+check rather than in someone's browser. When a check fails, the run's
+`playwright-report` artifact holds the trace. Nothing in CI calls an AI
+provider: the Playwright config blanks `GEMINI_API_KEY`.
 
 ## Boundaries
 
