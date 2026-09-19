@@ -1330,6 +1330,25 @@ legend {
 }
 .review-item h4 {
   line-height: 1.5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* The diagram's own number beside the part's name, like the circles on the page. */
+.callout-no {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+  background: #fff;
 }
 .grounding-line {
   display: flex;

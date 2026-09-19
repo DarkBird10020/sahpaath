@@ -14,7 +14,9 @@ export const labelSchema = z
     id,
     text: text.max(120),
     confidence: z.number().min(0).max(100).nullable(),
-    source: z.enum(["demo_fixture", "teacher_entered", "textract", "local_ocr"]),
+    // model_read: a numbered callout read by the vision model, which local OCR
+    // could not read. Kept distinct so it is never shown as OCR.
+    source: z.enum(["demo_fixture", "teacher_entered", "textract", "local_ocr", "model_read"]),
     x: z.number().min(0).max(1),
     y: z.number().min(0).max(1),
     boundingBox: z.object({

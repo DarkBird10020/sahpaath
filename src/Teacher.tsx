@@ -24,7 +24,8 @@ import {
   type Lesson,
   type Question,
   type Audit,
-} from "../shared/schema";import { items, validateMap, itemGrounded, sequencePartIds } from "../shared/domain";
+} from "../shared/schema";
+import { items, validateMap, itemGrounded, partNumber, sequencePartIds } from "../shared/domain";
 import { fixtures } from "../shared/catalog";
 
 const searchResultSchema = z.object({
@@ -824,13 +825,14 @@ export default function Teacher({
                                     ? "Textract OCR"
                                     : l.source === "local_ocr"
                                       ? "Local OCR (test stand-in)"
-                                      : "Teacher entered"}
+                                      : l.source === "model_read"
+                                        ? "Callout number read by the AI model, not OCR"
+                                        : "Teacher entered"}
                               </span>
                               <small>
-                                OCR confidence:{" "}
-                                {l.confidence === null
-                                  ? "Not measured yet."
-                                  : `${l.confidence}%`}
+                                {l.source === "model_read"
+                                  ? "No OCR confidence: check the number against the image."
+                                  : `OCR confidence: ${l.confidence === null ? "Not measured yet." : `${l.confidence}%`}`}
                               </small>
                             </li>
                           ))}
@@ -841,19 +843,18 @@ export default function Teacher({
                       <div className="panel-heading">
                         <h3>Structured lesson</h3>
                         <span className="small">
-                          Flagged first · then diagram sequence
+                          In diagram order, 1 to last
+                          {" · "}
+                          {new Set(issues.map((i) => i.itemId)).size} to check
                         </span>
                       </div>
                       {[...items(lesson.map)]
                         .sort((a, b) => {
-                          const flagged =
-                            Number(issues.some((i) => i.itemId === b.id)) -
-                            Number(issues.some((i) => i.itemId === a.id));
-                          if (flagged) return flagged;
-                          // Within each group, follow the diagram's own
-                          // sequence (numbered callouts, then flow, then
-                          // geometric reading order) — parts keep their
-                          // position; relations and flows sit after them.
+                          // The diagram's own sequence, 1 to last: numbered
+                          // callouts, then flow, then reading order. Flagged
+                          // items keep their place and carry their badge, so the
+                          // lesson reads the way it will be taught. Relations
+                          // and the reading order come after every part.
                           const isPart = (x: typeof a) => "description" in x;
                           if (isPart(a) && isPart(b))
                             return (
@@ -893,7 +894,14 @@ export default function Teacher({
                                 </span>
                                 <Status state={item.state} />
                               </div>
-                              <h4>{label}</h4>
+                              <h4>
+                                {isPart && (
+                                  <span className="callout-no" aria-label={`Number ${partNumber(lesson.map, item, sequence.indexOf(item.id))},`}>
+                                    {partNumber(lesson.map, item, sequence.indexOf(item.id))}
+                                  </span>
+                                )}
+                                {label}
+                              </h4>
                               <div className="grounding-line">
                                 <span
                                   className={`grounded ${grounded ? "ok" : "warn"}`}
@@ -907,10 +915,9 @@ export default function Teacher({
                                 </span>
                                 {sourceLabel && (
                                   <span className="small">
-                                    OCR confidence:{" "}
-                                    {sourceLabel.confidence === null
-                                      ? "Not measured yet."
-                                      : `${sourceLabel.confidence}%`}
+                                    {sourceLabel.source === "model_read"
+                                      ? `Number ${sourceLabel.text} read by the AI model, not OCR`
+                                      : `OCR confidence: ${sourceLabel.confidence === null ? "Not measured yet." : `${sourceLabel.confidence}%`}`}
                                   </span>
                                 )}
                                 {"modelConfidence" in item && (

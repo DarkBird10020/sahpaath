@@ -5,6 +5,8 @@ import {
   imageSize,
   linesToLabels,
   localTestEngine,
+  mergeCallouts,
+  readCallouts,
   readGeminiConfig,
   GeminiProposalAdapter,
   LocalOcrAdapter,
@@ -12,6 +14,7 @@ import {
 } from "../server/local-ai";
 import { proposalToStructure } from "../server/services/pipeline-structure";
 import { normalizeOcr } from "../server/providers/textract";
+import { calloutOf } from "../shared/domain";
 
 // No network: every Gemini response below is a canned fetch reply.
 const PNG = Buffer.from(
@@ -35,6 +38,8 @@ const lines: OcrLine[] = [
   { text: "Right ventricle", confidence: 91.2, box: { x: 0.1, y: 0.1, width: 0.3, height: 0.05 } },
   { text: "Pulmonary artery", confidence: 88, box: { x: 0.5, y: 0.4, width: 0.3, height: 0.05 } },
 ];
+// The engine's first call reads numbered callouts; a diagram labelled in words has none.
+const noCallouts = () => answer('{"callouts":[]}');
 const proposal = {
   parts: [
     { id: "p1", name: "Right ventricle", ocrLabelId: "ocr-0", description: "Pumps blood to the lungs.", evidence: ["ocr-0"] },
@@ -107,7 +112,7 @@ describe("Local OCR shape", () => {
 
 describe("Classroom pipeline with the stand-in engine", () => {
   it("grounds a Gemini proposal in local OCR labels and names both engines", async () => {
-    const { impl } = fakeFetch(answer(JSON.stringify(proposal)));
+    const { impl } = fakeFetch(noCallouts(), answer(JSON.stringify(proposal)));
     const engine = localTestEngine(config, "unused", impl, async () => lines);
     expect(engine).toMatchObject({ ocrName: "Local OCR (tesseract.js)", modelName: "Gemini gemini-test", note: "Test stand-in, not AWS." });
     const result = await engine.run({ bytes: PNG, mime: "image/png" });
@@ -120,17 +125,79 @@ describe("Classroom pipeline with the stand-in engine", () => {
     expect(result.issues).toEqual([]);
   });
   it("retries malformed output once, then keeps OCR labels and names Gemini in the failure", async () => {
-    const { impl, calls } = fakeFetch(answer("not json"), answer('{"parts":[]}'));
+    const { impl, calls } = fakeFetch(noCallouts(), answer("not json"), answer('{"parts":[]}'));
     const result = await localTestEngine(config, "unused", impl, async () => lines).run({ bytes: PNG, mime: "image/png" });
-    expect(calls).toHaveLength(2);
+    // One callout read, then the proposal and its single retry.
+    expect(calls).toHaveLength(3);
     expect(result).toMatchObject({ ok: false, failedStage: "model", reason: "Gemini gemini-test returned malformed output twice. OCR labels are preserved." });
     expect(result.labels).toHaveLength(2);
   });
   it("flags invented OCR ids instead of hiding them", async () => {
     const invented = structuredClone(proposal);
     invented.parts[1].ocrLabelId = "ocr-99";
-    const result = await localTestEngine(config, "unused", fakeFetch(answer(JSON.stringify(invented))).impl, async () => lines).run({ bytes: PNG, mime: "image/png" });
+    const result = await localTestEngine(config, "unused", fakeFetch(noCallouts(), answer(JSON.stringify(invented))).impl, async () => lines).run({ bytes: PNG, mime: "image/png" });
     expect(result.ok && result.issues.some((i) => i.code === "unknown_label")).toBe(true);
+  });
+});
+
+describe("Numbered callouts", () => {
+  // Circled numbers that local OCR misreads as fragments, as it did on a real
+  // 23-callout digestive diagram ("(6) 5", "oa", "AN").
+  const junk: OcrLine[] = [
+    { text: "(6) 5", confidence: 41, box: { x: 0.1, y: 0.1, width: 0.06, height: 0.04 } },
+    { text: "oa", confidence: 30, box: { x: 0.1, y: 0.5, width: 0.04, height: 0.04 } },
+    { text: "Human digestive system", confidence: 95, box: { x: 0.3, y: 0.95, width: 0.4, height: 0.04 } },
+  ];
+  const callouts = { callouts: [
+    { number: 2, box: [480, 90, 530, 150] },
+    { number: 1, box: [80, 90, 130, 150] },
+    { number: 1, box: [80, 90, 130, 150] },
+    { number: 3, box: [880, 90, 930, 150] },
+  ] };
+  it("reads each callout once, in number order, as the model's reading and not OCR", async () => {
+    const labels = await readCallouts(config, { bytes: PNG, mime: "image/png" }, fakeFetch(answer(JSON.stringify(callouts))).impl);
+    expect(labels.map((l) => [l.id, l.text, l.source, l.confidence])).toEqual([
+      ["callout-1", "1", "model_read", null],
+      ["callout-2", "2", "model_read", null],
+      ["callout-3", "3", "model_read", null],
+    ]);
+    expect(labels[0].y).toBeCloseTo(0.105, 3);
+  });
+  it("drops OCR fragments lying on a callout and keeps words elsewhere", async () => {
+    const labels = await readCallouts(config, { bytes: PNG, mime: "image/png" }, fakeFetch(answer(JSON.stringify(callouts))).impl);
+    const merged = mergeCallouts(linesToLabels(junk), labels);
+    expect(merged.map((l) => l.text)).toEqual(["1", "2", "3", "Human digestive system"]);
+    // A diagram without numbered callouts keeps its OCR exactly as read.
+    expect(mergeCallouts(linesToLabels(junk), [])).toHaveLength(3);
+  });
+  it("gives each part its number, its name and its place, 1 to last", async () => {
+    const named = {
+      parts: [
+        { id: "p3", name: "Stomach", ocrLabelId: "callout-3", description: "The stomach churns and digests food.", evidence: ["callout-3"] },
+        { id: "p1", name: "Mouth", ocrLabelId: "callout-1", description: "The mouth takes food in and starts chewing.", evidence: ["callout-1"] },
+        { id: "p2", name: "Oesophagus", ocrLabelId: "callout-2", description: "The oesophagus carries food down to the stomach.", evidence: ["callout-2"] },
+      ],
+      relationships: [],
+      processFlow: [],
+    };
+    const { impl, calls } = fakeFetch(answer(JSON.stringify(callouts)), answer(JSON.stringify(named)));
+    const result = await localTestEngine(config, "unused", impl, async () => junk).run({ bytes: PNG, mime: "image/png" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.map.parts.map((p) => [calloutOf(result.map, p), p.name])).toEqual([
+      [1, "Mouth"],
+      [2, "Oesophagus"],
+      [3, "Stomach"],
+    ]);
+    expect(result.issues.filter((i) => i.code === "callout_named_by_ai")).toHaveLength(3);
+    // The lesson itself gets room to finish; the callout read does not need it.
+    expect((calls[1].body.generationConfig as { maxOutputTokens: number }).maxOutputTokens).toBe(32768);
+    expect((calls[0].body.generationConfig as { maxOutputTokens: number }).maxOutputTokens).toBe(8192);
+  });
+  it("falls back to plain OCR when the callout read fails", async () => {
+    const { impl } = fakeFetch(reply(400, {}), answer(JSON.stringify(proposal)));
+    const result = await localTestEngine(config, "unused", impl, async () => lines).run({ bytes: PNG, mime: "image/png" });
+    expect(result.ok && result.map.parts.map((p) => p.name)).toEqual(["Right ventricle", "Pulmonary artery"]);
   });
 });
 
@@ -182,12 +249,12 @@ describe("Splitting OCR lines at arrows", () => {
 describe("Teacher-visible errors", () => {
   it("show our own wording but never raw provider text", async () => {
     const provider = "project 123456 key AQ.secret-ish detail";
-    const { impl } = fakeFetch(reply(400, { error: { message: provider } }));
+    const { impl } = fakeFetch(noCallouts(), reply(400, { error: { message: provider } }));
     const result = await localTestEngine(config, "unused", impl, async () => lines).run({ bytes: PNG, mime: "image/png" });
     expect(result).toMatchObject({ ok: false, failedStage: "model" });
     expect(result.ok ? "" : result.reason).toContain("Gemini rejected the request (HTTP 400).");
     expect(JSON.stringify(result)).not.toContain("123456");
-    const limited = await localTestEngine(config, "unused", fakeFetch(reply(429, {}), reply(429, {})).impl, async () => lines).run({ bytes: PNG, mime: "image/png" });
+    const limited = await localTestEngine(config, "unused", fakeFetch(noCallouts(), reply(429, {}), reply(429, {})).impl, async () => lines).run({ bytes: PNG, mime: "image/png" });
     expect(limited.ok ? "" : limited.reason).toContain("free-tier limit reached");
   });
 });

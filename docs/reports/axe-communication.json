@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/#/communicate",
-  "timestamp": "2026-09-19T10:38:53.490Z",
+  "timestamp": "2026-09-19T17:43:55.374Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
