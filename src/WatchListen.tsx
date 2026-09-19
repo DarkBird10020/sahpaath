@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Captions as CaptionsIcon, FileText, Film, Search, Sparkles } from "lucide-react";
 import { api, fileBase64 } from "./api";
 import WordExplainer from "./WordExplainer";
+import { CaptionsWorking, Spinner } from "./Working";
 import { decodeToMono, encodeWav, MAX_SECONDS, planChunks, SAMPLE_RATE } from "./audioChunks";
 import { loadYouTubeApi, type YouTubePlayer } from "./youtubePlayer";
 
@@ -311,8 +312,8 @@ export default function WatchListen({ report }: { report: (m: string) => void })
               {video.channel} · {length(video.durationSeconds)}
             </small>
           </p>
-          <button className="primary" disabled={busy || video.tooLong} onClick={() => void captionVideo()}>
-            <Sparkles size={17} aria-hidden="true" />
+          <button className="primary" disabled={busy || video.tooLong} aria-busy={busy} onClick={() => void captionVideo()}>
+            {busy ? <Spinner /> : <Sparkles size={17} aria-hidden="true" />}
             {busy ? "Creating captions…" : "Create captions with AI"}
           </button>
           <button type="button" onClick={() => chooseVideo(null)}>
@@ -347,8 +348,8 @@ export default function WatchListen({ report }: { report: (m: string) => void })
                 }}
               />
             </label>
-            <button className="primary" disabled={!file || busy} onClick={() => void createCaptions()}>
-              <Sparkles size={17} aria-hidden="true" />
+            <button className="primary" disabled={!file || busy} aria-busy={busy} onClick={() => void createCaptions()}>
+              {busy ? <Spinner /> : <Sparkles size={17} aria-hidden="true" />}
               {busy ? "Creating captions…" : "Create captions with AI"}
             </button>
           </>
@@ -375,11 +376,7 @@ export default function WatchListen({ report }: { report: (m: string) => void })
           />
         </label>
       </div>
-      {busy && (
-        <p role="status" className="ai-progress">
-          {progress || "Working…"} Captions appear below as each part finishes.
-        </p>
-      )}
+      {busy && <CaptionsWorking progress={progress || "Listening to the recording…"} />}
       {error && (
         <p className="error" role="alert">
           {error}
