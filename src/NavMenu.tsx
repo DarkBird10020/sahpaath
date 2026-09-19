@@ -1,16 +1,57 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowRight, BookOpen, Captions, LogOut, ScanText, Settings2, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { BookOpen, ScanText, X } from "lucide-react";
 import { goToChapter, storyChapters } from "./DiagramStory";
 
 /** Chapters that the story tells better than a menu entry can. */
 const SKIP = ["Structure", "Shared vocabulary"];
 
 type Action = { label: string; hint: string; icon: typeof ScanText; run: () => void; current?: boolean };
+type Leaving = null | "fade" | "wipe";
+type Tone = { rgb: string; dark: boolean };
+
+/**
+ * The colour of the page behind the menu. The menu has no colour of its own: like
+ * cornrevolution.resn.global, whose menu is the current chapter's scene blurred
+ * until only its colours are left, this one takes the section it opens over.
+ * Nine points are averaged, which is what a very wide blur would leave anyway.
+ */
+function toneBehind(menu: HTMLElement | null): Tone {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let n = 0;
+  for (const fx of [0.2, 0.5, 0.8])
+    for (const fy of [0.25, 0.5, 0.75]) {
+      for (const el of document.elementsFromPoint(innerWidth * fx, innerHeight * fy)) {
+        if (menu?.contains(el)) continue;
+        let node: Element | null = el;
+        let found: number[] | null = null;
+        while (node && !found) {
+          const m = getComputedStyle(node).backgroundColor.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?/);
+          if (m && (m[4] === undefined || Number(m[4]) > 0.5)) found = [+m[1], +m[2], +m[3]];
+          node = node.parentElement;
+        }
+        if (found) {
+          r += found[0];
+          g += found[1];
+          b += found[2];
+          n++;
+        }
+        break;
+      }
+    }
+  const [cr, cg, cb] = n ? [r / n, g / n, b / n] : [243, 238, 229];
+  const lin = (v: number) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const luminance = 0.2126 * lin(cr) + 0.7152 * lin(cg) + 0.0722 * lin(cb);
+  return { rgb: `${Math.round(cr)} ${Math.round(cg)} ${Math.round(cb)}`, dark: luminance < 0.3 };
+}
 
 /**
  * The whole site in one panel, opened from the header without leaving the page.
- * Chapters travel through the scroll story; the actions are the same ones the
- * header carries, with room to say what each one is for.
+ * Built after the cornrevolution.resn.global menu, studied in the live site:
+ * the page behind blurs until only its colour remains, the menu is words on that
+ * colour, and choosing a place sets it up behind the menu and wipes the menu away
+ * diagonally to reveal it.
  */
 export default function NavMenu({
   open,
@@ -29,14 +70,23 @@ export default function NavMenu({
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const close = useRef<HTMLButtonElement>(null);
-  // Stays on screen a moment after closing, so the blur can clear from the page
-  // instead of the menu vanishing. Inert meanwhile: nothing in it can be reached.
+  // How the next close looks: a plain close fades the blur back out; choosing a
+  // destination wipes the menu away over the place it set up.
+  const exit = useRef<Exclude<Leaving, null>>("fade");
   const [shown, setShown] = useState(open);
-  const [leaving, setLeaving] = useState(false);
+  const [leaving, setLeaving] = useState<Leaving>(null);
+  const [tone, setTone] = useState<Tone>({ rgb: "10 19 34", dark: true });
+
+  // Read the colour before the first paint of an opening, so it never flashes.
+  useLayoutEffect(() => {
+    if (open) setTone(toneBehind(panel.current));
+  }, [open]);
+
   useEffect(() => {
     if (open) {
       setShown(true);
-      setLeaving(false);
+      setLeaving(null);
+      exit.current = "fade";
       return;
     }
     if (!shown) return;
@@ -44,11 +94,13 @@ export default function NavMenu({
       setShown(false);
       return;
     }
-    setLeaving(true);
+    const mode = exit.current;
+    setLeaving(mode);
+    // Stays on screen while it animates away; inert meanwhile.
     const timer = setTimeout(() => {
       setShown(false);
-      setLeaving(false);
-    }, 600);
+      setLeaving(null);
+    }, mode === "wipe" ? 1000 : 700);
     return () => clearTimeout(timer);
   }, [open, shown]);
 
@@ -91,23 +143,38 @@ export default function NavMenu({
   // page when the focus effect ran, and keyboard focus never reached the menu.
   if (!open && !shown) return null;
 
-  /** Travels to a chapter of the story, going back to the landing page first. */
+  /** Sets the chapter up behind the menu, then wipes the menu away to reveal it. */
   function chapter(index: number) {
+    exit.current = "wipe";
     const already = onHome();
     onClose();
     // A page change needs a frame before the story is in the document.
-    if (already) goToChapter(index);
-    else requestAnimationFrame(() => requestAnimationFrame(() => goToChapter(index)));
+    if (already) goToChapter(index, true);
+    else requestAnimationFrame(() => requestAnimationFrame(() => goToChapter(index, true)));
   }
+  function go(run: () => void) {
+    exit.current = "wipe";
+    onClose();
+    run();
+  }
+
+  // The last action is the one to take next (sign in, or your account) and reads
+  // as a link under the buttons; more than four buttons share two columns so the
+  // menu fits one screen, signed in or not.
+  const buttons = actions.length > 1 ? actions.slice(0, -1) : actions;
+  const link = actions.length > 1 ? actions[actions.length - 1] : null;
+  const cols = buttons.length > 4 ? 2 : 1;
 
   return (
     <div
-      className={`nav-menu${leaving ? " is-leaving" : ""}`}
+      className={`nav-menu${leaving ? ` is-leaving is-${leaving}` : ""}`}
+      data-tone={tone.dark ? "dark" : "light"}
+      style={{ "--ground": tone.rgb, "--cols": cols } as CSSProperties}
       role="dialog"
       aria-modal="true"
       aria-label="Menu"
-      aria-hidden={leaving || undefined}
-      inert={leaving || undefined}
+      aria-hidden={leaving ? true : undefined}
+      inert={leaving ? true : undefined}
       ref={panel}
     >
       <div className="menu-head">
@@ -115,7 +182,10 @@ export default function NavMenu({
           <span className="brand-mark" aria-hidden="true">
             <BookOpen size={22} />
           </span>
-          SahPaath<span className="brand-dot">.</span>
+          {/* One piece, so the gap between mark and name does not split off the dot. */}
+          <span>
+            SahPaath<span className="brand-dot">.</span>
+          </span>
         </span>
         <button className="menu-close" onClick={onClose} ref={close} aria-label="Close menu">
           <X size={22} aria-hidden="true" />
@@ -147,35 +217,43 @@ export default function NavMenu({
 
         <div className="menu-side">
           <p className="menu-kicker">{signOut ? "Your classroom" : "Use it now"}</p>
-          {actions.map((action, i) => {
-            const Icon = action.icon;
-            return (
+          <div className="menu-actions">
+            {buttons.map((action, i) => (
               <button
                 key={action.label}
                 aria-current={action.current ? "page" : undefined}
-                className={`menu-action${!signOut && i === actions.length - 1 ? " is-primary" : ""}`}
+                aria-describedby={`menu-hint-${i}`}
+                className="menu-action"
                 style={{ "--i": i } as CSSProperties}
-                onClick={() => {
-                  onClose();
-                  action.run();
-                }}
+                onClick={() => go(action.run)}
               >
-                <Icon size={18} aria-hidden="true" />
-                <span>
-                  {action.label}
-                  <small>{action.hint}</small>
+                {action.label}
+                {/* What it is for, read out with the button; the reference shows labels only. */}
+                <span id={`menu-hint-${i}`} hidden>
+                  {action.hint}
                 </span>
-                <ArrowRight size={17} aria-hidden="true" />
               </button>
-            );
-          })}
+            ))}
+          </div>
+          {link && (
+            <button
+              className="menu-cta"
+              aria-current={link.current ? "page" : undefined}
+              aria-describedby="menu-hint-cta"
+              style={{ "--i": buttons.length } as CSSProperties}
+              onClick={() => go(link.run)}
+            >
+              {link.label}
+              <span id="menu-hint-cta" hidden>
+                {link.hint}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
       <div className="menu-foot">
-        <span>
-          <Captions size={14} aria-hidden="true" /> Runs on this computer. Nothing leaves the classroom.
-        </span>
+        <span>Runs on this computer. Nothing leaves the classroom.</span>
         <span className="menu-foot-links">
           <button
             className="menu-link"
@@ -184,17 +262,11 @@ export default function NavMenu({
               settingsOpen();
             }}
           >
-            <Settings2 size={15} aria-hidden="true" /> Accessibility settings
+            Accessibility settings
           </button>
           {signOut && (
-            <button
-              className="menu-link"
-              onClick={() => {
-                onClose();
-                signOut();
-              }}
-            >
-              <LogOut size={15} aria-hidden="true" /> Leave classroom
+            <button className="menu-link" onClick={() => go(signOut)}>
+              Leave classroom
             </button>
           )}
         </span>
