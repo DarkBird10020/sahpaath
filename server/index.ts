@@ -1019,6 +1019,11 @@ const server = createServer(async (req, res) => {
     if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(req.headers.host || ""))
       throw new HttpError(403, "Local host only.");
     const url = new URL(req.url || "/", `http://127.0.0.1:${port}`);
+    // Nothing that starts with a dot belongs to the app: the database under
+    // .data, .env and .git are refused here, whether or not the file exists.
+    // Leaving it to the dev server meant the refusal depended on what happened
+    // to be on disk - a missing file fell through to the app's own page.
+    if (url.pathname.startsWith("/.")) throw new HttpError(403, "Invalid path.");
     if (url.pathname.startsWith("/api/")) await api(req, res, url);
     else if (vite) vite.middlewares(req, res);
     else {
