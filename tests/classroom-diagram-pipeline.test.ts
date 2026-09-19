@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { diagramProposalSchema, diagramPrompt, diagramTool, parseDiagramResponse, runDiagramPipeline, validateProposal } from "../server/diagram-pipeline";
 import { parseTextract } from "../server/aws";
-import { validateMap } from "../shared/domain";
+import { partNumber, validateMap } from "../shared/domain";
 import type { Label } from "../shared/schema";
 
 const labels: Label[] = [
@@ -121,6 +121,56 @@ describe("Diagram sequence ordering", () => {
     p.parts.reverse();
     const result = validateProposal(p, numberLabels);
     expect(result.map.parts.map((x) => x.labelId)).toEqual(["label-1", "label-2", "label-3"]);
+  });
+  it("names each callout by the structure it points to, numbered and ordered 1 to last", () => {
+    // A digestive-system diagram labelled only with circled numbers, emitted
+    // out of order, with callout 3 missed by the OCR.
+    const names: Record<string, string> = { "1": "Mouth", "2": "Pharynx", "4": "Oesophagus", "5": "Stomach" };
+    const numberLabels: Label[] = Object.keys(names).map((n, i) => ({
+      id: `label-${n}`, text: n, confidence: 90, source: "textract" as const, x: 0.2, y: 0.1 + i * 0.1,
+    }));
+    const p = diagramProposalSchema.parse({
+      parts: numberLabels.map((l) => ({ id: `p${l.text}`, name: names[l.text], ocrLabelId: l.id,
+        description: `The ${names[l.text]} moves food along.`,
+        descriptions: { short: `${names[l.text]}.`, normal: `The ${names[l.text]} moves food along.`, detailed: `The ${names[l.text]} in detail.` },
+        evidence: [l.id] })),
+      relationships: [],
+      processFlow: [],
+    });
+    p.parts.reverse();
+    const { map, issues } = validateProposal(p, numberLabels);
+    // 1 to last, by the diagram's own numbers.
+    expect(map.parts.map((x) => x.name)).toEqual(["Mouth", "Pharynx", "Oesophagus", "Stomach"]);
+    // The number shown is the one on the page: after the missed 3 comes 4, not 3.
+    expect(map.parts.map((x, i) => partNumber(map, x, i))).toEqual([1, 2, 4, 5]);
+    // A name is never "different from the label" here; it is the AI's reading of
+    // what the number points to, and the teacher is told exactly that.
+    expect(issues.some((i) => i.code === "name_drift")).toBe(false);
+    const pharynx = issues.find((i) => i.itemId === "p2" && i.code === "callout_named_by_ai");
+    expect(pharynx?.message).toContain("only the number 2");
+    expect(pharynx?.message).toContain("Pharynx");
+  });
+  it("tells the teacher when a callout came back with no name", () => {
+    const labels: Label[] = [
+      { id: "label-6", text: "6", confidence: 90, source: "textract", x: 0.2, y: 0.2 },
+      { id: "label-7", text: "7", confidence: 90, source: "textract", x: 0.2, y: 0.4 },
+    ];
+    const p = diagramProposalSchema.parse({
+      parts: labels.map((l) => ({ id: `p${l.text}`, name: l.text, ocrLabelId: l.id,
+        description: "A part of the diagram.",
+        descriptions: { short: "A part.", normal: "A part of the diagram.", detailed: "A part of the diagram, in detail." },
+        evidence: [l.id] })),
+      relationships: [],
+      processFlow: [],
+    });
+    const { issues } = validateProposal(p, labels);
+    expect(issues.find((i) => i.itemId === "p6")?.code).toBe("callout_unnamed");
+  });
+  it("asks the model for the structure's name on numbered callouts, never the bare number", () => {
+    const prompt = diagramPrompt([]);
+    expect(prompt).toContain("name of the structure the callout's line points to");
+    expect(prompt).toContain("never the bare number");
+    expect(prompt).not.toContain("set part.name to that number's text");
   });
   it("falls back to the process flow, then geometric reading order, when labels are not numbered", () => {
     const p = proposal();
