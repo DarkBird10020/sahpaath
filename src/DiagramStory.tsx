@@ -56,8 +56,13 @@ const sentence =
 
 /** Asks the story to travel to a chapter; see goToChapter below. */
 export const CHAPTER_EVENT = "sahpaath:chapter";
-export function goToChapter(index: number) {
-  dispatchEvent(new CustomEvent(CHAPTER_EVENT, { detail: index }));
+/**
+ * Travels the story to a chapter. `instant` jumps without scrolling through the
+ * chapters in between: the menu uses it to set the chapter behind itself before
+ * it wipes away, so the reader is revealed already in place.
+ */
+export function goToChapter(index: number, instant = false) {
+  dispatchEvent(new CustomEvent(CHAPTER_EVENT, { detail: { index, instant } }));
 }
 
 const chapters = [
@@ -243,12 +248,15 @@ export default function DiagramStory({
 
   // The menu (and anything else on the page) can ask for a chapter by name.
   useEffect(() => {
-    const onJump = (e: Event) => jump((e as CustomEvent<number>).detail);
+    const onJump = (e: Event) => {
+      const { index, instant } = (e as CustomEvent<{ index: number; instant: boolean }>).detail;
+      jump(index, instant);
+    };
     addEventListener(CHAPTER_EVENT, onJump);
     return () => removeEventListener(CHAPTER_EVENT, onJump);
   }, [flat]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function jump(index: number) {
+  function jump(index: number, instant = false) {
     const target = Math.max(0, Math.min(last, index));
     setAnnouncement(`Chapter ${target + 1} of ${chapters.length}: ${chapters[target].label}`);
     const el = root.current;
@@ -257,7 +265,7 @@ export default function DiagramStory({
       scrollTo({
         // Land two-thirds into the chapter so its animation has visibly played.
         top: top + (el.offsetHeight - innerHeight) * ((target + 0.66) / chapters.length),
-        behavior: "smooth",
+        behavior: instant ? "instant" : "smooth",
       });
     } else {
       setChapter(target);
