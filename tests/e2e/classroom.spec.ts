@@ -362,9 +362,10 @@ test("keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback
 }) => {
   await teacherLogin(page);
   await createPublished(page);
-  // A reload always comes back to the landing page, where the menu is the way in.
+  // A reload keeps the page it was on (the address carries it), so the way on
+  // is the plain bar's own link rather than the landing menu.
   await page.reload();
-  await fromMenu(page, /^Explore/);
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Explore", exact: true }).click();
   await page.setViewportSize({ width: 320, height: 800 });
   await scan(page, "explorer-mobile");
   expect(
@@ -768,7 +769,9 @@ test("the quiet bar is the landing's alone, and it can be pinned open", async ({
   await fromMenu(page, /Our approach/);
   await expect(header).toHaveClass(/is-plain/);
   await expect(page.getByRole("button", { name: "Menu", exact: true })).toHaveCount(0);
-  await expect(page.locator(".site-header nav button")).toHaveCount(3);
+  // Signed out: the two tools, the approach page and the way to sign in.
+  await expect(page.locator(".site-header nav button")).toHaveCount(4);
+  await expect(page.getByRole("button", { name: "Sign in / Sign up" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Accessibility settings" })).toBeVisible();
 });
 
@@ -809,8 +812,9 @@ test("guided demo, flow navigation and live captions with a misheard term", asyn
 }) => {
   await teacherLogin(page);
   await page.request.post("/api/demo/reset");
+  // The reload stays in the teacher workspace, now with the reset demo lesson.
   await page.reload();
-  await fromMenu(page, /^Teacher workspace/);
+  await expect(page.getByRole("heading", { name: "Make the lesson open to everyone." })).toBeVisible();
   await page.getByText("Guided 3-minute demo", { exact: true }).click();
   await page.getByRole("button", { name: "Start guided demo" }).click();
   await expect(
@@ -836,7 +840,7 @@ test("guided demo, flow navigation and live captions with a misheard term", asyn
   await expect(page.locator('.demo-steps li[data-status=done]').filter({ hasText: "immutable version" })).toBeVisible({ timeout: 10000 });
 
   await page.reload();
-  await fromMenu(page, /^Teacher workspace/);
+  await expect(page.getByRole("heading", { name: "Make the lesson open to everyone." })).toBeVisible();
   await page.locator(".lesson-links button").filter({ hasText: "Demo · A journey through the heart" }).first().click();
   await page.getByRole("button", { name: "Open student lesson" }).click();
   await page.getByRole("button", { name: "Next in flow: Pulmonary artery" }).click();

@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/#/evaluation",
-  "timestamp": "2026-09-19T10:21:14.002Z",
+  "timestamp": "2026-09-19T10:50:19.647Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
