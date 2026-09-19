@@ -3523,24 +3523,67 @@ code {
   gap: clamp(20px, 4vh, 48px);
   padding: clamp(18px, 3vw, 40px) clamp(20px, 5vw, 76px) clamp(20px, 3vh, 40px);
   color: #fffdf8;
-  background:
-    radial-gradient(ellipse 60% 80% at 82% 20%, rgba(196, 110, 36, 0.28), transparent 68%),
-    radial-gradient(ellipse 70% 90% at 5% 90%, rgba(44, 95, 179, 0.3), transparent 70%),
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px) 0 0 / 60px 60px,
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) 0 0 / 60px 60px,
-    #0a1322;
+  /* No panel of its own: the page you were reading stays behind the menu,
+     blurred, the way cornrevolution.resn.global does it (there the blur is
+     three WebGL passes whose radius tweens 0 -> 100 over 1s, easeInOutSine,
+     when the menu opens). The tint is ours: that site's scene is dark green,
+     this page is cream, and white text needs a dark ground to stay readable. */
+  background-color: rgba(10, 19, 34, 0.72);
+  background-image:
+    radial-gradient(ellipse 60% 80% at 82% 20%, rgba(196, 110, 36, 0.2), transparent 68%),
+    radial-gradient(ellipse 70% 90% at 5% 90%, rgba(44, 95, 179, 0.22), transparent 70%);
+  -webkit-backdrop-filter: blur(32px) saturate(135%);
+  backdrop-filter: blur(32px) saturate(135%);
   overflow: auto;
-  animation: menu-in 0.45s cubic-bezier(0.2, 0.75, 0.15, 1) both;
+  animation: menu-in 0.9s cubic-bezier(0.37, 0, 0.63, 1) both;
 }
+/* The blur grows over the page rather than a panel sliding over it. */
 @keyframes menu-in {
   from {
+    background-color: rgba(10, 19, 34, 0);
+    -webkit-backdrop-filter: blur(0) saturate(100%);
+    backdrop-filter: blur(0) saturate(100%);
+  }
+}
+.nav-menu > * {
+  animation: menu-content-in 0.5s ease 0.2s both;
+}
+@keyframes menu-content-in {
+  from {
     opacity: 0;
-    clip-path: inset(0 0 100% 0);
   }
+}
+/* Closing reverses it: the words go first, then the page sharpens again. */
+.nav-menu.is-leaving {
+  pointer-events: none;
+  animation: menu-out 0.6s cubic-bezier(0.37, 0, 0.63, 1) both;
+}
+.nav-menu.is-leaving > * {
+  animation: menu-content-out 0.25s ease both;
+}
+@keyframes menu-out {
   to {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
+    background-color: rgba(10, 19, 34, 0);
+    -webkit-backdrop-filter: blur(0) saturate(100%);
+    backdrop-filter: blur(0) saturate(100%);
   }
+}
+@keyframes menu-content-out {
+  to {
+    opacity: 0;
+  }
+}
+/* Without backdrop blur the page would show through sharp; keep it solid. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .nav-menu {
+    background-color: #0a1322;
+  }
+}
+/* High contrast cannot promise contrast over a picture: a solid ground. */
+:root[data-contrast="true"] .nav-menu {
+  background: #000;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .menu-head {
   display: flex;
@@ -3591,7 +3634,7 @@ code {
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 253, 248, 0.6);
+  color: rgba(255, 253, 248, 0.78);
 }
 .menu-chapters ol {
   list-style: none;
@@ -3621,7 +3664,7 @@ code {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 253, 248, 0.5);
+  color: rgba(255, 253, 248, 0.74);
 }
 .menu-title {
   font-family: "Manrope Variable", Arial, sans-serif;
@@ -3632,7 +3675,7 @@ code {
   letter-spacing: -0.035em;
   line-height: 1.04;
   text-transform: uppercase;
-  color: rgba(255, 253, 248, 0.82);
+  color: rgba(255, 253, 248, 0.9);
   transition: color 0.25s ease;
 }
 /* Hover brightens the line itself. The app-wide pale button hover would drop a
@@ -3680,7 +3723,7 @@ code {
   font-size: 0.78rem;
   font-weight: 500;
   line-height: 1.45;
-  color: rgba(255, 253, 248, 0.7);
+  color: rgba(255, 253, 248, 0.8);
 }
 .menu-action svg:last-child {
   transition: transform 0.25s cubic-bezier(0.2, 0.75, 0.15, 1);
@@ -3725,7 +3768,7 @@ code {
   padding-top: clamp(12px, 2vh, 22px);
   border-top: 1px solid rgba(255, 253, 248, 0.16);
   font-size: 0.78rem;
-  color: rgba(255, 253, 248, 0.68);
+  color: rgba(255, 253, 248, 0.8);
 }
 .menu-foot span {
   display: inline-flex;
@@ -3771,7 +3814,8 @@ code {
     transform: none;
   }
 }
-:root:not(.motion-on) .nav-menu {
+:root:not(.motion-on) .nav-menu,
+:root:not(.motion-on) .nav-menu > * {
   animation: none;
 }
 @media (max-width: 900px) {

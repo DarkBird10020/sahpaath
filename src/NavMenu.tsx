@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ArrowRight, BookOpen, Captions, LogOut, ScanText, Settings2, X } from "lucide-react";
 import { goToChapter, storyChapters } from "./DiagramStory";
 
@@ -29,6 +29,28 @@ export default function NavMenu({
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const close = useRef<HTMLButtonElement>(null);
+  // Stays on screen a moment after closing, so the blur can clear from the page
+  // instead of the menu vanishing. Inert meanwhile: nothing in it can be reached.
+  const [shown, setShown] = useState(open);
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setShown(true);
+      setLeaving(false);
+      return;
+    }
+    if (!shown) return;
+    if (!document.documentElement.classList.contains("motion-on")) {
+      setShown(false);
+      return;
+    }
+    setLeaving(true);
+    const timer = setTimeout(() => {
+      setShown(false);
+      setLeaving(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [open, shown]);
 
   useEffect(() => {
     if (!open) return;
@@ -65,7 +87,9 @@ export default function NavMenu({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  // `open` alone must render it: waiting a render for `shown` left nothing on the
+  // page when the focus effect ran, and keyboard focus never reached the menu.
+  if (!open && !shown) return null;
 
   /** Travels to a chapter of the story, going back to the landing page first. */
   function chapter(index: number) {
@@ -77,7 +101,15 @@ export default function NavMenu({
   }
 
   return (
-    <div className="nav-menu" role="dialog" aria-modal="true" aria-label="Menu" ref={panel}>
+    <div
+      className={`nav-menu${leaving ? " is-leaving" : ""}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Menu"
+      aria-hidden={leaving || undefined}
+      inert={leaving || undefined}
+      ref={panel}
+    >
       <div className="menu-head">
         <span className="menu-brand">
           <span className="brand-mark" aria-hidden="true">
@@ -102,8 +134,10 @@ export default function NavMenu({
               .map(({ label, index }, i) => (
                 <li key={label} style={{ "--i": i } as CSSProperties}>
                   <button onClick={() => chapter(index)}>
-                    {/* The story's own number, so the chapter you land on is the one you picked. */}
-                    <span className="menu-num">Chapter {String(index + 1).padStart(2, "0")}</span>
+                    {/* Counted within this list, 01 to 05. The story's own numbers skip
+                        the chapters left out here, and a list reading 01, 03, 04 looks
+                        broken; the button still travels to the right chapter by index. */}
+                    <span className="menu-num">Chapter {String(i + 1).padStart(2, "0")}</span>
                     <span className="menu-title">{label}</span>
                   </button>
                 </li>
