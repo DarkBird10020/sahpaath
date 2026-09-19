@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, Headphones, LogOut, MessageSquare, Pin, PinOff, ScanText, Settings2 } from "lucide-react";
 import { api, okSchema } from "./api";
@@ -18,14 +18,41 @@ import { useMotion, useStickyHeader } from "./motion";
 import NavMenu from "./NavMenu";
 import Teacher from "./Teacher";
 import Account from "./Account";
+import ChooseRole from "./ChooseRole";
 import Student from "./Student";
 import TeacherInbox from "./TeacherInbox";
 import ExplainDiagram from "./ExplainDiagram";
 import WatchListen from "./WatchListen";
 
+const pages = new Set(["home", "login", "account", "choose-role", "teacher", "explore", "captions", "communicate", "diagram", "watch", "evaluation"]);
+const publicPages = new Set(["home", "login", "account", "evaluation"]);
+function locationPage() {
+  if (new URLSearchParams(location.search).get("auth") === "callback") return "account";
+  const value = location.hash.replace(/^#\/?/, "");
+  return pages.has(value) ? value : "home";
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const [page, setPage] = useState("home");
+  const [page, updatePage] = useState(locationPage);
+  const [sessionReady, setSessionReady] = useState(false);
+  const setPage = useCallback((next: string) => {
+    if (locationPage() !== next) history.pushState(null, "", `#/${next}`);
+    updatePage(next);
+  }, []);
+  useEffect(() => {
+    const sync = () => {
+      const hash = location.hash.replace(/^#\/?/, "");
+      // In-page anchors (including the skip link) are not application routes.
+      if (!hash || pages.has(hash)) updatePage(locationPage());
+    };
+    addEventListener("popstate", sync);
+    addEventListener("hashchange", sync);
+    return () => {
+      removeEventListener("popstate", sync);
+      removeEventListener("hashchange", sync);
+    };
+  }, []);
   const [settings, setSettings] = useState(false);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [published, setPublished] = useState<Published[]>([]);
@@ -59,6 +86,11 @@ export default function App() {
   const header = useRef<HTMLElement>(null);
   const motion = useMotion(preferences.calm);
   const [menu, setMenu] = useState(false);
+  const closeMenu = useCallback(() => setMenu(false), []);
+  useEffect(() => {
+    setSettings(false);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [page]);
   const landing = page === "home";
   // Pinning keeps the landing bar on screen; the choice is remembered per browser.
   const [pinned, setPinned] = useState(() => {
@@ -94,12 +126,47 @@ export default function App() {
     }
   }, [preferences]);
   useEffect(() => {
-    void api("/session", sessionSchema)
-      .then(setSession)
-      .catch(() => {});
+    let active = true;
+    const oauthReturn = new URLSearchParams(location.search).get("auth") === "callback";
+    void (oauthReturn
+      ? getAccessToken().then((token) => token ? api("/session", sessionSchema, "POST", {}) : api("/session", sessionSchema))
+      : api("/session", sessionSchema))
+      .catch(async (error) => {
+        // Email confirmation and refreshed Supabase sessions may arrive without
+        // the local classroom cookie. Recreate it from the verified identity.
+        if (await getAccessToken()) return api("/session", sessionSchema, "POST", {});
+        throw error;
+      })
+      .then((value) => {
+        if (active) {
+          setSession(value);
+          if (oauthReturn) {
+            const destination = value.needsRoleSelection ? "choose-role" : "account";
+            history.replaceState(null, "", `${location.pathname}#/${destination}`);
+            updatePage(destination);
+          }
+        }
+      })
+      .catch((error) => { if (active && oauthReturn) setError(error.message); })
+      .finally(() => { if (active) setSessionReady(true); });
+    return () => { active = false; };
   }, []);
+  useEffect(() => {
+    if (!sessionReady) return;
+    if (session?.needsRoleSelection && page !== "choose-role") {
+      setPage("choose-role");
+      return;
+    }
+    if (supabase && page === "login") { setPage("account"); return; }
+    if (!session && !publicPages.has(page)) {
+      setAfterLogin(page);
+      setPage(supabase ? "account" : "login");
+    } else if (page === "teacher" && session?.role === "student") {
+      setPage("explore");
+    }
+  }, [page, session, sessionReady, setPage]);
   const refresh = async () => {
-    if (!session) return;
+    if (!session || session.needsRoleSelection) return;
     const pubs = await api("/published", z.array(publishedSchema));
     setPublished(pubs);
     if (session.role === "teacher") {
@@ -112,7 +179,7 @@ export default function App() {
     if (session) void refresh().catch((e) => setError((e as Error).message));
   }, [session]);
   useEffect(() => {
-    if (!session) return;
+    if (!session || session.needsRoleSelection) return;
     let active = true;
     const timer = setInterval(() => {
       void api("/published", z.array(publishedSchema))
@@ -143,12 +210,11 @@ export default function App() {
     };
   }, [page, session]);
   function go(next: string) {
-    setPage(next);
     setError("");
-    if (!["home", "login", "evaluation"].includes(next) && !session) {
+    if (!publicPages.has(next) && !session) {
       setAfterLogin(next);
-      setPage("login");
-    }
+      setPage(supabase ? "account" : "login");
+    } else setPage(next);
     setTimeout(() => main.current?.focus(), 0);
   }
   async function login() {
@@ -190,15 +256,12 @@ export default function App() {
   }
   const openTeacher = () => {
     setLoginRole("teacher");
-    go(session?.role === "teacher" ? "teacher" : "login");
+    go(session ? session.needsRoleSelection ? "choose-role" : session.role === "teacher" ? "teacher" : "explore" : supabase ? "account" : "login");
   };
-  /**
-   * The learner tools open straight away. Only "Open classroom" asks who you are:
-   * a visitor who wants a diagram explained gets a student session in the
-   * background instead of a login form in the way.
-   */
+  // Configured accounts authenticate before opening classroom tools.
   async function openTool(next: string) {
     setError("");
+    if (!session && supabase) { setAfterLogin(next); setPage("account"); return; }
     if (!session) {
       try {
         setSession(await api("/session", sessionSchema, "POST", { role: "student" }));
@@ -295,6 +358,7 @@ export default function App() {
                   <button onClick={() => void openTool("diagram")}>Explain a diagram</button>
                   <button onClick={() => void openTool("watch")}>Watch &amp; listen</button>
                   <button onClick={() => go("evaluation")}>Our approach</button>
+                  <button onClick={() => go("account")}>Sign in / Sign up</button>
                 </>
               )}
             </nav>
@@ -338,7 +402,7 @@ export default function App() {
       </header>
       <NavMenu
         open={menu}
-        onClose={() => setMenu(false)}
+        onClose={closeMenu}
         onHome={() => {
           const already = page === "home";
           if (!already) setPage("home");
@@ -380,6 +444,7 @@ export default function App() {
                 { label: "Communicate", hint: "Ask without speaking.", icon: MessageSquare, current: page === "communicate", run: () => go("communicate") },
                 { label: "Explain a diagram", hint: "Upload a picture and explore it.", icon: ScanText, current: page === "diagram", run: () => go("diagram") },
                 { label: "Watch & listen", hint: "Captions for a lecture or audiobook.", icon: Headphones, current: page === "watch", run: () => go("watch") },
+                { label: "Account", hint: "Your profile and classroom role.", icon: BookOpen, current: page === "account", run: () => go("account") },
               ]
             : [
                 {
@@ -402,9 +467,15 @@ export default function App() {
                 },
                 {
                   label: "Open classroom",
-                  hint: "Sign in as a teacher or a student.",
+                  hint: "Sign in, then choose your classroom role.",
                   icon: GraduationCap,
                   run: openTeacher,
+                },
+                {
+                  label: "Sign in / Sign up",
+                  hint: "Use your email to access your account.",
+                  icon: BookOpen,
+                  run: () => go("account"),
                 },
               ]
         }
@@ -431,8 +502,8 @@ export default function App() {
             </label>
           ))}
           <p className="small">
-            All features work without 3D or animation. Motion also follows your
-            device's reduced-motion setting.
+            All features work without 3D or animation. Choose Calm motion to
+            stop animations throughout the app.
           </p>
           <button onClick={() => setSettings(false)}>Close settings</button>
         </section>
@@ -463,14 +534,16 @@ export default function App() {
             <LandingSections motion={motion} onExplore={() => void openTool("explore")} onTeacher={openTeacher} />
           </>
         )}
-        {page === "account" && (
+        {!sessionReady && page !== "home" && <p role="status">Opening your classroom…</p>}
+        {page === "account" && sessionReady && (
           <Account
             session={session}
             onBack={() => go("home")}
-            onSignedIn={async () => {
-              setSession(await api("/session", sessionSchema));
+            onLocalLogin={() => go("login")}
+            onSignedIn={(signedIn) => {
+              setSession(signedIn);
               setAnnouncement("Signed in.");
-              go("explore");
+              setPage("choose-role");
             }}
             onSignedOut={() => {
               setSession(null);
@@ -481,7 +554,17 @@ export default function App() {
             }}
           />
         )}
-        {page === "login" && (
+        {page === "choose-role" && session && (
+          <ChooseRole onContinue={(chosen) => {
+            setSession(chosen);
+            setLessons([]);
+            setSelected("");
+            setPage(chosen.role === "teacher" ? "teacher" : "explore");
+            setAfterLogin(null);
+            setAnnouncement("Your classroom is ready.");
+          }} />
+        )}
+        {page === "login" && !supabase && (
           <section className="login-page">
             <div className="login-copy">
               <GraduationCap size={42} aria-hidden="true" />
@@ -507,6 +590,9 @@ export default function App() {
               }}
             >
               <h2>Open your classroom</h2>
+              <button type="button" className="link-button" onClick={() => go("account")}>
+                Sign in or create an account with email
+              </button>
               <fieldset>
                 <legend>Choose your role</legend>
                 <div className="role-options">

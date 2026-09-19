@@ -4,6 +4,7 @@ import App from "./App";
 import "@fontsource-variable/manrope";
 import "@fontsource-variable/dm-sans";
 import "./styles.css";
+import "./account.css";
 
 class Boundary extends React.Component<
   { children: React.ReactNode },

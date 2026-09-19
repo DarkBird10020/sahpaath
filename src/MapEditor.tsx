@@ -95,6 +95,40 @@ export default function MapEditor({
                 }
               />
             </label>
+            <label>
+              Short caption version (used by live captions)
+              <textarea
+                maxLength={280}
+                value={p.descriptions?.short ?? ""}
+                onChange={(e) =>
+                  update((m) => {
+                    const text = e.target.value;
+                    const normal = m.parts[i].descriptions?.normal ?? m.parts[i].description;
+                    const detailed = m.parts[i].descriptions?.detailed ?? m.parts[i].description;
+                    m.parts[i].descriptions = text.trim()
+                      ? { short: text, normal, detailed }
+                      : undefined;
+                  })
+                }
+              />
+            </label>
+            <label>
+              Detailed version (shown as the full explorer answer)
+              <textarea
+                maxLength={2000}
+                value={p.descriptions?.detailed ?? ""}
+                onChange={(e) =>
+                  update((m) => {
+                    const text = e.target.value;
+                    const short = m.parts[i].descriptions?.short ?? m.parts[i].description.slice(0, 280);
+                    const normal = m.parts[i].descriptions?.normal ?? m.parts[i].description;
+                    m.parts[i].descriptions = text.trim()
+                      ? { short, normal, detailed: text }
+                      : undefined;
+                  })
+                }
+              />
+            </label>
             <div className="editor-grid">
               {(["x", "y"] as const).map((axis) => (
                 <label key={axis}>

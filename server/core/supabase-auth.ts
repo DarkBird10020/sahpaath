@@ -24,12 +24,12 @@ export interface SupabaseAuthConfig {
 
 /** Read Supabase auth config; null when Supabase auth is not configured. */
 export function readSupabaseAuthConfig(env: NodeJS.ProcessEnv): SupabaseAuthConfig | null {
-  const projectUrl = env.SUPABASE_URL?.trim() || "";
-  const jwksUrl = env.SUPABASE_JWKS_URL?.trim() || "";
+  const projectUrl = env.SUPABASE_URL?.trim().replace(/\/$/, "") || "";
+  const jwksUrl = env.SUPABASE_JWKS_URL?.trim() || `${projectUrl}/auth/v1/.well-known/jwks.json`;
   // The publishable key is PUBLIC (safe to expose); the secret key is never
   // read here — verification needs no secret.
   const publishableKey = env.SUPABASE_PUBLISHABLE_KEY?.trim() || undefined;
-  if (!projectUrl || !jwksUrl) return null;
+  if (!projectUrl) return null;
   let parsed: URL;
   try {
     parsed = new URL(projectUrl);
@@ -38,14 +38,13 @@ export function readSupabaseAuthConfig(env: NodeJS.ProcessEnv): SupabaseAuthConf
   }
   if (parsed.protocol !== "https:")
     throw new Error("SUPABASE_URL must use https.");
-  const ref = parsed.hostname.split(".")[0];
   // The JWKS endpoint must belong to the configured Supabase project.
   // Loopback URLs are permitted for the test suite (a local JWKS stand-in);
   // production configuration always uses the project host below.
   const loopback = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/.test(jwksUrl);
-  if (!loopback && !jwksUrl.startsWith(`https://${ref}.supabase.co`))
+  if (!loopback && new URL(jwksUrl).origin !== parsed.origin)
     throw new Error("SUPABASE_JWKS_URL does not match the SUPABASE_URL project.");
-  return { projectUrl, jwksUrl, audience: ref, publishableKey };
+  return { projectUrl, jwksUrl, audience: "authenticated", publishableKey };
 }
 
 interface Jwk {
@@ -73,18 +72,21 @@ class JwksCache {
   ) {}
 
   async get(kid: string | undefined): Promise<Jwk | null> {
+    let refreshed = false;
     if (!this.keys.length || Date.now() - this.fetchedAt > JwksCache.TTL_MS) {
       this.inflight ??= this.fetch().finally(() => (this.inflight = null));
       this.keys = await this.inflight;
+      refreshed = true;
     }
     if (kid) {
       const byKid = this.keys.find((k) => k.kid === kid);
       if (byKid) return byKid;
       // Unknown kid: force one refresh before giving up (key rotation).
-      if (Date.now() - this.fetchedAt < JwksCache.TTL_MS) {
-        this.fetchedAt = 0;
-        return this.get(kid);
+      if (!refreshed) {
+        this.inflight ??= this.fetch().finally(() => (this.inflight = null));
+        this.keys = await this.inflight;
       }
+      return this.keys.find((key) => key.kid === kid) ?? null;
     }
     return this.keys.length === 1 ? this.keys[0] : null;
   }
@@ -152,6 +154,8 @@ export async function verifySupabaseToken(
   } catch {
     throw unauthorizedError("Invalid authentication token.");
   }
+  if (!header || !payload || typeof header !== "object" || typeof payload !== "object")
+    throw unauthorizedError("Invalid authentication token.");
   if (payload.role && payload.role !== "authenticated")
     throw unauthorizedError("This token is not a user access token.");
 
@@ -167,9 +171,13 @@ export async function verifySupabaseToken(
 
   // Algorithm allowlist pinned to what Supabase issues (ES256 / RS256).
   // Anything else — including "none" — is rejected before any key work.
+  const alg = header.alg;
+  if (alg !== "ES256" && alg !== "RS256")
+    throw unauthorizedError("Invalid authentication token.");
   const jwk = await jwks.get(header.kid);
   if (!jwk) throw unauthorizedError("Invalid authentication token.");
-  const alg = header.alg || jwk.alg || "";
+  if ((jwk.alg && jwk.alg !== alg) || (alg === "ES256" ? jwk.kty !== "EC" || jwk.crv !== "P-256" : jwk.kty !== "RSA"))
+    throw unauthorizedError("Invalid authentication token.");
   // node:crypto.verify takes the message digest; the key type selects ECDSA
   // vs RSA. Both Supabase algorithms hash with SHA-256.
   const digest = alg === "ES256" || alg === "RS256" ? "SHA256" : null;
@@ -180,11 +188,11 @@ export async function verifySupabaseToken(
   const signature = b64urlToBuffer(sigB64);
   let ok = false;
   try {
-    ok = cryptoVerify(digest, signed, key, signature);
+    ok = cryptoVerify(digest, signed, alg === "ES256" ? { key, dsaEncoding: "ieee-p1363" } : key, signature);
   } catch {
     ok = false;
   }
-  if (!ok || !payload.sub)
+  if (!ok || typeof payload.sub !== "string" || !payload.sub)
     throw unauthorizedError("Invalid authentication token.");
   return { supabaseUserId: payload.sub, email: payload.email ?? null };
 }

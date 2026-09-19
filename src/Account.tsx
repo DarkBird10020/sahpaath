@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import GoogleSignIn from "./GoogleSignIn";
 import {
   ArrowLeft,
   GraduationCap,
@@ -51,27 +52,36 @@ const ROLE_HINTS: Record<string, string> = {
 export default function Account({
   session,
   onBack,
+  onLocalLogin,
   onSignedIn,
   onSignedOut,
+  initialMode = "signin",
 }: {
   session: Session | null;
   onBack: () => void;
-  onSignedIn: () => void;
+  onLocalLogin: () => void;
+  onSignedIn: (session: Session) => void | Promise<void>;
   onSignedOut: () => void;
+  initialMode?: "signin" | "signup";
 }) {
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [notice, setNotice] = useState("");
+  const [showEmail, setShowEmail] = useState(false);
 
   useEffect(() => {
+    let active = true;
+    setMe(null);
+    if (!session) return;
     void api("/v1/me", meSchema)
-      .then(setMe)
-      .catch(() => setMe({ kind: "local", user: null, supabaseConfigured: !!supabase }));
-  }, []);
+      .then((value) => { if (active) setMe(value); })
+      .catch((e) => { if (active) setError((e as Error).message); });
+    return () => { active = false; };
+  }, [session]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -81,13 +91,13 @@ export default function Account({
     setNotice("");
     try {
       const fn = mode === "signin" ? supabaseSignIn : supabaseSignUp;
-      const { error: authError } = await fn(email.trim(), password);
+      const { data, error: authError } = await fn(email.trim(), password);
       if (authError) throw authError;
-      if (mode === "signup") {
+      if (mode === "signup" && !data.session) {
         setNotice("Account created. Check your email to confirm, then sign in.");
       } else {
-        await api("/v1/session", okSchema, "POST", {});
-        onSignedIn();
+        const classroom = await api("/session", sessionSchema, "POST", {});
+        await onSignedIn(classroom);
       }
     } catch (e) {
       setError((e as Error).message);
@@ -127,7 +137,7 @@ export default function Account({
             <strong>Session</strong>
             <p>
               Signed in{appUser ? " with Supabase" : " locally"} as{" "}
-              {appUser?.role ?? session.role === "teacher" ? "teacher" : "student"}
+              {appUser?.role.toLowerCase() ?? session.role}
               {appUser ? "" : ` · class code ${session.code}`}.
             </p>
           </div>
@@ -140,7 +150,9 @@ export default function Account({
             {error}
           </p>
         )}
-        {appUser ? (
+        {session && !me && !error ? (
+          <p role="status">Loading your account…</p>
+        ) : appUser ? (
           <>
             <h2>{appUser.name || "Classroom member"}</h2>
             <ul className="account-details">
@@ -159,7 +171,7 @@ export default function Account({
               <LogOut size={18} aria-hidden="true" /> Sign out
             </button>
           </>
-        ) : session ? (
+        ) : session && !showEmail ? (
           <>
             <h2>Local classroom session</h2>
             <ul className="account-details">
@@ -174,6 +186,11 @@ export default function Account({
                 <span>Anonymous class code: {session.code}</span>
               </li>
             </ul>
+            {supabase && (
+              <button className="link-button" onClick={() => setShowEmail(true)}>
+                Sign in or create an account with email
+              </button>
+            )}
             <button className="primary" disabled={busy} onClick={() => void signOut()}>
               <LogOut size={18} aria-hidden="true" /> Sign out
             </button>
@@ -181,6 +198,8 @@ export default function Account({
         ) : supabase ? (
           <>
             <h2>{mode === "signin" ? "Sign in" : "Create your account"}</h2>
+            <GoogleSignIn />
+            <p className="auth-divider">or continue with email</p>
             <form
               onSubmit={(e) => void submit(e)}
               className="account-auth-form"
@@ -197,17 +216,18 @@ export default function Account({
                 />
               </label>
               <label>
-                Password
+                <span id="account-password-label">Password</span>
                 <input
                   type="password"
                   autoComplete={mode === "signin" ? "current-password" : "new-password"}
                   required
-                  minLength={8}
+                  minLength={mode === "signup" ? 8 : undefined}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  aria-describedby="account-auth-error"
+                  aria-labelledby="account-password-label"
+                  aria-describedby="account-password-help account-auth-error"
                 />
-                <span className="small">
+                <span className="small" id="account-password-help">
                   {mode === "signup" ? "At least 8 characters." : "Your Supabase password."}
                 </span>
               </label>
@@ -221,6 +241,7 @@ export default function Account({
             </form>
             <button
               className="link-button"
+              disabled={busy}
               onClick={() => {
                 setMode(mode === "signin" ? "signup" : "signin");
                 setError("");
@@ -234,12 +255,13 @@ export default function Account({
           </>
         ) : (
           <>
-            <h2>No account system yet</h2>
+            <h2>Email sign-in is not configured</h2>
             <p className="small">
               Supabase authentication is not configured on this server. Use the
               local classroom sign-in to open the workspace; roles and lessons
               work exactly as before.
             </p>
+            <button className="primary" onClick={onLocalLogin}>Open local classroom</button>
           </>
         )}
         <button className="link-button" onClick={onBack}>

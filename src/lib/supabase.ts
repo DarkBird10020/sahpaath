@@ -34,17 +34,33 @@ export async function getAccessToken(): Promise<string | null> {
 
 /** Sign out of Supabase (no-op when not configured). */
 export async function supabaseSignOut(): Promise<void> {
-  if (supabase) await supabase.auth.signOut();
+  if (supabase) {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  }
 }
 
 /** Sign up with email + password through Supabase (never our backend). */
 export async function supabaseSignUp(email: string, password: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
-  return supabase.auth.signUp({ email, password });
+  return supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${location.origin}/#/account` } });
 }
 
 /** Sign in with email + password through Supabase (never our backend). */
 export async function supabaseSignIn(email: string, password: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
   return supabase.auth.signInWithPassword({ email, password });
+}
+
+export async function supabaseSignInWithGoogle() {
+  if (!supabase || !url || !anonKey) throw new Error("Sign-in is not configured yet.");
+  const response = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: anonKey } });
+  if (!response.ok) throw new Error("Could not reach sign-in. Please try again.");
+  const settings = await response.json();
+  if (!settings.external?.google) throw new Error("Google sign-in is not available yet. Please use email sign-in for now.");
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${location.origin}/?auth=callback` },
+  });
+  if (error) throw error;
 }
