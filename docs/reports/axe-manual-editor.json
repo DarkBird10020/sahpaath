@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/#/teacher",
-  "timestamp": "2026-09-19T20:48:42.191Z",
+  "timestamp": "2026-09-19T22:16:45.738Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -36,6 +36,11 @@
       "id": "aria-prohibited-attr",
       "impact": "serious",
       "description": "Ensure ARIA attributes are not prohibited for an element's role"
+    },
+    {
+      "id": "color-contrast",
+      "impact": "serious",
+      "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds"
     }
   ]
 }

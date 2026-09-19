@@ -44,6 +44,7 @@ const searchResultSchema = z.object({
 });
 type SearchResult = z.infer<typeof searchResultSchema>["results"][number];
 import { Diagram, Empty, Status, SurfaceList } from "./components";
+import { DiagramWorking, Spinner, Thinking } from "./Working";
 
 type Props = {
   lessons: Lesson[];
@@ -84,6 +85,9 @@ export default function Teacher({
   const [audit, setAudit] = useState<Audit[]>([]);
   const [engine, setEngine] = useState<{ ocr: string; model: string; standIn: boolean } | null>(null);
   const [analysing, setAnalysing] = useState(false);
+  // The picture being analysed, shown with the reading beam while it runs.
+  const [analysingImage, setAnalysingImage] = useState<string | null>(null);
+  useEffect(() => () => void (analysingImage?.startsWith("blob:") && URL.revokeObjectURL(analysingImage)), [analysingImage]);
   const [search, setSearch] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
@@ -222,6 +226,7 @@ export default function Teacher({
   function reanalyse() {
     if (!lesson) return;
     setConfirmReanalyse(false);
+    setAnalysingImage(lesson.image ? `/api/images/${lesson.image}` : null);
     setReanalysing(true);
     void run(
       () => api(`/lessons/${lesson.id}/reanalyse`, lessonSchema, "POST", { revision: lesson.revision }),
@@ -315,7 +320,10 @@ export default function Teacher({
         { imageUrl: r.imageUrl ?? r.thumbUrl },
       );
       let uploaded = "Original uploaded. Add visible labels in the manual map editor.";
-      if (engine) setAnalysing(true);
+      if (engine) {
+        setAnalysingImage(r.thumbUrl);
+        setAnalysing(true);
+      }
       await run(async () => {
         const created = await api("/upload", lessonSchema, "POST", {
           title: title.trim() || r.title.slice(0, 140) || "Diagram",
@@ -377,7 +385,7 @@ export default function Teacher({
               />
             </label>
             <button className="primary" disabled={busy || searching || !search.trim()}>
-              <Plus size={17} aria-hidden="true" />
+              {searching ? <Spinner /> : <Plus size={17} aria-hidden="true" />}
               {searching ? "Searching…" : "Search diagrams"}
             </button>
             {searchResults && (
@@ -443,7 +451,10 @@ export default function Teacher({
                     return;
                   }
                   let uploaded = "Original uploaded. Add visible labels in the manual map editor.";
-                  if (engine) setAnalysing(true);
+                  if (engine) {
+                    setAnalysingImage(URL.createObjectURL(file));
+                    setAnalysing(true);
+                  }
                   void run(async () => {
                     const buffer = await file.arrayBuffer();
                     const bytes = new Uint8Array(buffer);
@@ -535,11 +546,7 @@ export default function Teacher({
                 You can upload now. Add the license before publishing to students.
               </p>
             )}
-            {analysing && (
-              <p className="small" role="status">
-                Analysing your diagram… this usually takes 5–15 seconds.
-              </p>
-            )}
+            {analysing && <Thinking>Analysing your diagram. Follow it in the main panel.</Thinking>}
             {engine ? (
               <p className="small">
                 Diagram analysis: {engine.ocr} + {engine.model}
@@ -621,7 +628,20 @@ export default function Teacher({
               )}
             </div>
           )}
-          {!lesson ? (
+          {analysing || reanalysing ? (
+            <DiagramWorking
+              image={analysingImage}
+              title={reanalysing ? "Reading your diagram again" : "Reading your diagram"}
+              stages={[
+                "Reading the labels on the picture",
+                "Checking every numbered callout",
+                "Finding the parts and how they connect",
+                "Writing each explanation at three lengths",
+                "Checking every claim against the labels",
+              ]}
+              typical={[15, 40]}
+            />
+          ) : !lesson ? (
             <Empty title="Your first shared lesson starts here">
               Choose a sample diagram or upload your own. Nothing reaches
               students until you approve it.
@@ -791,11 +811,6 @@ export default function Teacher({
                       >
                         {editor ? "Close editor" : "Edit map"}
                       </button>
-                      {reanalysing && (
-                        <span className="reanalyse-confirm" role="status">
-                          Reading the diagram again and rewriting every explanation. This can take up to a minute.
-                        </span>
-                      )}
                       {lesson.image && !lesson.fixtureId && !reanalysing && (
                         confirmReanalyse ? (
                           <span className="reanalyse-confirm" role="group" aria-label="Analyse the diagram again">

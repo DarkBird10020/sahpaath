@@ -12,6 +12,7 @@ import {
   Download,
 } from "lucide-react";
 import { api } from "./api";
+import { Thinking } from "./Working";
 import Captions from "./Captions";
 import CaptionCorrection from "./CaptionCorrection";
 import { vocabularyPattern } from "../shared/vocabulary";
@@ -485,7 +486,7 @@ export default function Student({
                 </button>
               </div>
             </form>
-            {busy && <p role="status" className="small">The AI tutor is reading your lesson…</p>}
+            {busy && <Thinking>The AI tutor is reading your lesson…</Thinking>}
             {aiReply && (
               <div className="ai-answer" role="status">
                 <span className="ai-badge">AI tutor ({aiReply.model}), not checked by your teacher</span>

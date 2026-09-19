@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/#/diagram",
-  "timestamp": "2026-09-19T20:49:36.836Z",
+  "timestamp": "2026-09-19T22:17:40.694Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -26,5 +26,11 @@
     "nested-interactive",
     "target-size"
   ],
-  "incomplete": []
+  "incomplete": [
+    {
+      "id": "color-contrast",
+      "impact": "serious",
+      "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds"
+    }
+  ]
 }

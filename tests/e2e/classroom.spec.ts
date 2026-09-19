@@ -775,10 +775,13 @@ test("the quiet bar is the landing's alone, and it can be pinned open", async ({
   await fromMenu(page, /Our approach/);
   await expect(header).toHaveClass(/is-plain/);
   await expect(page.getByRole("button", { name: "Menu", exact: true })).toHaveCount(0);
-  // Signed out: the two tools, the approach page and the way to sign in.
-  await expect(page.locator(".site-header nav button")).toHaveCount(4);
-  await expect(page.getByRole("button", { name: "Sign in / Sign up" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Accessibility settings" })).toBeVisible();
+  // Signed out: the two tools, the approach page and the way to sign in. Asked of
+  // the bar itself: the menu keeps the same names, and it stays in the page for
+  // up to a second while it animates closed.
+  const bar = page.locator(".site-header");
+  await expect(bar.locator("nav button")).toHaveCount(4);
+  await expect(bar.getByRole("button", { name: "Sign in / Sign up" })).toBeVisible();
+  await expect(bar.getByRole("button", { name: "Accessibility settings" })).toBeVisible();
 });
 
 test("the scanning beam belongs to the chapter that is reading labels", async ({ page }) => {

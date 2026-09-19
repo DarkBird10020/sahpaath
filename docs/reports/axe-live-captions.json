@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/#/captions",
-  "timestamp": "2026-09-19T20:49:32.151Z",
+  "timestamp": "2026-09-19T22:17:36.220Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -30,5 +30,11 @@
     "select-name",
     "target-size"
   ],
-  "incomplete": []
+  "incomplete": [
+    {
+      "id": "color-contrast",
+      "impact": "serious",
+      "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds"
+    }
+  ]
 }

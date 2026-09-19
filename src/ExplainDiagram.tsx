@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, Check, Globe, MessageCircle, Sear
 import { api, fileBase64 } from "./api";
 import { ConceptTree, Diagram, Speak } from "./components";
 import WordExplainer from "./WordExplainer";
+import { DiagramWorking, Spinner, Thinking } from "./Working";
 import { mapSchema, type DiagramMap } from "../shared/schema";
 import { normalize } from "../shared/domain";
 
@@ -220,8 +221,8 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
-        <button className="primary" disabled={!query.trim() || searching}>
-          <Search size={17} aria-hidden="true" />
+        <button className="primary" disabled={!query.trim() || searching} aria-busy={searching}>
+          {searching ? <Spinner /> : <Search size={17} aria-hidden="true" />}
           {searching ? "Searching…" : "Search"}
         </button>
         <p className="small search-note">
@@ -284,9 +285,9 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
             placeholder="e.g. Why does blood go to the lungs?"
           />
         </label>
-        <button className="primary" disabled={!file || busy}>
-          <Upload size={17} aria-hidden="true" />
-          {busy ? "Opening…" : "Open in diagram explorer"}
+        <button className="primary" disabled={!file || busy} aria-busy={busy}>
+          {busy ? <Spinner /> : <Upload size={17} aria-hidden="true" />}
+          {busy ? "Reading the diagram…" : "Open in diagram explorer"}
         </button>
         {credit && preview && (
           <figure className="picked-diagram">
@@ -305,9 +306,17 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
         )}
       </form>
       {busy && (
-        <p role="status" className="ai-progress">
-          Reading the labels, finding the parts and arrows, and explaining… about 5–10 seconds.
-        </p>
+        <DiagramWorking
+          image={preview || null}
+          title="Reading your diagram"
+          stages={[
+            "Reading the labels on the picture",
+            "Finding the parts and how they connect",
+            "Writing the explanation",
+            "Checking it against the labels",
+          ]}
+          typical={[15, 40]}
+        />
       )}
       {error && (
         <p className="error" role="alert">
@@ -403,11 +412,12 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
                     placeholder="e.g. What happens if this is blocked?"
                   />
                 </label>
-                <button className="primary" disabled={asking || !ask.trim()}>
-                  <MessageCircle size={16} aria-hidden="true" />
+                <button className="primary" disabled={asking || !ask.trim()} aria-busy={asking}>
+                  {asking ? <Spinner /> : <MessageCircle size={16} aria-hidden="true" />}
                   {asking ? "Thinking…" : "Ask AI"}
                 </button>
               </form>
+              {asking && <Thinking>The AI is reading this part and your question…</Thinking>}
               {reply && (
                 <div className="ai-answer" role="status">
                   <span className="ai-badge">AI answer about {reply.part}</span>

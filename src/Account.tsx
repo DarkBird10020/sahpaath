@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { api, okSchema } from "./api";
+import { Spinner } from "./Working";
 import { sessionSchema, type Session } from "../shared/schema";
 import {
   supabase,
@@ -236,6 +237,7 @@ export default function Account({
               </p>
               {notice && <p className="small">{notice}</p>}
               <button className="primary" disabled={busy}>
+                {busy && <Spinner />}
                 {busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
               </button>
             </form>

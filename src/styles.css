@@ -3945,3 +3945,415 @@ code {
   flex: none;
   margin-top: 3px;
 }
+
+/* ---------- Working states ---------- */
+/* Waiting looks like work: the diagram itself being read, captions being
+   written. Same paper, ink and blue as the landing page. */
+.working {
+  --w-paper: #fffdf8;
+  --w-ink: #14365f;
+  --w-soft: #4b5f72;
+  --w-blue: #2c5fb3;
+  --w-line: #dcd6c9;
+  position: relative;
+  border: 1px solid var(--w-line);
+  border-radius: 22px;
+  background: var(--w-paper);
+  box-shadow: 0 30px 60px -38px rgba(20, 54, 95, 0.55);
+  color: var(--w-ink);
+  overflow: hidden;
+}
+.working-diagram {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: clamp(20px, 3vw, 40px);
+  align-items: center;
+  padding: clamp(18px, 2.5vw, 30px);
+}
+.working-figure {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #f3eee5;
+  border: 1px solid var(--w-line);
+}
+.working-figure img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: saturate(0.75);
+}
+.working-blank {
+  position: absolute;
+  inset: 12%;
+  border-radius: 12px;
+  background: repeating-linear-gradient(90deg, #ebe4d7 0 14px, transparent 14px 28px);
+  opacity: 0.6;
+}
+/* Graph paper over the picture, like the landing's lesson sheet. */
+.working-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(44, 95, 179, 0.07) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(44, 95, 179, 0.07) 1px, transparent 1px) 0 0 / 24px 24px;
+}
+/* The reading beam: the same idea as the story's scan, sweeping the real image. */
+.working-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22%;
+  background: linear-gradient(180deg, rgba(44, 95, 179, 0) 0%, rgba(44, 95, 179, 0.18) 80%, rgba(44, 95, 179, 0.85) 100%);
+  border-bottom: 2px solid rgba(44, 95, 179, 0.9);
+  box-shadow: 0 6px 24px rgba(44, 95, 179, 0.35);
+  animation: working-sweep 2.6s cubic-bezier(0.45, 0, 0.35, 1) infinite alternate;
+}
+@keyframes working-sweep {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(455%); }
+}
+.working-copy h2 {
+  font-family: "Manrope Variable", Arial, sans-serif;
+  font-size: clamp(1.5rem, 2.4vw, 2.1rem);
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  margin: 6px 0 16px;
+}
+.working-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--w-blue);
+}
+.working-stages {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  counter-reset: stage;
+}
+.working-stages li {
+  counter-increment: stage;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+  color: var(--w-soft);
+  transition: color 0.4s ease;
+}
+.working-stages li::before {
+  content: counter(stage);
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--w-line);
+  font-size: 0.75rem;
+  font-weight: 800;
+  transition: background 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+}
+.working-stages li.is-before {
+  color: #6b7c8c;
+}
+.working-stages li.is-now {
+  color: var(--w-ink);
+  font-weight: 700;
+}
+.working-stages li.is-now::before {
+  background: var(--w-ink);
+  border-color: var(--w-ink);
+  color: #fffdf8;
+  box-shadow: 0 0 0 5px rgba(20, 54, 95, 0.12);
+  animation: working-pulse 1.4s ease-in-out infinite;
+}
+@keyframes working-pulse {
+  50% { box-shadow: 0 0 0 9px rgba(20, 54, 95, 0.04); }
+}
+.working-time {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--w-soft);
+  font-variant-numeric: tabular-nums;
+}
+.working-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.working-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: working-dot 1.2s ease-in-out infinite;
+}
+.working-dots i:nth-child(2) { animation-delay: 0.15s; }
+.working-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes working-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+/* Captions: a waveform over caption lines that are still being written. */
+.working-captions {
+  display: grid;
+  gap: 16px;
+  padding: clamp(18px, 2.5vw, 28px);
+}
+.working-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 64px;
+}
+.working-wave i {
+  flex: 1 1 6px;
+  max-width: 8px;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2c5fb3, #14365f);
+  transform-origin: center;
+  animation: working-wave 1s ease-in-out infinite alternate;
+}
+@keyframes working-wave {
+  from { transform: scaleY(0.15); }
+  to { transform: scaleY(1); }
+}
+.working-lines {
+  display: grid;
+  gap: 10px;
+}
+.working-lines span {
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #ece6da 0%, #f8f4ec 45%, #ece6da 90%) 0 0 / 300% 100%;
+  animation: working-shimmer 1.6s linear infinite;
+}
+@keyframes working-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -200% 0; }
+}
+.working-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(20, 54, 95, 0.06);
+  color: #14365f;
+  font-size: 0.9rem;
+}
+/* A busy button keeps its label and gains a spinner. */
+.btn-spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: btn-spin 0.8s linear infinite;
+}
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+button[aria-busy="true"] {
+  cursor: progress;
+}
+@media (max-width: 800px) {
+  .working-diagram {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Calm motion: every part of the waiting states holds still; the words stay. */
+:root:not(.motion-on) .working *,
+:root:not(.motion-on) .working-thinking *,
+:root:not(.motion-on) .btn-spinner {
+  animation: none !important;
+}
+:root:not(.motion-on) .working-beam {
+  transform: translateY(160%);
+}
+:root[data-contrast="true"] .working {
+  --w-line: #6a8091;
+  --w-soft: #253d52;
+}
+
+/* ---------- Inside pages, in the landing page's language ---------- */
+/* The classroom used a cool grey shell while the landing page used warm paper,
+   Manrope headings, pill controls and soft depth. These are the same tokens the
+   landing sections use, so every page inside reads as the same product. High
+   contrast keeps its own stronger palette: its rules carry more weight. */
+:root {
+  color: #2a3f56;
+  background: #f3eee5;
+  --ink: #14365f;
+  --muted: #4b5f72;
+  --line: #dcd6c9;
+  --paper: #fffdf8;
+  --blue: #e9eef5;
+  --green: #1f5c44;
+  --amber: #7a4d05;
+  --radius: 16px;
+}
+/* Faint graph paper under every working page, as on the lesson sheet. */
+main:not(.under-header) {
+  background:
+    linear-gradient(rgba(20, 54, 95, 0.032) 1px, transparent 1px) 0 0 / 56px 56px,
+    linear-gradient(90deg, rgba(20, 54, 95, 0.032) 1px, transparent 1px) 0 0 / 56px 56px;
+}
+:root[data-contrast="true"] main:not(.under-header) {
+  background: none;
+}
+/* Display headings, as on the landing page. */
+.workspace h1,
+.login-page h1,
+.page-heading h1 {
+  font-family: "Manrope Variable", Arial, sans-serif;
+  font-size: clamp(2rem, 3.4vw, 2.9rem);
+  font-weight: 720;
+  letter-spacing: -0.045em;
+  line-height: 1.04;
+}
+.workspace h2,
+.concept-panel h2 {
+  font-family: "Manrope Variable", Arial, sans-serif;
+  letter-spacing: -0.03em;
+}
+.section-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #2c5fb3;
+}
+/* Paper cards with a warm edge and the landing's soft depth. */
+.lesson-main,
+.lesson-sidebar > .create-lesson,
+.concept-panel,
+.tree-panel,
+.transcript-panel,
+.glossary-panel,
+.shared-strip,
+.student-lesson-bar,
+.map-editor,
+.login-form,
+.inbox-thread article,
+.metric-grid article,
+.anchored-question,
+.live-captions,
+.pipeline details,
+.review-item,
+.diagram,
+.term-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 24px 48px -36px rgba(20, 54, 95, 0.45);
+}
+.review-item {
+  box-shadow: none;
+}
+.review-item.focused-item {
+  box-shadow: 0 24px 48px -34px rgba(20, 54, 95, 0.5);
+}
+/* Controls become pills, as on the landing page. */
+button,
+.role-options label {
+  border-radius: 999px;
+}
+button.primary {
+  box-shadow: 0 16px 30px -20px rgba(20, 54, 95, 0.95);
+}
+/* Anything that is really a card or a row keeps its shape. */
+.lesson-links button,
+.connections button,
+.flow-steps button,
+.transcript-list button,
+.glossary-list button,
+.phrase-grid button,
+.search-result,
+.my-questions li,
+.review-item,
+.inbox-thread article {
+  border-radius: 14px;
+}
+.tab-row button {
+  border-radius: 0;
+}
+.concept-tree ul > li {
+  border-radius: 10px;
+}
+/* Fields: warm edge, rounder, with the same focus ring everywhere. */
+input,
+select,
+textarea {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 11px 13px;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #b66800;
+  outline-offset: 1px;
+}
+/* Chips and badges, pill-shaped like the landing's. */
+.status,
+.local-pill,
+.grounded,
+.stat-chip,
+.simulation,
+.term {
+  border-radius: 999px;
+}
+.workspace .error,
+.review-banner {
+  border-radius: 16px;
+}
+
+/* The plain bar and the footer sit on the same paper as the page. */
+.site-header.is-plain {
+  background: var(--paper);
+}
+.site-footer {
+  background: var(--paper);
+  border-top-color: var(--line);
+}
+:root[data-contrast="true"] .site-header.is-plain,
+:root[data-contrast="true"] .site-footer {
+  background: #fff;
+}
+
+/* The upload form lives in a narrow sidebar: two columns there pushed a field
+   below its neighbour whenever a label wrapped onto a second line, and cut the
+   placeholders in half. One field per row, and the note spans the width. */
+.lesson-sidebar .editor-grid {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 14px;
+}
+.lesson-sidebar .editor-grid > p {
+  margin: 0;
+}
+.upload-panel .source-fields {
+  align-items: stretch;
+}
+.upload-panel label,
+.lesson-sidebar .create-lesson label {
+  display: grid;
+  gap: 6px;
+}
