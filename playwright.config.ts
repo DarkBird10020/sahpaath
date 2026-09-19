@@ -31,6 +31,9 @@ export default defineConfig({
       AWS_BEDROCK_MODEL_ID: "",
       // Keep browser tests offline: never call Gemini even if .env has a key.
       GEMINI_API_KEY: "",
+      // Likewise for YouTube, whose free quota is only ~99 searches a day and
+      // would otherwise be spent by every test run.
+      YOUTUBE_API_KEY: "",
       SAHPAATH_TEACHER_PASSWORD: "e2e-teacher",
     },
     timeout: 60000,

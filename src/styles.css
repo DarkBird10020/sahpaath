@@ -3044,6 +3044,152 @@ code {
   align-items: center;
   gap: 8px;
 }
+/* ---------- Watch & listen: finding a lesson on YouTube ---------- */
+.yt-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 18px 20px;
+  margin: 18px 0;
+}
+.yt-search label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 320px;
+}
+.yt-search button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.yt-results {
+  display: grid;
+  /* Wide enough that a lesson title reads as a title: at 260px the text column
+     left beside the thumbnail was ~110px and every title broke mid-word. */
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 12px;
+  margin: 0 0 18px;
+}
+.yt-result {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 10px;
+  cursor: pointer;
+}
+.yt-result:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+/* The chosen video is marked by a filled edge as well as colour, so the choice
+   survives high contrast and colour-blindness. */
+.yt-result[aria-pressed="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 4px 0 0 var(--ink);
+}
+.yt-result img {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #e9edf1;
+  flex-shrink: 0;
+}
+.yt-result-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.yt-result-meta strong {
+  font-size: 0.9rem;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.yt-result-meta small {
+  color: var(--muted);
+}
+.yt-chosen {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 260px;
+  margin: 0;
+  font-weight: 600;
+}
+.yt-chosen small {
+  font-weight: 400;
+  color: var(--muted);
+}
+/* ---------- Explain a diagram: finding a diagram on the internet ---------- */
+.search-note {
+  flex-basis: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+}
+/* Diagrams are pictures with labels: show the whole thing, not a cropped strip. */
+.diagram-results .yt-result img {
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--line);
+}
+.picked-diagram {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.picked-diagram img {
+  width: 140px;
+  height: 105px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.picked-diagram figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.picked-diagram .small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* The embed has no intrinsic size, so the ratio is held here. */
+.yt-player {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+}
+.yt-player iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
 .ai-progress {
   color: var(--ink);
   font-weight: 600;

@@ -17,7 +17,8 @@ import { z } from "zod";
 import { Store } from "./store";
 import { awsEngine, createLesson, imageType } from "./providers";
 import { GeminiProposalAdapter, LocalOcrAdapter, localOcrLines, localTestEngine, readGeminiConfig } from "./local-ai";
-import { answerAboutDiagram, answerFromLesson, diagramContextSchema, explainDiagram, explainWord, transcribeMedia } from "./tutor";
+import { answerAboutDiagram, answerFromLesson, diagramContextSchema, explainDiagram, explainWord, transcribeMedia, transcribeYouTube } from "./tutor";
+import { lookupVideo, MAX_VIDEO_SECONDS, parseVideoId, readYouTubeConfig, searchYouTube, YouTubeError } from "./youtube";
 import { readAwsConfig } from "./aws";
 import { AudioService, pollySynthesizer, readPollyConfig } from "./audio";
 import { demoState, resetDemo, startDemo } from "./demo";
@@ -93,6 +94,17 @@ function aiFailure(error: unknown): never {
   throw new HttpError(502, typeof safe === "string" ? safe : "AI help is unavailable right now. Please try again.");
 }
 const mediaTypes = ["video/mp4", "video/webm", "video/quicktime", "video/mpeg", "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg", "audio/aac", "audio/flac", "audio/mp4", "audio/x-m4a"] as const;
+const youtube = readYouTubeConfig(process.env);
+function needYouTube() {
+  if (!youtube) throw new HttpError(503, "YouTube search is not configured. Add YOUTUBE_API_KEY to the .env file and restart.");
+  return youtube;
+}
+// YouTube's own wording is safe to show; anything else keeps our phrasing.
+function youTubeFailure(error: unknown): never {
+  if (error instanceof HttpError) throw error;
+  if (error instanceof YouTubeError) throw new HttpError(error.status === 403 ? 502 : 502, error.userMessage);
+  throw new HttpError(502, "YouTube search is unavailable right now. Try again, or paste a video link.");
+}
 // Interim (non-final) caption text is display-only and never stored.
 const partials = new Map<string, string>();
 const counters = new Map<string, { count: number; until: number }>();
@@ -321,13 +333,17 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
   }
   session(req);
   if (path === "/api/fixtures" && method === "GET") return json(res, fixtures);
-  // Diagram search for teachers: find a labelled diagram image on Wikimedia
+  // Diagram search: find a labelled diagram image on Wikimedia
   // Commons and upload it directly, without leaving the workspace. Results are
   // metadata only; the image is fetched server-side when the teacher picks one
   // and then flows through the ordinary upload pipeline (analysis, review,
   // license, publish) exactly like a manual file upload.
+  // Students use the same search on "Explain a diagram"; nothing is stored for
+  // them, the picked image is only explained. Rate-limited per visitor because
+  // it reaches out to Wikimedia on their behalf.
   if (path === "/api/diagram-search" && method === "GET") {
-    teacher(req);
+    const searcher = session(req);
+    limited(`diagram-search:${searcher.code}`, 20);
     const q = (url.searchParams.get("q") || "").trim().slice(0, 120);
     if (!q) return json(res, { results: [] });
     const endpoint =
@@ -391,7 +407,8 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
   // fetch cross-origin image bytes directly) and hand them back as base64,
   // ready to POST into the existing /api/upload route.
   if (path === "/api/diagram-search/fetch" && method === "POST") {
-    teacher(req);
+    const fetcher = session(req);
+    limited(`diagram-fetch:${fetcher.code}`, 20);
     const input = z
       .object({ imageUrl: z.string().url().max(1000) })
       .strict()
@@ -417,6 +434,28 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     if (mime !== "image/png" && mime !== "image/jpeg")
       throw new HttpError(400, "Only PNG or JPEG images are supported.");
     return json(res, { mime, base64: Buffer.from(bytes).toString("base64") });
+  }
+  // Find a lesson video on YouTube, or identify one the learner pasted. The key
+  // is never sent to the browser, and the day's quota is shared by everyone on
+  // this server, so searches are rate-limited per visitor as well as cached.
+  if (path === "/api/youtube/search" && method === "GET") {
+    const s = session(req);
+    const config = needYouTube();
+    const q = (url.searchParams.get("q") || "").trim().slice(0, 120);
+    if (!q) return json(res, { results: [] });
+    // A pasted link is one cheap lookup; a search costs a hundred times more.
+    const pasted = parseVideoId(q);
+    try {
+      if (pasted) {
+        limited(`yt-lookup:${s.code}`, 20);
+        const video = await lookupVideo(config, pasted);
+        return json(res, { results: video ? [video] : [] });
+      }
+      limited(`yt-search:${s.code}`, 8);
+      return json(res, { results: await searchYouTube(config, q) });
+    } catch (error) {
+      youTubeFailure(error);
+    }
   }
   if (path === "/api/lessons" && method === "GET") {
     teacher(req);
@@ -905,6 +944,40 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
         hardWords: t.hardWords,
         model: config.model,
       });
+    } catch (error) { aiFailure(error); }
+  }
+  // Captions for a YouTube video. Gemini reads the video from its address, so
+  // the video is never downloaded or re-hosted here; the learner watches it in
+  // YouTube's own player and these captions sit beside it.
+  if (path === "/api/ai/transcribe-youtube" && method === "POST") {
+    const s = session(req);
+    // One video is a single long call: fewer per minute than the chunked path.
+    limited(`ai-youtube:${s.code}`, 4);
+    const input = z.object({ videoId: z.string().min(1).max(200) }).strict().parse(await body(req));
+    const videoId = parseVideoId(input.videoId);
+    if (!videoId) throw new HttpError(400, "That is not a YouTube video link.");
+    const config = needTutor();
+    // Length is checked before spending the call: a long video costs tokens in
+    // proportion and would fail late, after a long wait.
+    if (youtube) {
+      let video = null;
+      try {
+        video = await lookupVideo(youtube, videoId);
+      } catch {
+        // A lookup failure is not a reason to refuse; the caption call decides.
+        video = null;
+      }
+      if (video?.tooLong)
+        throw new HttpError(
+          400,
+          `That video is ${Math.round(video.durationSeconds / 60)} minutes long. AI captions support up to ${MAX_VIDEO_SECONDS / 60} minutes.`,
+        );
+    }
+    try {
+      const t = await transcribeYouTube(config, `https://www.youtube.com/watch?v=${videoId}`);
+      if (!t.segments.length)
+        throw new HttpError(422, "No speech was found in that video. It may be silent, private or unavailable in this region.");
+      return json(res, { segments: t.segments, hardWords: t.hardWords, model: config.model });
     } catch (error) { aiFailure(error); }
   }
   // ClassCaption: live sessions of timed final segments on a published version.

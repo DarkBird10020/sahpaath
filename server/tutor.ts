@@ -175,6 +175,40 @@ export async function transcribeMedia(
   };
 }
 
+/**
+ * Captions for a public YouTube video.
+ *
+ * Gemini reads the video from its URL, so nothing is downloaded, re-hosted or
+ * copied here: the learner watches it in YouTube's own player and we add the
+ * caption layer beside it. A video with no speech, or one Gemini cannot open
+ * (private, age-restricted, region-blocked), comes back empty and the caller
+ * tells the learner rather than inventing lines.
+ */
+export async function transcribeYouTube(
+  gemini: GeminiConfig,
+  videoUrl: string,
+  fetchImpl: Fetch = fetch,
+): Promise<Transcript> {
+  const prompt = [
+    "Transcribe the speech in this video as captions, word for word, in the language spoken. Do not translate or summarise.",
+    "segments: short caption lines (at most about 12 words) with start and end times in seconds from the beginning of the video.",
+    "Cover the whole video from start to finish, not only the opening.",
+    "hardWords: technical or uncommon words that were spoken, each with a one-sentence plain-language meaning.",
+    "If there is no speech, return empty lists.",
+  ].join("\n");
+  const result = parseJson(
+    transcriptSchema,
+    await geminiGenerate(gemini, { prompt, videoUrl, jsonSchema: jsonSchemaOf(transcriptSchema) }, fetchImpl),
+  );
+  return {
+    segments: result.segments
+      .map((s) => ({ startMs: Math.round(s.start * 1000), endMs: Math.round(Math.max(s.end, s.start) * 1000), text: s.text.trim() }))
+      .filter((s) => s.text)
+      .sort((a, b) => a.startMs - b.startMs),
+    hardWords: result.hardWords,
+  };
+}
+
 /* ---------------------- Ask about an explained diagram ---------------------- */
 
 export const diagramContextSchema = z.object({
