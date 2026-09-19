@@ -746,16 +746,19 @@ test("the header takes the colour of the section it is locked over", async ({ pa
 });
 
 test("the quiet bar is the landing's alone, and it can be pinned open", async ({ page }) => {
-  await page.goto("/");
+  // Settled first: under a full run, wheeling before the page had finished
+  // loading sometimes scrolled before the bar was listening.
+  await page.goto("/", { waitUntil: "networkidle" });
   const header = page.locator(".site-header");
   await expect(header).toHaveClass(/is-landing/);
   await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
   // Unpinned, it gets out of the way while you read down the page.
   await page.mouse.move(700, 400);
-  for (let i = 0; i < 12; i++) {
-    await page.mouse.wheel(0, 120);
-    await page.waitForTimeout(30);
-  }
+  // Keep reading down until the page has actually moved past the first screen.
+  await expect(async () => {
+    await page.mouse.wheel(0, 240);
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(400);
+  }).toPass({ timeout: 10000 });
   await expect(header).toHaveClass(/is-hidden/);
   // Pinned, it stays; the choice is remembered.
   await page.evaluate(() => scrollTo(0, 0));
@@ -968,6 +971,58 @@ test("the YouTube search says what is missing instead of failing quietly", async
   // The offline half of the page is untouched by a failed search.
   await expect(page.getByLabel("Video or audio file")).toBeEnabled();
   await expect(page.getByLabel("Or load subtitles (.vtt or .srt), free and instant")).toBeEnabled();
+});
+
+test("relationships say which parts they join, by number and name, never by internal id", async ({ page }) => {
+  await teacherLogin(page);
+  // Finding a diagram is the first thing in the sidebar, not the last.
+  await expect(page.locator(".lesson-sidebar > *").first()).toContainText("Search for a diagram");
+  await page.getByRole("button", { name: "Use sample diagram" }).click();
+  // The card's own heading, exactly: a part card can mention "relationship" too.
+  const relation = page.locator(".review-item").filter({ has: page.locator(".item-heading > span", { hasText: /^Relationship$/ }) }).first();
+  await expect(relation).toBeVisible();
+  // Both ends are named parts with their numbers, not "6 → 7".
+  await expect(relation.locator("h4 .part-name")).toHaveCount(2);
+  await expect(relation.locator("h4 .callout-no").first()).toHaveText(/^\d+$/);
+  // Evidence is the labels a teacher can find on the image, not "label-0".
+  const evidence = relation.locator("p").filter({ hasText: "Evidence on the image" });
+  await expect(evidence).toContainText("label “");
+  await expect(evidence).not.toContainText(/label-\d|ocr-\d/);
+  // The reading order lists numbered parts as well.
+  await expect(page.locator(".flow-preview .part-name").first()).toBeVisible();
+  // A built-in sample has no written explanation and cannot be analysed again,
+  // so it must not be told to.
+  await expect(relation).toContainText("No explanation was written for this relationship.");
+  await expect(relation).not.toContainText("Analyse the diagram again");
+});
+
+test("analysing a diagram again is for teachers, for uploads, and says when it cannot run", async ({ page }) => {
+  await teacherLogin(page);
+  const sample = await (await page.request.post("/api/lessons", { data: { fixtureId: "heart" } })).json();
+  const again = (id: string, revision: number) => page.request.post(`/api/lessons/${id}/reanalyse`, { data: { revision } });
+  // A built-in sample has no uploaded image to analyse.
+  const fixture = await again(sample.id, sample.revision);
+  expect(fixture.status()).toBe(409);
+  expect((await fixture.json()).error).toContain("Only an uploaded diagram");
+  // An upload with no analysis engine connected (browser tests never call Gemini).
+  const png = await import("node:fs").then((fs) => fs.readFileSync("docs/samples/heart-flow-test.png"));
+  const upload = await (
+    await page.request.post("/api/upload", { data: { title: "Numbered test", mime: "image/png", base64: png.toString("base64") } })
+  ).json();
+  const noEngine = await again(upload.id, upload.revision);
+  expect(noEngine.status()).toBe(409);
+  expect((await noEngine.json()).error).toContain("not connected");
+  // The button asks before clearing decisions.
+  await page.reload();
+  await page.locator(".lesson-links button").filter({ hasText: "Numbered test" }).first().click();
+  await page.getByRole("button", { name: "Analyse diagram again" }).click();
+  await expect(page.getByRole("group", { name: "Analyse the diagram again" })).toContainText("Every decision on this lesson will be cleared.");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("button", { name: "Analyse diagram again" })).toBeVisible();
+  // Students cannot.
+  await page.request.delete("/api/session");
+  await page.request.post("/api/session", { data: { role: "student" } });
+  expect((await again(upload.id, upload.revision)).status()).toBe(403);
 });
 
 test("teacher can choose a diagram file without filling the form first", async ({ page }) => {

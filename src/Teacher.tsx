@@ -25,7 +25,7 @@ import {
   type Question,
   type Audit,
 } from "../shared/schema";
-import { items, validateMap, itemGrounded, partNumber, sequencePartIds } from "../shared/domain";
+import { items, validateMap, itemGrounded, missingCallouts, partNumber, sequencePartIds } from "../shared/domain";
 import { fixtures } from "../shared/catalog";
 
 const searchResultSchema = z.object({
@@ -62,6 +62,10 @@ export default function Teacher({
   report,
 }: Props) {
   const [busy, setBusy] = useState(false);
+  // Analysing again clears every decision, so it asks once, inline.
+  const [confirmReanalyse, setConfirmReanalyse] = useState(false);
+  // A real re-analysis took about half a minute; say so while it runs.
+  const [reanalysing, setReanalysing] = useState(false);
   const [fixture, setFixture] = useState("heart");
   const [title, setTitle] = useState("");
   const [source, setSource] = useState({
@@ -110,6 +114,7 @@ export default function Teacher({
   }, [selected, processing, onChange]);
   const issues = lesson ? validateMap(lesson.map) : [];
   const sequence = lesson ? sequencePartIds(lesson.map) : [];
+  const missing = lesson ? missingCallouts(lesson.map) : [];
   const pending = lesson
     ? items(lesson.map).filter(
         (i) => !["teacher_approved", "rejected"].includes(i.state),
@@ -139,11 +144,15 @@ export default function Teacher({
           : []),
       ];
   // Relationships missing their endpoint labels: one repair fixes all of them.
+  // Evidence that is missing, or that names labels which do not exist, can be
+  // replaced by the two endpoints' own labels - what the evidence must be.
+  const citesMissing = (r: { evidence: string[] }) =>
+    !!lesson && r.evidence.some((e) => !lesson.map.labels.some((l) => l.id === e));
   const repairableRelations = lesson
     ? lesson.map.relations.filter(
         (r) =>
           r.state !== "rejected" &&
-          !r.evidence.length &&
+          (!r.evidence.length || citesMissing(r)) &&
           [r.from, r.to].every((pid) =>
             lesson.map.parts.some(
               (p) =>
@@ -168,7 +177,7 @@ export default function Teacher({
       () => {
         const map = structuredClone(lesson.map);
         for (const r of map.relations) {
-          if (r.state !== "rejected" && r.evidence.length) continue;
+          if (r.state === "rejected" || (r.evidence.length && !citesMissing(r))) continue;
           const ends = [r.from, r.to]
             .map((pid) => map.parts.find((p) => p.id === pid)?.labelId)
             .filter((lid): lid is string => !!lid && map.labels.some((l) => l.id === lid));
@@ -209,6 +218,16 @@ export default function Teacher({
       `${validPending} valid item${validPending === 1 ? "" : "s"} approved. Flagged items still need your own decision.`,
     );
   }
+  /** Runs the uploaded image through analysis again; every decision starts over. */
+  function reanalyse() {
+    if (!lesson) return;
+    setConfirmReanalyse(false);
+    setReanalysing(true);
+    void run(
+      () => api(`/lessons/${lesson.id}/reanalyse`, lessonSchema, "POST", { revision: lesson.revision }),
+      "Diagram analysed again. Review the new proposal from the top.",
+    ).finally(() => setReanalysing(false));
+  }
   async function run(
     action: () => Promise<unknown>,
     message: string | (() => string),
@@ -231,6 +250,7 @@ export default function Teacher({
   }
   useEffect(() => {
     setEditor(false);
+    setConfirmReanalyse(false);
     setFocusItem("");
     setNotes({});
     setError("");
@@ -338,6 +358,63 @@ export default function Teacher({
       </div>
       <div className="teacher-layout">
         <aside className="lesson-sidebar">
+          {/* Finding a diagram comes first: it is where most lessons start. */}
+          <form
+            className="create-lesson diagram-search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void runSearch(search);
+            }}
+          >
+            <h3>Search for a diagram</h3>
+            <label>
+              Diagram or structure
+              <input
+                value={search}
+                maxLength={120}
+                placeholder="e.g. heart, water cycle, cell organelles"
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
+            <button className="primary" disabled={busy || searching || !search.trim()}>
+              <Plus size={17} aria-hidden="true" />
+              {searching ? "Searching…" : "Search diagrams"}
+            </button>
+            {searchResults && (
+              <div className="search-results" role="list">
+                {searchResults.map((r) => (
+                  <button
+                    key={r.thumbUrl}
+                    role="listitem"
+                    type="button"
+                    className="search-result"
+                    disabled={fetching !== null || busy}
+                    onClick={() => void useSearchResult(r)}
+                    title={`${r.title} · ${r.licenseName}`}
+                  >
+                    <img
+                      src={r.thumbUrl}
+                      alt={`Diagram result: ${r.title}`}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                    <span className="search-result-meta">
+                      <strong>{r.title}</strong>
+                      <small>
+                        {fetching === (r.imageUrl ?? r.thumbUrl)
+                          ? "Fetching & analysing…"
+                          : `${r.licenseName}${r.width ? ` · ${r.width}×${r.height}` : ""}`}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="small">
+              Search finds openly licensed diagrams and uploads your pick
+              straight into review — the same pipeline as a file upload.
+            </p>
+          </form>
           <details className="upload-panel" open={!!engine}>
             <summary>
               <Upload size={17} aria-hidden="true" />
@@ -532,62 +609,6 @@ export default function Teacher({
               {engine && " To run the AI on a diagram, upload an image below."}
             </p>
           </form>
-          <form
-            className="create-lesson diagram-search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void runSearch(search);
-            }}
-          >
-            <h3>Search for a diagram</h3>
-            <label>
-              Diagram or structure
-              <input
-                value={search}
-                maxLength={120}
-                placeholder="e.g. heart, water cycle, cell organelles"
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </label>
-            <button className="primary" disabled={busy || searching || !search.trim()}>
-              <Plus size={17} aria-hidden="true" />
-              {searching ? "Searching…" : "Search diagrams"}
-            </button>
-            {searchResults && (
-              <div className="search-results" role="list">
-                {searchResults.map((r) => (
-                  <button
-                    key={r.thumbUrl}
-                    role="listitem"
-                    type="button"
-                    className="search-result"
-                    disabled={fetching !== null || busy}
-                    onClick={() => void useSearchResult(r)}
-                    title={`${r.title} · ${r.licenseName}`}
-                  >
-                    <img
-                      src={r.thumbUrl}
-                      alt={`Diagram result: ${r.title}`}
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                    <span className="search-result-meta">
-                      <strong>{r.title}</strong>
-                      <small>
-                        {fetching === (r.imageUrl ?? r.thumbUrl)
-                          ? "Fetching & analysing…"
-                          : `${r.licenseName}${r.width ? ` · ${r.width}×${r.height}` : ""}`}
-                      </small>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            <p className="small">
-              Search finds openly licensed diagrams and uploads your pick
-              straight into review — the same pipeline as a file upload.
-            </p>
-          </form>
         </aside>
         <section className="lesson-main" aria-label="Lesson review">
           {error && (
@@ -770,6 +791,28 @@ export default function Teacher({
                       >
                         {editor ? "Close editor" : "Edit map"}
                       </button>
+                      {reanalysing && (
+                        <span className="reanalyse-confirm" role="status">
+                          Reading the diagram again and rewriting every explanation. This can take up to a minute.
+                        </span>
+                      )}
+                      {lesson.image && !lesson.fixtureId && !reanalysing && (
+                        confirmReanalyse ? (
+                          <span className="reanalyse-confirm" role="group" aria-label="Analyse the diagram again">
+                            <span>Every decision on this lesson will be cleared.</span>
+                            <button className="primary" disabled={busy} onClick={reanalyse}>
+                              Analyse again
+                            </button>
+                            <button className="secondary" disabled={busy} onClick={() => setConfirmReanalyse(false)}>
+                              Cancel
+                            </button>
+                          </span>
+                        ) : (
+                          <button className="secondary" disabled={busy} onClick={() => setConfirmReanalyse(true)}>
+                            Analyse diagram again
+                          </button>
+                        )
+                      )}
                     </div>
                     </>
                   )}
@@ -848,6 +891,18 @@ export default function Teacher({
                           {new Set(issues.map((i) => i.itemId)).size} to check
                         </span>
                       </div>
+                      {missing.length > 0 && (
+                        <p className="missing-callouts" role="note">
+                          <AlertTriangle size={15} aria-hidden="true" />
+                          <span>
+                            {missing.length === 1 ? "Number " : "Numbers "}
+                            <strong>{missing.join(", ")}</strong>
+                            {missing.length === 1 ? " is" : " are"} on the diagram but{" "}
+                            {missing.length === 1 ? "has" : "have"} no part here. Analyse the diagram again, or add{" "}
+                            {missing.length === 1 ? "it" : "them"} with Edit map.
+                          </span>
+                        </p>
+                      )}
                       {[...items(lesson.map)]
                         .sort((a, b) => {
                           // The diagram's own sequence, 1 to last: numbered
@@ -895,12 +950,18 @@ export default function Teacher({
                                 <Status state={item.state} />
                               </div>
                               <h4>
-                                {isPart && (
-                                  <span className="callout-no" aria-label={`Number ${partNumber(lesson.map, item, sequence.indexOf(item.id))},`}>
-                                    {partNumber(lesson.map, item, sequence.indexOf(item.id))}
-                                  </span>
+                                {isPart ? (
+                                  <PartName map={lesson.map} id={item.id} order={sequence} />
+                                ) : "from" in item ? (
+                                  <>
+                                    <PartName map={lesson.map} id={item.from} order={sequence} />
+                                    <span aria-hidden="true">→</span>
+                                    <span className="sr-only">to</span>
+                                    <PartName map={lesson.map} id={item.to} order={sequence} />
+                                  </>
+                                ) : (
+                                  label
                                 )}
-                                {label}
                               </h4>
                               <div className="grounding-line">
                                 <span
@@ -949,18 +1010,50 @@ export default function Teacher({
                                   )}
                                 </>
                               ) : "from" in item ? (
-                                <p>
-                                  {item.kind.replaceAll("_", " ")} · Evidence:{" "}
+                                <>
+                                  {/* What the relationship means, laid out as a part's
+                                      explanation is: a sentence, then both lengths. */}
+                                  {item.descriptions ? (
+                                    <>
+                                      <p>{item.descriptions.short}</p>
+                                      <details className="description-levels">
+                                        <summary>Short and detailed versions</summary>
+                                        <p>
+                                          <strong>Short: </strong>
+                                          {item.descriptions.short}
+                                        </p>
+                                        <p>
+                                          <strong>Detailed: </strong>
+                                          {item.descriptions.detailed}
+                                        </p>
+                                      </details>
+                                    </>
+                                  ) : (
+                                    <p className="small">
+                                      No explanation was written for this relationship.
+                                      {/* Only an upload can be analysed again; a built-in sample cannot. */}
+                                      {lesson.image && !lesson.fixtureId && " Analyse the diagram again to get one."}
+                                    </p>
+                                  )}
+                                <p className="small">
+                                  {item.kind.replaceAll("_", " ")} · Evidence on the image:{" "}
                                   {item.evidence.length
-                                    ? item.evidence.join(", ")
+                                    ? item.evidence
+                                        .map((id) => {
+                                          const l = lesson.map.labels.find((x) => x.id === id);
+                                          return l ? `label “${l.text}”` : `unknown label (${id})`;
+                                        })
+                                        .join(", ")
                                     : "Missing source labels"}
+                                  {item.evidence.some((id) => lesson.map.labels.find((x) => x.id === id)?.source === "model_read") &&
+                                    " (numbers read by the AI model, not OCR)"}
                                 </p>
+                                </>
                               ) : (
                                 <ol className="flow-preview">
                                   {item.steps.map((s, n) => (
                                     <li key={`${s}-${n}`}>
-                                      {lesson.map.parts.find((p) => p.id === s)
-                                        ?.name || s}
+                                      <PartName map={lesson.map} id={s} order={sequence} />
                                     </li>
                                   ))}
                                 </ol>
@@ -1320,6 +1413,26 @@ export default function Teacher({
     </div>
   );
 }
+/**
+ * A part as a reader sees it: the diagram's own number, then its name. Used for
+ * a part's title and for both ends of a relationship, so "6 → 7" can never
+ * appear without saying what 6 and 7 are.
+ */
+function PartName({ map, id, order }: { map: DiagramMap; id: string; order: string[] }) {
+  const part = map.parts.find((p) => p.id === id);
+  if (!part) return <span className="part-name">Missing part</span>;
+  const n = partNumber(map, part, order.indexOf(id));
+  return (
+    <span className="part-name">
+      <span className="callout-no" aria-hidden="true">
+        {n}
+      </span>
+      <span className="sr-only">Number {n}, </span>
+      {part.name}
+    </span>
+  );
+}
+
 function BookGlyph() {
   return <FileText size={20} aria-hidden="true" />;
 }

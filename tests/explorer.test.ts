@@ -32,13 +32,26 @@ describe("Student explorer view", () => {
     expect(view.readingOrder).toEqual(["part-0", "part-1", "part-2", "part-3", "part-4"]);
     const artery = view.parts.find((p) => p.name === "Pulmonary artery")!;
     expect(artery.flow).toMatchObject({ position: 2, total: 5, previous: "part-0", next: "part-2" });
+    // The built-in heart sample has no written relationship explanations.
     expect(artery.connectedParts).toEqual([
-      { partId: "part-0", name: "Right ventricle", relationship: "flows_to", direction: "incoming" },
-      { partId: "part-2", name: "Lungs", relationship: "flows_to", direction: "outgoing" },
+      { partId: "part-0", name: "Right ventricle", relationship: "flows_to", direction: "incoming", explanation: null },
+      { partId: "part-2", name: "Lungs", relationship: "flows_to", direction: "outgoing", explanation: null },
     ]);
     expect(artery.vocabularyTermId).toBe(artery.partId);
     expect(view.parts[0].flow!.previous).toBeNull();
     expect(view.parts.at(-1)!.flow!.next).toBeNull();
+  });
+  it("gives students the approved sentence on how two parts connect", async () => {
+    const lesson = await createLesson("heart");
+    const map = fixtureMap("heart", false);
+    map.relations[0].descriptions = {
+      short: "The right ventricle pumps blood into the pulmonary artery.",
+      detailed: "When the right ventricle contracts, it pushes blood out through a valve into the pulmonary artery.",
+    };
+    lesson.map = approveAll(map);
+    const view = buildExplorer(publishSnapshot(lesson, "2026-09-18T00:00:00Z"));
+    const ventricle = view.parts.find((p) => p.name === "Right ventricle")!;
+    expect(ventricle.connectedParts[0].explanation).toBe("The right ventricle pumps blood into the pulmonary artery.");
   });
   it("refuses content that is not teacher approved", async () => {
     const snap = await publishedHeart();

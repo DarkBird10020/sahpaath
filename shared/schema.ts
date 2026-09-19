@@ -53,6 +53,9 @@ export const relationSchema = z
     from: id,
     to: id,
     kind: z.enum(["flows_to", "connects_to", "supports"]),
+    // How the two parts affect each other, in words a student can learn from.
+    // Optional: lessons analysed before relationships were explained have none.
+    descriptions: z.object({ short: text.max(280), detailed: text }).strict().optional(),
     evidence: z.array(id).max(30),
     modelConfidence,
     ...decision,
@@ -167,6 +170,7 @@ export const explorerPartSchema = z
           name: z.string(),
           relationship: z.enum(["flows_to", "connects_to", "supports"]),
           direction: z.enum(["outgoing", "incoming"]),
+          explanation: z.string().nullable().default(null),
         }),
       )
       .max(30),

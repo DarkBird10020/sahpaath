@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/#/captions",
-  "timestamp": "2026-09-19T17:44:59.438Z",
+  "timestamp": "2026-09-19T20:49:32.151Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",

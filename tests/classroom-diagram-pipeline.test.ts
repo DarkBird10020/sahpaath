@@ -171,6 +171,32 @@ describe("Diagram sequence ordering", () => {
     expect(prompt).toContain("name of the structure the callout's line points to");
     expect(prompt).toContain("never the bare number");
     expect(prompt).not.toContain("set part.name to that number's text");
+    // Word labels too: every one that names something becomes a part.
+    expect(prompt).toContain("Make one part for every supplied label");
+  });
+  it("keeps each relationship's explanation, and asks for one", () => {
+    const labels: Label[] = [
+      { id: "l1", text: "Stomach", confidence: 95, source: "textract", x: 0.3, y: 0.3 },
+      { id: "l2", text: "Duodenum", confidence: 95, source: "textract", x: 0.3, y: 0.6 },
+    ];
+    const part = (id: string, name: string, label: string) => ({
+      id, name, ocrLabelId: label, description: `The ${name} in this diagram.`,
+      descriptions: { short: `${name}.`, normal: `The ${name}.`, detailed: `The ${name} in detail.` }, evidence: [label],
+    });
+    const p = diagramProposalSchema.parse({
+      parts: [part("p1", "Stomach", "l1"), part("p2", "Duodenum", "l2")],
+      relationships: [{
+        id: "r1", sourcePartId: "p1", targetPartId: "p2", relationType: "flows_to", evidence: ["l1", "l2"],
+        descriptions: {
+          short: "The stomach empties partly digested food into the duodenum.",
+          detailed: "Muscle at the stomach's exit opens in short bursts, letting a little food through at a time.",
+        },
+      }],
+      processFlow: [],
+    });
+    const { map } = validateProposal(p, labels);
+    expect(map.relations[0].descriptions?.short).toBe("The stomach empties partly digested food into the duodenum.");
+    expect(diagramPrompt([])).toContain("descriptions is REQUIRED for every relationship too");
   });
   it("falls back to the process flow, then geometric reading order, when labels are not numbered", () => {
     const p = proposal();
