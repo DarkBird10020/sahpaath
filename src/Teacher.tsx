@@ -113,6 +113,100 @@ export default function Teacher({
         (i) => !["teacher_approved", "rejected"].includes(i.state),
       ).length
     : 0;
+  // Publish is honest about exactly what still blocks it, so the locked button
+  // is never a mystery: the same checks the server runs at publish time.
+  const errorFindings = issues.filter((i) => i.severity === "error");
+  const publishBlockers = !lesson
+    ? []
+    : [
+        ...(!lesson.license || !lesson.license.licenseName.trim()
+          ? ["Add the diagram's source and license."]
+          : []),
+        ...(pending > 0
+          ? [
+              `${pending} item${pending === 1 ? " still needs" : "s still need"} an approve or reject decision.`,
+            ]
+          : []),
+        ...(errorFindings.length
+          ? [
+              `${errorFindings.length} validation error${errorFindings.length === 1 ? "" : "s"} must be fixed or the items rejected.`,
+            ]
+          : []),
+        ...(!lesson.map.parts.some((p) => p.state === "teacher_approved")
+          ? ["Approve at least one concept."]
+          : []),
+      ];
+  // Relationships missing their endpoint labels: one repair fixes all of them.
+  const repairableRelations = lesson
+    ? lesson.map.relations.filter(
+        (r) =>
+          r.state !== "rejected" &&
+          !r.evidence.length &&
+          [r.from, r.to].every((pid) =>
+            lesson.map.parts.some(
+              (p) =>
+                p.id === pid &&
+                lesson.map.labels.some((l) => l.id === p.labelId),
+            ),
+          ),
+      ).length
+    : 0;
+  // Clean items (no validation findings): safe to approve together, since the
+  // server only demands a review note for flagged content.
+  const validPending = lesson
+    ? items(lesson.map).filter(
+        (i) =>
+          !["teacher_approved", "rejected"].includes(i.state) &&
+          !issues.some((issue) => issue.itemId === i.id),
+      ).length
+    : 0;
+  function repairMissingEvidence() {
+    if (!lesson || !repairableRelations) return;
+    void run(
+      () => {
+        const map = structuredClone(lesson.map);
+        for (const r of map.relations) {
+          if (r.state !== "rejected" && r.evidence.length) continue;
+          const ends = [r.from, r.to]
+            .map((pid) => map.parts.find((p) => p.id === pid)?.labelId)
+            .filter((lid): lid is string => !!lid && map.labels.some((l) => l.id === lid));
+          if (ends.length === 2) r.evidence = ends;
+        }
+        return api(`/lessons/${lesson.id}/map`, lessonSchema, "PUT", {
+          revision: lesson.revision,
+          map,
+        });
+      },
+      `Endpoint labels attached to ${repairableRelations} relationship${repairableRelations === 1 ? "" : "s"}. Saving resets decisions, so approve the items again.`,
+    );
+  }
+  function approveValidItems() {
+    if (!lesson || !validPending) return;
+    void run(
+      async () => {
+        // Sequential decisions: each response carries the next revision.
+        let current = lesson;
+        for (const item of items(current.map).filter(
+          (i) =>
+            !["teacher_approved", "rejected"].includes(i.state) &&
+            !issues.some((issue) => issue.itemId === i.id),
+        )) {
+          current = await api(
+            `/lessons/${current.id}/decision`,
+            lessonSchema,
+            "POST",
+            {
+              revision: current.revision,
+              itemId: item.id,
+              decision: "approve",
+              note: "Bulk-approved after checking the map has no findings.",
+            },
+          );
+        }
+      },
+      `${validPending} valid item${validPending === 1 ? "" : "s"} approved. Flagged items still need your own decision.`,
+    );
+  }
   async function run(
     action: () => Promise<unknown>,
     message: string | (() => string),
@@ -649,6 +743,25 @@ export default function Teacher({
                             : "The structure is valid. Check the educational content before approving."}
                         </span>
                       </div>
+                      {repairableRelations > 0 && (
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={repairMissingEvidence}
+                        >
+                          Attach missing labels ({repairableRelations})
+                        </button>
+                      )}
+                      {validPending > 0 && (
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={approveValidItems}
+                        >
+                          Approve {validPending} valid item
+                          {validPending === 1 ? "" : "s"}
+                        </button>
+                      )}
                       <button
                         className="secondary"
                         onClick={() => setEditor((v) => !v)}
@@ -795,7 +908,24 @@ export default function Teacher({
                                 )}
                               </div>
                               {isPart ? (
-                                <p>{item.description}</p>
+                                <>
+                                  <p>{item.description}</p>
+                                  {item.descriptions && (
+                                    <details className="description-levels">
+                                      <summary>
+                                        Short and detailed versions
+                                      </summary>
+                                      <p>
+                                        <strong>Short: </strong>
+                                        {item.descriptions.short}
+                                      </p>
+                                      <p>
+                                        <strong>Detailed: </strong>
+                                        {item.descriptions.detailed}
+                                      </p>
+                                    </details>
+                                  )}
+                                </>
                               ) : "from" in item ? (
                                 <p>
                                   {item.kind.replaceAll("_", " ")} · Evidence:{" "}
@@ -988,11 +1118,25 @@ export default function Teacher({
                           ? "One lesson. Multiple ways in."
                           : "Your decision opens the lesson."}
                       </strong>
-                      <p>
-                        {lesson.status === "published"
-                          ? "Students use the same approved vocabulary everywhere."
-                          : "Only approved items enter the published version. Rejected items stay out."}
-                      </p>
+                      {lesson.status === "published" ? (
+                        <p>
+                          Students use the same approved vocabulary everywhere.
+                        </p>
+                      ) : publishBlockers.length ? (
+                        <ul className="publish-blockers">
+                          {publishBlockers.map((b) => (
+                            <li key={b}>
+                              <AlertTriangle size={13} aria-hidden="true" />
+                              {b}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>
+                          Every item is decided and the map is valid. Publishing
+                          creates the immutable student version.
+                        </p>
+                      )}
                     </div>
                     <button
                       className="primary"

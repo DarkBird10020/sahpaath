@@ -49,6 +49,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS caption_segments (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, lesson_id TEXT NOT NULL, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS demo (key TEXT PRIMARY KEY, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, role TEXT NOT NULL, code TEXT NOT NULL, expires INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS account_sessions (token TEXT PRIMARY KEY REFERENCES sessions(token) ON DELETE CASCADE, role_selected INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         supabase_user_id TEXT NOT NULL UNIQUE,
@@ -232,22 +233,20 @@ export class Store {
    */
   findUserBySupabaseId(supabaseUserId: string): AppUser | undefined {
     const row = this.db
-      .prepare("SELECT body FROM users WHERE supabase_user_id=?")
-      .get(supabaseUserId) as { body: string } | undefined;
-    return row ? appUserSchema.parse(JSON.parse(row.body)) : undefined;
+      .prepare("SELECT id, supabase_user_id AS supabaseUserId, email, name, role, created_at AS createdAt, updated_at AS updatedAt FROM users WHERE supabase_user_id=?")
+      .get(supabaseUserId);
+    return row ? appUserSchema.parse(row) : undefined;
   }
   findUserById(appUserId: string): AppUser | undefined {
     const row = this.db
-      .prepare("SELECT body FROM users WHERE id=?")
-      .get(appUserId) as { body: string } | undefined;
-    return row ? appUserSchema.parse(JSON.parse(row.body)) : undefined;
+      .prepare("SELECT id, supabase_user_id AS supabaseUserId, email, name, role, created_at AS createdAt, updated_at AS updatedAt FROM users WHERE id=?")
+      .get(appUserId);
+    return row ? appUserSchema.parse(row) : undefined;
   }
   listUsers(): AppUser[] {
     return (
-      this.db.prepare("SELECT body FROM users ORDER BY created_at").all() as {
-        body: string;
-      }[]
-    ).map((r) => appUserSchema.parse(JSON.parse(r.body)));
+      this.db.prepare("SELECT id, supabase_user_id AS supabaseUserId, email, name, role, created_at AS createdAt, updated_at AS updatedAt FROM users ORDER BY created_at").all()
+    ).map((row) => appUserSchema.parse(row));
   }
   createUser(input: {
     supabaseUserId: string;
@@ -279,12 +278,10 @@ export class Store {
     return user;
   }
   setUserRole(appUserId: string, role: AppRole): AppUser {
-    const row = this.db
-      .prepare("SELECT body FROM users WHERE id=?")
-      .get(appUserId) as { body: string } | undefined;
+    const row = this.findUserById(appUserId);
     if (!row) throw new Error("User not found.");
     const user = appUserSchema.parse({
-      ...JSON.parse(row.body),
+      ...row,
       role,
       updatedAt: new Date().toISOString(),
     });

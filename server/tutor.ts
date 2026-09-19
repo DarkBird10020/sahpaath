@@ -22,7 +22,7 @@ const hardWord = z.object({ word: z.string().min(1).max(80), meaning: z.string()
 export const diagramExplanationSchema = z.object({
   title: z.string().min(1).max(140),
   summary: z.string().min(1).max(1200),
-  parts: z.array(z.object({ name: z.string().min(1).max(120), explanation: z.string().min(1).max(600) })).max(30),
+  parts: z.array(z.object({ name: z.string().min(1).max(120), explanation: z.string().min(1).max(2000) })).max(30),
   steps: z.array(z.string().min(1).max(300)).max(20),
   hardWords: z.array(hardWord).max(15),
   answer: z.string().max(1200).nullable(),
@@ -37,7 +37,7 @@ export function diagramExplainPrompt(labels: string[], question: string | null) 
     "Explain this diagram to a learner who may be blind, have low vision, or find the diagram hard to follow (for example, a figure in an e-book).",
     "Use plain language a 14-year-old understands. Short sentences. No markdown.",
     "summary: 2-4 sentences saying what the diagram shows and how to read it.",
-    "parts: the labelled parts in a sensible reading order. Use the exact label text for name when the part has a label. explanation: one or two sentences on what it is and what it does here.",
+    "parts: the labelled parts in a sensible reading order. Use the exact label text for name when the part has a label. explanation: 3-5 complete sentences — what the part is, what it does in this diagram, how it connects to the neighbouring parts, and why it matters. Never one short phrase, never just the part name.",
     "steps: if the diagram shows a process or flow, each step in order as one sentence; otherwise [].",
     "hardWords: technical words from the diagram a learner may not know, each with a one-sentence meaning.",
     question ? `The learner also asks: ${JSON.stringify(question)}. Put a direct answer in "answer".` : 'Set "answer" to null.',

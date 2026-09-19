@@ -228,7 +228,16 @@ export default function Student({
                 Concept {position + 1} of {lesson.map.parts.length}
               </span>
               <h2>{part.name}</h2>
-              <p className="concept-description">{part.description}</p>
+              <p className="concept-description">
+                {node?.detailedDescription ?? part.description}
+              </p>
+              {node?.detailedDescription &&
+                node.detailedDescription !== part.description && (
+                  <details className="description-levels">
+                    <summary>Shorter version</summary>
+                    <p>{part.description}</p>
+                  </details>
+                )}
               {node?.audio ? (
                 <div className="recorded-audio">
                   <audio

@@ -50,6 +50,22 @@ describe("Student explorer view", () => {
     expect(view.audioEngine).toBe("browser_speech");
     expect(view.parts.every((p) => p.audio === null)).toBe(true);
   });
+  it("serves the detailed description level to the explorer when the teacher kept one", async () => {
+    const lesson = await createLesson("heart");
+    const map = fixtureMap("heart", false);
+    map.parts[0].descriptions = {
+      short: "Pumps blood to the lungs.",
+      normal: map.parts[0].description,
+      detailed: "The right ventricle is the lower-right chamber of the heart. It receives deoxygenated blood from the right atrium. When it contracts, the pulmonary valve opens. Blood travels through the pulmonary artery toward the lungs. There the blood releases carbon dioxide and picks up oxygen.",
+    };
+    lesson.map = approveAll(map);
+    const view = buildExplorer(publishSnapshot(lesson, "2026-09-19T00:00:00Z"));
+    const ventricle = view.parts.find((p) => p.name === "Right ventricle")!;
+    expect(ventricle.detailedDescription).toContain("lower-right chamber");
+    expect(ventricle.shortDescription).toBe("Pumps blood to the lungs.");
+    // Parts without a kept detailed level simply repeat the description.
+    expect(view.parts[1].detailedDescription).toBe(view.parts[1].shortDescription);
+  });
 });
 
 describe("Cached audio of approved descriptions", () => {

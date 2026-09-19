@@ -1,0 +1,73 @@
+/* Account dashboard: reuses the login layout, adds user details + auth form. */
+.account-page {
+  grid-template-columns: 1fr 1fr;
+}
+.account-details {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  display: grid;
+  gap: 12px;
+}
+.account-details li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.account-details svg {
+  flex: none;
+  margin-top: 2px;
+  color: #7390a8;
+}
+.account-auth-form {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.google-button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 11px 18px;
+  min-height: 44px;
+  border: 1px solid #b9c3cc;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #14365f;
+  font-weight: 600;
+  font-size: 14px;
+}
+.google-signin .error { font-size: 12px; margin: 10px 0 0; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; font-size: 12px; color: var(--muted); }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.account-auth-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.login-page .link-button {
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.account-card .link-button + .link-button {
+  margin-top: 10px;
+}
+
+@media (max-width: 900px) { .account-page { grid-template-columns: 1fr; } }
+.onboarding-roles { display: grid; gap: 14px; }
+.onboarding-roles label { display: flex; flex-direction: row; align-items: center; gap: 14px; padding: 18px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.onboarding-roles label:has(input:checked) { border-color: var(--ink); background: #edf3f8; }
+.onboarding-roles small { display: block; margin-top: 5px; }

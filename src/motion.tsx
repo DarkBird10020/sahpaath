@@ -43,10 +43,8 @@ export function useMotion(calm: boolean) {
 }
 
 /**
- * The header follows the scroll the way the rest of the page does: flat and part of
- * the page at the top, a compact floating bar once you are into the page, and out of
- * the way entirely while you scroll down through the animated sections. Scrolling
- * back up brings it straight back, and so does moving focus into it with a keyboard.
+ * The landing header stays visible at the top or when pinned. Keyboard focus
+ * reveals it; pointer focus must not accidentally pin it after a click.
  */
 export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boolean, pinned = false) {
   useEffect(() => {
@@ -56,9 +54,9 @@ export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boo
       el.classList.remove("is-floating", "is-hidden", "is-dark");
       return;
     }
-    let queued = false;
+    let frame = 0;
     const read = () => {
-      queued = false;
+      frame = 0;
       const y = scrollY;
       el.classList.toggle("is-floating", y > 40);
       // The bar takes the colour of whatever it is locked over: light sections give
@@ -75,21 +73,28 @@ export function useStickyHeader(ref: RefObject<HTMLElement | null>, enabled: boo
       // Away from the top the bar is gone, in either direction: scrolling back up
       // should not keep pulling it over the page. Pinning is how a visitor asks to
       // keep it, and focus always brings it back for the keyboard.
-      const keep = pinned || y <= 60 || el.contains(document.activeElement);
+      const keep = pinned || y <= 60 || !!el.querySelector(":focus-visible");
       el.classList.toggle("is-hidden", !keep);
     };
     const onScroll = () => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(read);
+      if (frame) return;
+      frame = requestAnimationFrame(read);
     };
-    const onFocus = () => el.classList.remove("is-hidden");
+    const onFocus = () => {
+      if (el.querySelector(":focus-visible")) el.classList.remove("is-hidden");
+      onScroll();
+    };
     read();
     addEventListener("scroll", onScroll, { passive: true });
+    addEventListener("resize", onScroll);
     el.addEventListener("focusin", onFocus);
+    el.addEventListener("focusout", onScroll);
     return () => {
+      cancelAnimationFrame(frame);
       removeEventListener("scroll", onScroll);
+      removeEventListener("resize", onScroll);
       el.removeEventListener("focusin", onFocus);
+      el.removeEventListener("focusout", onScroll);
       el.classList.remove("is-floating", "is-hidden", "is-dark");
     };
   }, [ref, enabled, pinned]);
@@ -148,6 +153,7 @@ export function useScrollSteps(ref: RefObject<HTMLElement | null>, steps: number
     let tallest = 0;
     let fit = 1;
     let queued = false;
+    let frame = 0;
     let last = "";
     // The scroll value is written on the one element that reads it where there is
     // one: setting a custom property on the whole section re-styles everything in
@@ -205,7 +211,7 @@ export function useScrollSteps(ref: RefObject<HTMLElement | null>, steps: number
     const onScroll = () => {
       if (queued) return;
       queued = true;
-      requestAnimationFrame(read);
+      frame = requestAnimationFrame(read);
     };
     const onResize = () => {
       tallest = 0;
@@ -221,6 +227,7 @@ export function useScrollSteps(ref: RefObject<HTMLElement | null>, steps: number
     addEventListener("scroll", onScroll, { passive: true });
     addEventListener("resize", onResize);
     return () => {
+      cancelAnimationFrame(frame);
       ro.disconnect();
       removeEventListener("scroll", onScroll);
       removeEventListener("resize", onResize);
