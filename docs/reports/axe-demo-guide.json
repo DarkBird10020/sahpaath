@@ -1,6 +1,6 @@
 {
-  "url": "http://127.0.0.1:5174/",
-  "timestamp": "2026-09-19T08:55:39.528Z",
+  "url": "http://127.0.0.1:5174/#/teacher",
+  "timestamp": "2026-09-19T10:31:06.635Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",

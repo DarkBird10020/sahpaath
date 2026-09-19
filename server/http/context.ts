@@ -58,16 +58,26 @@ export function readSessionCookie(req: IncomingMessage): string | undefined {
 export interface ResolvedAuth {
   actor: Actor;
   classCode: string;
+  /** Present when authenticated via a Supabase bearer token. */
+  principal?: import("./auth").Principal;
 }
 
-export type AuthResolver = (token: string | undefined) => Promise<ResolvedAuth | null>;
+/**
+ * Resolve the caller's identity. Receives the session-cookie token (when
+ * present) and the request itself so resolvers can also honour an
+ * Authorization: Bearer header (Supabase access tokens).
+ */
+export type AuthResolver = (
+  token: string | undefined,
+  req?: IncomingMessage,
+) => Promise<ResolvedAuth | null>;
 
 /** Require any authenticated session; returns the actor. */
 export async function requireSession(
   req: IncomingMessage,
   resolve: AuthResolver,
 ): Promise<ResolvedAuth> {
-  const auth = await resolve(readSessionCookie(req));
+  const auth = await resolve(readSessionCookie(req), req);
   if (!auth) throw unauthorizedError("Choose a classroom role to continue.");
   return auth;
 }

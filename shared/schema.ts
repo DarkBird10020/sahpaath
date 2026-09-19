@@ -315,6 +315,27 @@ export const sessionSchema = z.object({
   role: z.enum(["teacher", "student"]),
   code: z.string(),
 });
+
+/* ------------------------- Application users (Supabase) ------------------- */
+
+/** The three application roles. USER means student/learner. */
+export const appRoleSchema = z.enum(["ADMIN", "TEACHER", "USER"]);
+export type AppRole = z.infer<typeof appRoleSchema>;
+
+/**
+ * Application user mapped from Supabase Auth. Credentials live ONLY in
+ * Supabase; this record never carries a password field by design.
+ */
+export const appUserSchema = z.object({
+  id: z.string(),
+  supabaseUserId: z.string().min(1),
+  email: z.string(),
+  name: z.string(),
+  role: appRoleSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type AppUser = z.infer<typeof appUserSchema>;
 export const revisionSchema = z
   .object({ revision: z.number().int().nonnegative() })
   .strict();

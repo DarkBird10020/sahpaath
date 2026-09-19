@@ -59,6 +59,13 @@ import { DiagramUploadService } from "./services/diagram-upload-service";
 import { Router } from "./http/router";
 import { registerRoutes } from "./http/routes";
 import { toErrorResponse } from "./http/router";
+import {
+  createAuthComponents,
+  readBearerToken,
+  legacyRoleFor,
+  type Principal,
+} from "./http/auth";
+import { appRoleSchema, appUserSchema, type AppRole } from "../shared/schema";
 
 if (existsSync(".env")) loadEnvFile(".env");
 const production = process.argv.includes("--production");
@@ -217,16 +224,133 @@ const uploadService = new DiagramUploadService(
   config,
   logger.child({ component: "diagram-upload" }),
 );
+/* ----------------------- Supabase auth + app users ----------------------- */
+
+/** Comma-separated emails granted ADMIN on first login (bootstrap only). */
+const adminAllowlist = (process.env.SAHPAATH_ADMIN_EMAILS || "")
+  .split(",")
+  .map((v) => v.trim().toLowerCase())
+  .filter(Boolean);
+
+/**
+ * Find-or-provision the application user for a verified Supabase identity.
+ * The role comes ONLY from the users table; new users default to USER, and
+ * only the SAHPAATH_ADMIN_EMAILS allowlist bootstraps ADMIN at first login.
+ * Never trusts any client-supplied role.
+ */
+async function resolveSupabaseUser(identity: {
+  supabaseUserId: string;
+  email: string | null;
+}): Promise<Principal> {
+  const existing = store.findUserBySupabaseId(identity.supabaseUserId);
+  if (existing)
+    return {
+      userId: existing.id,
+      role: existing.role,
+      email: existing.email,
+      name: existing.name,
+      via: "supabase",
+    };
+  const email = identity.email || "";
+  const role: AppRole = adminAllowlist.includes(email.toLowerCase()) ? "ADMIN" : "USER";
+  const name = email ? email.split("@")[0] : "Classroom member";
+  const created = store.createUser({
+    supabaseUserId: identity.supabaseUserId,
+    email,
+    name,
+    role,
+  });
+  store.audit(
+    "",
+    "user_provisioned",
+    `Application user created from Supabase identity with role ${role}.`,
+    created.id,
+  );
+  logger.info("user.provisioned", { userId: created.id, role });
+  return {
+    userId: created.id,
+    role: created.role,
+    email: created.email,
+    name: created.name,
+    via: "supabase",
+  };
+}
+
+const auth = createAuthComponents({
+  env: process.env,
+  resolveSupabase: resolveSupabaseUser,
+  resolveCookie: legacyCookiePrincipal,
+});
+
+/** Authenticate: Supabase Bearer token first, legacy cookie second. */
+async function resolvePrincipal(
+  token: string | undefined,
+  req?: IncomingMessage,
+): Promise<{
+  actor: { userId: string; role: "teacher" | "student" };
+  classCode: string;
+  principal?: Principal;
+} | null> {
+  if (req) {
+    const bearer = readBearerToken(req);
+    if (bearer) {
+      try {
+        const principal = await auth.verifyBearer(bearer);
+        return {
+          actor: { userId: principal.userId, role: legacyRoleFor(principal.role) },
+          classCode: `app-${principal.userId.slice(0, 8)}`,
+          principal,
+        };
+      } catch {
+        return null; // fall through to cookie auth
+      }
+    }
+  }
+  const cookie = token ? legacySessionPrincipal(token) : null;
+  return cookie;
+}
+
+function legacySessionPrincipal(token: string) {
+  const row = store.db
+    .prepare("SELECT role,code,expires FROM sessions WHERE token=?")
+    .get(sha256Hex(token)) as
+    | { role: "teacher" | "student"; code: string; expires: number }
+    | undefined;
+  if (!row || row.expires < Date.now()) return null;
+  return {
+    actor: {
+      userId: row.role === "teacher" ? "teacher-local" : `student-${token.slice(0, 8)}`,
+      role: row.role,
+    },
+    classCode: row.code,
+  };
+}
+
+function legacyCookiePrincipal(req: IncomingMessage): Principal | null {
+  const token = req.headers.cookie
+    ?.split(";")
+    .map((v) => v.trim())
+    .find((v) => v.startsWith("sahpaath="))
+    ?.slice(9);
+  if (!token) return null;
+  const resolved = legacySessionPrincipal(token);
+  if (!resolved) return null;
+  return {
+    userId: resolved.actor.userId,
+    role: resolved.actor.role === "teacher" ? "TEACHER" : "USER",
+    email: "",
+    name: resolved.actor.role === "teacher" ? "Local teacher" : "Classroom student",
+    via: "cookie",
+    classCode: resolved.classCode,
+  };
+}
+
 registerRoutes(router, {
   lessons: lessonService,
   classroom: classroomService,
   uploads: uploadService,
   sense: senseService,
-  auth: async (token) => {
-    const resolved = await classroomService.resolveSession(token);
-    if (!resolved) return null;
-    return { actor: { userId: resolved.userId, role: resolved.role }, classCode: resolved.classCode };
-  },
+  auth: resolvePrincipal,
   // Local bridge: the existing frontend logs in via legacy /api/session,
   // whose cookie lives in the legacy store. Accept it on v1 routes so no
   // second login is required. The legacy row stores role+code directly.
@@ -248,6 +372,14 @@ registerRoutes(router, {
   },
   revokeLegacySession: (token) => {
     store.db.prepare("DELETE FROM sessions WHERE token=?").run(sha256Hex(token));
+  },
+  appAuth: auth,
+  listAppUsers: () => store.listUsers(),
+  findAppUser: (id) => store.findUserById(id),
+  setAppUserRole: (id, role) => store.setUserRole(id, role),
+  auditAdmin: (action, detail, actorUserId, extra) => {
+    store.audit("", `admin_${action}`, detail, actorUserId, extra as never);
+    logger.info(`admin.${action}`, { actor: actorUserId, ...extra });
   },
   storage,
   config,
@@ -279,6 +411,44 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     });
   if (path === "/api/session" && method === "POST") {
     limited(`login:${req.socket.remoteAddress}`, 20);
+    // Supabase identity, when presented, mint the classroom session from the
+    // VERIFIED identity's application role — no local password involved.
+    // Role decisions always come from the users table, never the client.
+    // Checked before body parsing so an empty body works for Supabase login.
+    const bearer = readBearerToken(req);
+    if (bearer) {
+      try {
+        const principal = await auth.verifyBearer(bearer);
+        const token = randomBytes(32).toString("hex");
+        const code = randomBytes(3).toString("hex").toUpperCase();
+        store.db.prepare("DELETE FROM sessions WHERE expires < ?").run(Date.now());
+        store.db
+          .prepare("INSERT INTO sessions VALUES (?, ?, ?, ?)")
+          .run(
+            sha256Hex(token),
+            legacyRoleFor(principal.role),
+            code,
+            Date.now() + 12 * 60 * 60 * 1000,
+          );
+        res.setHeader(
+          "Set-Cookie",
+          `sahpaath=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`,
+        );
+        return json(res, {
+          role: legacyRoleFor(principal.role),
+          code,
+          user: appUserSchema.parse({
+            id: principal.userId,
+            supabaseUserId: "",
+            email: principal.email,
+            name: principal.name,
+            role: principal.role,
+          }),
+        });
+      } catch {
+        // Invalid bearer falls through to the local-password flow.
+      }
+    }
     const input = z
       .object({
         role: z.enum(["teacher", "student"]),

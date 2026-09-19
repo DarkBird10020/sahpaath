@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, Headphones, LogOut, MessageSquare, Pin, PinOff, ScanText, Settings2 } from "lucide-react";
 import { api, okSchema } from "./api";
+import { getAccessToken, supabase, supabaseSignOut } from "./lib/supabase";
 import {
   lessonSchema,
   publishedSchema,
@@ -16,6 +17,7 @@ import LandingSections from "./LandingSections";
 import { useMotion, useStickyHeader } from "./motion";
 import NavMenu from "./NavMenu";
 import Teacher from "./Teacher";
+import Account from "./Account";
 import Student from "./Student";
 import TeacherInbox from "./TeacherInbox";
 import ExplainDiagram from "./ExplainDiagram";
@@ -153,6 +155,24 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
+      // Supabase identity, when one exists, opens the classroom from the
+      // verified token — the server derives the role from the users table.
+      // The local flow below stays exactly as it was for everyone else.
+      if (supabase && (await getAccessToken())) {
+        const s = await api("/session", sessionSchema, "POST", {});
+        setSession(s);
+        setPassword("");
+        setPage(
+          afterLogin && s.role === "teacher"
+            ? afterLogin
+            : s.role === "teacher"
+              ? "teacher"
+              : "explore",
+        );
+        setAfterLogin(null);
+        setAnnouncement("Local classroom opened.");
+        return;
+      }
       const s = await api("/session", sessionSchema, "POST", {
         role: loginRole,
         ...(loginRole === "teacher" ? { password } : {}),
@@ -266,6 +286,9 @@ export default function App() {
                   <button aria-current={page === "watch" ? "page" : undefined} onClick={() => go("watch")}>
                     Watch &amp; listen
                   </button>
+                  <button aria-current={page === "account" ? "page" : undefined} onClick={() => go("account")}>
+                    Account
+                  </button>
                 </>
               ) : (
                 <>
@@ -291,6 +314,7 @@ export default function App() {
                   onClick={async () => {
                     try {
                       await api("/session", okSchema, "DELETE");
+                      await supabaseSignOut();
                       setSession(null);
                       setLessons([]);
                       setPublished([]);
@@ -326,6 +350,7 @@ export default function App() {
             ? async () => {
                 try {
                   await api("/session", okSchema, "DELETE");
+                  await supabaseSignOut();
                   setSession(null);
                   setLessons([]);
                   setPublished([]);
@@ -437,6 +462,24 @@ export default function App() {
             <DiagramStory calm={!motion} onExplore={() => void openTool("explore")} />
             <LandingSections motion={motion} onExplore={() => void openTool("explore")} onTeacher={openTeacher} />
           </>
+        )}
+        {page === "account" && (
+          <Account
+            session={session}
+            onBack={() => go("home")}
+            onSignedIn={async () => {
+              setSession(await api("/session", sessionSchema));
+              setAnnouncement("Signed in.");
+              go("explore");
+            }}
+            onSignedOut={() => {
+              setSession(null);
+              setLessons([]);
+              setPublished([]);
+              go("home");
+              setAnnouncement("Signed out.");
+            }}
+          />
         )}
         {page === "login" && (
           <section className="login-page">

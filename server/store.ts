@@ -7,11 +7,14 @@ import {
   publishedSchema,
   captionSchema,
   questionSchema,
+  appUserSchema,
   type Lesson,
   type Published,
   type Audit,
   type Question,
   type Caption,
+  type AppUser,
+  type AppRole,
 } from "../shared/schema";
 import { correctVocabulary, matchCaptionTerms } from "../shared/vocabulary";
 import {
@@ -45,7 +48,17 @@ export class Store {
       CREATE TABLE IF NOT EXISTS caption_sessions (id TEXT PRIMARY KEY, lesson_id TEXT NOT NULL, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS caption_segments (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, lesson_id TEXT NOT NULL, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS demo (key TEXT PRIMARY KEY, body TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, role TEXT NOT NULL, code TEXT NOT NULL, expires INTEGER NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, role TEXT NOT NULL, code TEXT NOT NULL, expires INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        supabase_user_id TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('ADMIN', 'TEACHER', 'USER')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS users_role ON users (role);`);
   }
   list(): Lesson[] {
     return (
@@ -210,6 +223,75 @@ export class Store {
   }
   events(id: string): Audit[] {
     return this.records("audit", id);
+  }
+  /* ------------------------ Application users (Supabase) ------------------ */
+  /**
+   * Application identity + role for Supabase Auth users. Passwords NEVER live
+   * here — Supabase Auth owns credentials; this table only maps a verified
+   * Supabase user to an application role (the authoritative role source).
+   */
+  findUserBySupabaseId(supabaseUserId: string): AppUser | undefined {
+    const row = this.db
+      .prepare("SELECT body FROM users WHERE supabase_user_id=?")
+      .get(supabaseUserId) as { body: string } | undefined;
+    return row ? appUserSchema.parse(JSON.parse(row.body)) : undefined;
+  }
+  findUserById(appUserId: string): AppUser | undefined {
+    const row = this.db
+      .prepare("SELECT body FROM users WHERE id=?")
+      .get(appUserId) as { body: string } | undefined;
+    return row ? appUserSchema.parse(JSON.parse(row.body)) : undefined;
+  }
+  listUsers(): AppUser[] {
+    return (
+      this.db.prepare("SELECT body FROM users ORDER BY created_at").all() as {
+        body: string;
+      }[]
+    ).map((r) => appUserSchema.parse(JSON.parse(r.body)));
+  }
+  createUser(input: {
+    supabaseUserId: string;
+    email: string;
+    name: string;
+    role: AppRole;
+  }): AppUser {
+    const now = new Date().toISOString();
+    const user = appUserSchema.parse({
+      id: randomUUID(),
+      supabaseUserId: input.supabaseUserId,
+      email: input.email,
+      name: input.name,
+      role: input.role,
+      createdAt: now,
+      updatedAt: now,
+    });
+    this.db
+      .prepare("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(
+        user.id,
+        user.supabaseUserId,
+        user.email,
+        user.name,
+        user.role,
+        user.createdAt,
+        user.updatedAt,
+      );
+    return user;
+  }
+  setUserRole(appUserId: string, role: AppRole): AppUser {
+    const row = this.db
+      .prepare("SELECT body FROM users WHERE id=?")
+      .get(appUserId) as { body: string } | undefined;
+    if (!row) throw new Error("User not found.");
+    const user = appUserSchema.parse({
+      ...JSON.parse(row.body),
+      role,
+      updatedAt: new Date().toISOString(),
+    });
+    this.db
+      .prepare("UPDATE users SET role=?, updated_at=? WHERE id=?")
+      .run(user.role, user.updatedAt, user.id);
+    return user;
   }
   records<T>(table: "audit" | "questions" | "captions", lessonId: string): T[] {
     return (
