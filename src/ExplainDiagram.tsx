@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, MessageCircle, Sparkles, Upload } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Globe, MessageCircle, Search, Sparkles, Upload } from "lucide-react";
 import { api, fileBase64 } from "./api";
 import { ConceptTree, Diagram, Speak } from "./components";
 import WordExplainer from "./WordExplainer";
@@ -20,6 +20,29 @@ const explanationSchema = z.object({
   mapFindings: z.number().nullable(),
 });
 type Explanation = z.infer<typeof explanationSchema>;
+const searchSchema = z.object({
+  results: z.array(
+    z.object({
+      title: z.string(),
+      thumbUrl: z.string(),
+      imageUrl: z.string().nullable(),
+      width: z.number().nullable(),
+      height: z.number().nullable(),
+      licenseName: z.string(),
+      attribution: z.string().optional(),
+      sourceUrl: z.string(),
+    }),
+  ),
+});
+type Found = z.infer<typeof searchSchema>["results"][number];
+const fetchedSchema = z.object({ mime: z.enum(["image/png", "image/jpeg"]), base64: z.string() });
+
+/** A picked search result as a File, so it takes exactly the upload path. */
+function toFile(base64: string, mime: string, title: string) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const name = `${title.replace(/[^\w -]+/g, "").trim().slice(0, 60) || "diagram"}.${mime === "image/png" ? "png" : "jpg"}`;
+  return new File([bytes], name, { type: mime });
+}
 type Node = { id: string; name: string; text: string; onImage: boolean };
 
 /** Builds explorer nodes, flow and connections from the grounded map when it
@@ -61,9 +84,58 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
   const [ask, setAsk] = useState("");
   const [asking, setAsking] = useState(false);
   const [reply, setReply] = useState<{ part: string; question: string; answer: string } | null>(null);
+  const [query, setQuery] = useState("");
+  const [found, setFound] = useState<Found[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [fetching, setFetching] = useState<string | null>(null);
+  // Where a searched picture came from; shown with it, because the licence asks for credit.
+  const [credit, setCredit] = useState<Found | null>(null);
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
   const explorer = useMemo(() => (result ? buildExplorer(result) : null), [result]);
   const node = explorer?.nodes.find((n) => n.id === selected) ?? explorer?.nodes[0];
+
+  function choose(chosen: File | null, from: Found | null) {
+    setResult(null);
+    setReply(null);
+    setError("");
+    setFile(chosen);
+    setPreview(chosen ? URL.createObjectURL(chosen) : "");
+    setCredit(from);
+  }
+
+  async function search(e: React.FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    setSearching(true);
+    setError("");
+    try {
+      const data = await api(`/diagram-search?q=${encodeURIComponent(q)}`, searchSchema);
+      setFound(data.results);
+      report(data.results.length ? `${data.results.length} diagrams found.` : "No diagrams found.");
+    } catch (err) {
+      setError((err as Error).message);
+      setFound(null);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  /** Fetches the picked picture through our server (browsers cannot read its bytes). */
+  async function pick(r: Found) {
+    const url = r.imageUrl ?? r.thumbUrl;
+    setFetching(url);
+    setError("");
+    try {
+      const image = await api("/diagram-search/fetch", fetchedSchema, "POST", { imageUrl: url });
+      choose(toFile(image.base64, image.mime, r.title), r);
+      report(`${r.title} chosen. Press Open in diagram explorer.`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setFetching(null);
+    }
+  }
 
   async function explain() {
     if (!file) return;
@@ -137,6 +209,49 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
         through its parts with the keyboard, follow the flow, hear each part read aloud and ask about anything. No teacher
         needed.
       </p>
+      <form className="yt-search" onSubmit={(e) => void search(e)}>
+        <label>
+          Search the internet for a diagram
+          <input
+            type="search"
+            value={query}
+            maxLength={120}
+            placeholder="e.g. water cycle, human heart, plant cell"
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <button className="primary" disabled={!query.trim() || searching}>
+          <Search size={17} aria-hidden="true" />
+          {searching ? "Searching…" : "Search"}
+        </button>
+        <p className="small search-note">
+          <Globe size={14} aria-hidden="true" /> Openly licensed diagrams from Wikimedia Commons.
+        </p>
+      </form>
+      {found !== null && (
+        <div className="yt-results diagram-results" role="group" aria-label="Diagram search results">
+          {found.length === 0 && <p className="small">No PNG or JPEG diagrams found. Try other words, or upload a picture.</p>}
+          {found.map((r) => {
+            const url = r.imageUrl ?? r.thumbUrl;
+            return (
+              <button
+                key={r.thumbUrl}
+                type="button"
+                className="yt-result"
+                aria-pressed={credit?.thumbUrl === r.thumbUrl}
+                disabled={fetching !== null || busy}
+                onClick={() => void pick(r)}
+              >
+                <img src={r.thumbUrl} alt="" width={120} height={90} loading="lazy" referrerPolicy="no-referrer" />
+                <span className="yt-result-meta">
+                  <strong>{r.title}</strong>
+                  <small>{fetching === url ? "Getting the picture…" : `${r.licenseName}${r.width ? ` · ${r.width}×${r.height}` : ""}`}</small>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <form
         className="ai-upload"
         onSubmit={(e) => {
@@ -145,20 +260,18 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
         }}
       >
         <label>
-          Diagram image (PNG or JPEG, up to 5 MB)
+          {credit ? "Or upload your own (PNG or JPEG, up to 5 MB)" : "Diagram image (PNG or JPEG, up to 5 MB)"}
           <input
             type="file"
             accept="image/png,image/jpeg"
             onChange={(e) => {
               const chosen = e.target.files?.[0] ?? null;
-              setResult(null);
-              setError("");
               if (chosen && chosen.size > 5_000_000) {
+                setResult(null);
                 setError("Choose an image smaller than 5 MB.");
                 return;
               }
-              setFile(chosen);
-              setPreview(chosen ? URL.createObjectURL(chosen) : "");
+              choose(chosen, null);
             }}
           />
         </label>
@@ -175,6 +288,21 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
           <Upload size={17} aria-hidden="true" />
           {busy ? "Opening…" : "Open in diagram explorer"}
         </button>
+        {credit && preview && (
+          <figure className="picked-diagram">
+            <img src={preview} alt={`Chosen diagram: ${credit.title}`} />
+            <figcaption>
+              <strong>{credit.title}</strong>
+              <span className="small">
+                {credit.attribution ? `${credit.attribution} · ` : ""}
+                {credit.licenseName} ·{" "}
+                <a href={credit.sourceUrl} target="_blank" rel="noreferrer">
+                  Source
+                </a>
+              </span>
+            </figcaption>
+          </figure>
+        )}
       </form>
       {busy && (
         <p role="status" className="ai-progress">

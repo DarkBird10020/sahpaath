@@ -913,6 +913,10 @@ test("AI helper pages work for students, explain clearly when AI is off, and loa
   await fromMenu(page, /Explain a diagram/);
   await expect(page.getByRole("heading", { name: "Explain any diagram." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Enter classroom" })).toHaveCount(0);
+  // Students can search the internet for a diagram too, not only teachers.
+  // Nothing is searched here: browser tests stay offline.
+  await expect(page.getByLabel("Search the internet for a diagram")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Search", exact: true })).toBeDisabled();
   const picker = page.locator(".ai-upload input[type=file]");
   await expect(picker).toBeEnabled();
   await picker.setInputFiles("docs/samples/heart-flow-test.png");
@@ -930,6 +934,25 @@ test("AI helper pages work for students, explain clearly when AI is off, and loa
   await page.locator(".transcript-list button").nth(1).click();
   await expect(page.locator(".caption-now")).toContainText("It travels to the lungs.");
   await scan(page, "watch-listen");
+});
+
+test("the YouTube search says what is missing instead of failing quietly", async ({ page }) => {
+  // No YOUTUBE_API_KEY in browser tests (see playwright.config.ts), so this
+  // proves the wiring and the message a visitor sees when it is not set up.
+  await page.goto("/");
+  await fromMenu(page, /Watch & listen/);
+  const box = page.getByLabel("Search YouTube for a lesson, or paste a video link");
+  await expect(box).toBeVisible();
+  // The button stays out of reach until there is something to search for.
+  const button = page.getByRole("button", { name: "Search" });
+  await expect(button).toBeDisabled();
+  await box.fill("blood flow through the heart");
+  await expect(button).toBeEnabled();
+  await button.click();
+  await expect(page.getByRole("alert")).toContainText("YouTube search is not configured");
+  // The offline half of the page is untouched by a failed search.
+  await expect(page.getByLabel("Video or audio file")).toBeEnabled();
+  await expect(page.getByLabel("Or load subtitles (.vtt or .srt), free and instant")).toBeEnabled();
 });
 
 test("teacher can choose a diagram file without filling the form first", async ({ page }) => {
