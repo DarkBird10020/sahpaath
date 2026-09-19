@@ -61,7 +61,7 @@ RULES (violations are rejected automatically):
 1. Every part MUST use the ocrLabelId of one of the labels listed above. NEVER invent a label id or a label text. If a concept has no label, DO NOT create a part for it.
 2. part.name must be the exact OCR text of the referenced label (no paraphrasing).
 3. relationships may only connect parts you defined above, and every relationship's evidence MUST list the ocrLabelId of its source part and of its target part.
-4. processFlow must list parts in a meaningful reading/processing order using 1-based "order" values. Only include a flow when the diagram clearly shows a sequence; use each part at most once.
+4. processFlow must list parts in a meaningful reading/processing order using 1-based "order" values. If the labels are numbered callouts (1, 2, 3, ...), that order IS the reading order: list them by ascending callout number, set part.name to the number's exact OCR text, and describe what each numbered region shows (the teacher renames it in review). Otherwise include a flow only when the diagram clearly shows a sequence; use each part at most once.
 5. Write three description levels for every part:
    - description: one clear sentence (~15-30 words).
    - descriptionShort: at most ~8 words, for a quick glance.

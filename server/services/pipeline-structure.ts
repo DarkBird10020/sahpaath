@@ -5,6 +5,8 @@ import {
   emptyStructure,
 } from "../../shared/model";
 import type { DiagramProposal, OcrLabel } from "../../shared/proposal";
+import { sequencePartIds } from "../../shared/domain";
+import { mapSchema, type DiagramMap } from "../../shared/schema";
 
 /**
  * Pure conversion: model proposal + OCR labels -> domain DiagramStructure.
@@ -189,6 +191,26 @@ export function proposalToStructure(
     });
     return { structure: existingStructure ?? emptyStructure, issues, ok: false };
   }
+
+  // Present parts in the diagram's own sequence (numbered callouts, then the
+  // reading flow, then geometric order) so every review surface explains in
+  // order instead of the model's arbitrary emission order. The structure
+  // schema carries no label coordinates, so they are taken from the OCR list.
+  const labelCoord = new Map(labels.map((l) => [l.labelId, l]));
+  const asMap: DiagramMap = mapSchema.parse({
+    labels: parsed.data.labels.map((l) => {
+      const c = labelCoord.get(l.labelId);
+      return { id: l.labelId, text: l.text, confidence: l.confidence, source: "textract", x: c?.x ?? 0, y: c?.y ?? 0 };
+    }),
+    parts: parsed.data.parts.map((p) => ({
+      id: p.partId, name: p.name, labelId: p.labelId, description: p.description,
+      aliases: [], modelConfidence: null, state: "ai_proposed" as const, reviewNote: p.reviewNote,
+    })),
+    relations: [],
+    flows: parsed.data.flows.map((f) => ({ id: f.flowId, name: f.name, steps: f.stepPartIds, state: "ai_proposed", reviewNote: "" })),
+  });
+  const sequence = sequencePartIds(asMap);
+  parsed.data.parts.sort((a, b) => sequence.indexOf(a.partId) - sequence.indexOf(b.partId));
 
   return { structure: parsed.data, issues, ok: structure.parts.length > 0 };
 }

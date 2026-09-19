@@ -2,11 +2,11 @@
   "config": {
     "argv": [
       "C:\\Program Files\\nodejs\\node.exe",
-      "C:\\Users\\Administrator\\Desktop\\fir-comit\\node_modules\\@playwright\\test\\cli.js",
+      "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\node_modules\\@playwright\\test\\cli.js",
       "test"
     ],
-    "configFile": "C:\\Users\\Administrator\\Desktop\\fir-comit\\playwright.config.ts",
-    "rootDir": "C:/Users/Administrator/Desktop/fir-comit/tests/e2e",
+    "configFile": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\playwright.config.ts",
+    "rootDir": "C:/Users/aaayu/OneDrive/Desktop/Shahpaath/sahpaath/tests/e2e",
     "failOnFlakyTests": false,
     "forbidOnly": false,
     "fullyParallel": false,
@@ -22,7 +22,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "C:/Users/Administrator/Desktop/fir-comit/test-results",
+        "outputDir": "C:/Users/aaayu/OneDrive/Desktop/Shahpaath/sahpaath/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -30,7 +30,7 @@
         },
         "id": "",
         "name": "",
-        "testDir": "C:/Users/Administrator/Desktop/fir-comit/tests/e2e",
+        "testDir": "C:/Users/aaayu/OneDrive/Desktop/Shahpaath/sahpaath/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -103,12 +103,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 140,
+                  "duration": 110,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:01:42.061Z",
+                  "startTime": "2026-09-19T10:38:04.798Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -137,12 +137,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3172,
+                  "duration": 3525,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:01:42.234Z",
+                  "startTime": "2026-09-19T10:38:04.934Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -171,12 +171,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1657,
+                  "duration": 1864,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:01:45.539Z",
+                  "startTime": "2026-09-19T10:38:08.700Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -205,12 +205,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 6995,
+                  "duration": 7661,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:01:47.209Z",
+                  "startTime": "2026-09-19T10:38:10.580Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -239,12 +239,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3600,
+                  "duration": 3315,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:01:54.216Z",
+                  "startTime": "2026-09-19T10:38:18.256Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -273,12 +273,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1797,
+                  "duration": 1754,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:01:57.832Z",
+                  "startTime": "2026-09-19T10:38:21.584Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -307,12 +307,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1807,
+                  "duration": 1697,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:01:59.640Z",
+                  "startTime": "2026-09-19T10:38:23.351Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -341,12 +341,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3629,
+                  "duration": 2905,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:01.456Z",
+                  "startTime": "2026-09-19T10:38:25.061Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -383,12 +383,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 8922,
+                  "duration": 8233,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:05.181Z",
+                  "startTime": "2026-09-19T10:38:28.065Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -417,12 +417,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 4467,
+                  "duration": 3724,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:14.115Z",
+                  "startTime": "2026-09-19T10:38:36.310Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -451,12 +451,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 15359,
+                  "duration": 15997,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:18.592Z",
+                  "startTime": "2026-09-19T10:38:40.045Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -485,12 +485,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1586,
+                  "duration": 1321,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:33.962Z",
+                  "startTime": "2026-09-19T10:38:56.053Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -505,7 +505,7 @@
         },
         {
           "title": "keyboard-only phrase, mobile explorer, high contrast and no WebGL fallback",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -518,18 +518,45 @@
                 {
                   "workerIndex": 0,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 7728,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60250,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
+                        "column": 65,
+                        "line": 38
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Menu', exact: true })\u001b[22m\n\n\n  36 | async function fromMenu(page: Page, name: string | RegExp) {\n  37 |   await page.evaluate(() => scrollTo(0, 0));\n> 38 |   await page.getByRole(\"button\", { name: \"Menu\", exact: true }).click();\n     |                                                                 ^\n  39 |   await page.getByRole(\"dialog\", { name: \"Menu\" }).getByRole(\"button\", { name }).click();\n  40 | }\n  41 | async function teacherLogin(page: Page) {\n    at fromMenu (C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:38:65)\n    at C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:367:3"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:35.561Z",
+                  "startTime": "2026-09-19T10:38:57.386Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-keyboard-only-ph-36226-trast-and-no-WebGL-fallback\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-keyboard-only-ph-36226-trast-and-no-WebGL-fallback\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-1a381d0eafd599091398",
@@ -550,15 +577,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3517,
+                  "duration": 3377,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:43.299Z",
+                  "startTime": "2026-09-19T10:39:58.627Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -568,7 +595,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-00054c036f0349deac81",
           "file": "classroom.spec.ts",
-          "line": 427,
+          "line": 426,
           "column": 1
         },
         {
@@ -584,15 +611,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1595,
+                  "duration": 1416,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:46.827Z",
+                  "startTime": "2026-09-19T10:40:02.215Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -602,7 +629,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-660c5d00c60dfe79d162",
           "file": "classroom.spec.ts",
-          "line": 479,
+          "line": 478,
           "column": 1
         },
         {
@@ -618,15 +645,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2846,
+                  "duration": 2698,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:48.432Z",
+                  "startTime": "2026-09-19T10:40:03.645Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -636,7 +663,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-ab460472543833a5d348",
           "file": "classroom.spec.ts",
-          "line": 561,
+          "line": 560,
           "column": 1
         },
         {
@@ -652,15 +679,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1262,
+                  "duration": 1155,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:51.289Z",
+                  "startTime": "2026-09-19T10:40:06.355Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -670,7 +697,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-4e4cf130989dbaf1ae4b",
           "file": "classroom.spec.ts",
-          "line": 589,
+          "line": 588,
           "column": 1
         },
         {
@@ -686,15 +713,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3695,
+                  "duration": 3969,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:52.565Z",
+                  "startTime": "2026-09-19T10:40:07.523Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -704,7 +731,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-57bf4592d9fe5e513f87",
           "file": "classroom.spec.ts",
-          "line": 603,
+          "line": 602,
           "column": 1
         },
         {
@@ -720,15 +747,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 6086,
+                  "duration": 5630,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:02:56.274Z",
+                  "startTime": "2026-09-19T10:40:11.505Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -738,7 +765,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-9e6bf4a4ea9bfb681e07",
           "file": "classroom.spec.ts",
-          "line": 619,
+          "line": 618,
           "column": 1
         },
         {
@@ -754,15 +781,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1843,
+                  "duration": 1599,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:03:02.370Z",
+                  "startTime": "2026-09-19T10:40:17.145Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -772,7 +799,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-e106b85699215d27ef00",
           "file": "classroom.spec.ts",
-          "line": 660,
+          "line": 659,
           "column": 1
         },
         {
@@ -788,15 +815,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 8523,
+                  "duration": 7820,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:03:04.226Z",
+                  "startTime": "2026-09-19T10:40:18.752Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -806,7 +833,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-613b156a8c34a4706058",
           "file": "classroom.spec.ts",
-          "line": 697,
+          "line": 696,
           "column": 1
         },
         {
@@ -822,15 +849,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2997,
+                  "duration": 2773,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:03:12.759Z",
+                  "startTime": "2026-09-19T10:40:26.579Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -840,12 +867,12 @@
           ],
           "id": "ee123a1e90c2c71e0969-3112d07b1e4e272eb5ec",
           "file": "classroom.spec.ts",
-          "line": 726,
+          "line": 722,
           "column": 1
         },
         {
           "title": "the quiet bar is the landing's alone, and it can be pinned open",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -856,25 +883,60 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 1,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 6065,
-                  "errors": [],
+                  "status": "failed",
+                  "duration": 11017,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('.site-header nav button')\nExpected: \u001b[32m3\u001b[39m\nReceived: \u001b[31m4\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" locator('.site-header nav button') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.site-header nav button')\u001b[22m\n\u001b[2m    14 × locator resolved to 4 elements\u001b[22m\n\u001b[2m       - unexpected value \"4\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('.site-header nav button')\nExpected: \u001b[32m3\u001b[39m\nReceived: \u001b[31m4\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" locator('.site-header nav button') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.site-header nav button')\u001b[22m\n\u001b[2m    14 × locator resolved to 4 elements\u001b[22m\n\u001b[2m       - unexpected value \"4\"\u001b[22m\n\n    at C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:771:57",
+                    "location": {
+                      "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
+                      "column": 57,
+                      "line": 771
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 769 |\u001b[39m   \u001b[36mawait\u001b[39m expect(header)\u001b[33m.\u001b[39mtoHaveClass(\u001b[35m/is-plain/\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 770 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m\"button\"\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m\"Menu\"\u001b[39m\u001b[33m,\u001b[39m exact\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m }))\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m0\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 771 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m\".site-header nav button\"\u001b[39m))\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m3\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                                         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 772 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m\"button\"\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m\"Accessibility settings\"\u001b[39m }))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 773 |\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m 774 |\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
+                        "column": 57,
+                        "line": 771
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('.site-header nav button')\nExpected: \u001b[32m3\u001b[39m\nReceived: \u001b[31m4\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" locator('.site-header nav button') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.site-header nav button')\u001b[22m\n\u001b[2m    14 × locator resolved to 4 elements\u001b[22m\n\u001b[2m       - unexpected value \"4\"\u001b[22m\n\n\n  769 |   await expect(header).toHaveClass(/is-plain/);\n  770 |   await expect(page.getByRole(\"button\", { name: \"Menu\", exact: true })).toHaveCount(0);\n> 771 |   await expect(page.locator(\".site-header nav button\")).toHaveCount(3);\n      |                                                         ^\n  772 |   await expect(page.getByRole(\"button\", { name: \"Accessibility settings\" })).toBeVisible();\n  773 | });\n  774 |\n    at C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:771:57"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:03:15.766Z",
+                  "startTime": "2026-09-19T10:40:29.360Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-the-quiet-bar-is-9ac82-e-and-it-can-be-pinned-open\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-the-quiet-bar-is-9ac82-e-and-it-can-be-pinned-open\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
+                    "column": 57,
+                    "line": 771
+                  }
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-6789ede08585315cb713",
           "file": "classroom.spec.ts",
-          "line": 748,
+          "line": 744,
           "column": 1
         },
         {
@@ -890,15 +952,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1008,
+                  "duration": 994,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:03:21.841Z",
+                  "startTime": "2026-09-19T10:40:41.577Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -908,12 +970,12 @@
           ],
           "id": "ee123a1e90c2c71e0969-0c23dd8522776ec62567",
           "file": "classroom.spec.ts",
-          "line": 781,
+          "line": 775,
           "column": 1
         },
         {
           "title": "guided demo, flow navigation and live captions with a misheard term",
-          "ok": true,
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -924,25 +986,52 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 2,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 13869,
-                  "errors": [],
+                  "status": "timedOut",
+                  "duration": 60230,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts",
+                        "column": 65,
+                        "line": 38
+                      },
+                      "message": "Error: locator.click: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Menu', exact: true })\u001b[22m\n\n\n  36 | async function fromMenu(page: Page, name: string | RegExp) {\n  37 |   await page.evaluate(() => scrollTo(0, 0));\n> 38 |   await page.getByRole(\"button\", { name: \"Menu\", exact: true }).click();\n     |                                                                 ^\n  39 |   await page.getByRole(\"dialog\", { name: \"Menu\" }).getByRole(\"button\", { name }).click();\n  40 | }\n  41 | async function teacherLogin(page: Page) {\n    at fromMenu (C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:38:65)\n    at C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\tests\\e2e\\classroom.spec.ts:813:3"
+                    }
+                  ],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:03:22.860Z",
+                  "startTime": "2026-09-19T10:40:42.781Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-guided-demo-flow-dce2c-ptions-with-a-misheard-term\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\aaayu\\OneDrive\\Desktop\\Shahpaath\\sahpaath\\test-results\\classroom-guided-demo-flow-dce2c-ptions-with-a-misheard-term\\trace.zip"
+                    }
+                  ]
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
           "id": "ee123a1e90c2c71e0969-c5a0f4cfd67512eb03be",
           "file": "classroom.spec.ts",
-          "line": 812,
+          "line": 806,
           "column": 1
         },
         {
@@ -958,15 +1047,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 3,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 93,
+                  "duration": 133,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:03:36.740Z",
+                  "startTime": "2026-09-19T10:41:43.726Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -976,7 +1065,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-96c41adc07b17ddb5724",
           "file": "classroom.spec.ts",
-          "line": 887,
+          "line": 880,
           "column": 1
         },
         {
@@ -992,15 +1081,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 3,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 5921,
+                  "duration": 5983,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:03:36.841Z",
+                  "startTime": "2026-09-19T10:41:43.882Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -1010,7 +1099,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-d51c513c5e68094054b9",
           "file": "classroom.spec.ts",
-          "line": 916,
+          "line": 909,
           "column": 1
         },
         {
@@ -1026,15 +1115,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 3,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3794,
+                  "duration": 3474,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:03:42.772Z",
+                  "startTime": "2026-09-19T10:41:50.051Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -1044,7 +1133,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-7536576f477741be3116",
           "file": "classroom.spec.ts",
-          "line": 950,
+          "line": 943,
           "column": 1
         },
         {
@@ -1060,15 +1149,15 @@
               "projectName": "",
               "results": [
                 {
-                  "workerIndex": 0,
+                  "workerIndex": 3,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2002,
+                  "duration": 1793,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-19T12:03:46.576Z",
+                  "startTime": "2026-09-19T10:41:53.540Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -1078,7 +1167,7 @@
           ],
           "id": "ee123a1e90c2c71e0969-a8533a37253f937f545d",
           "file": "classroom.spec.ts",
-          "line": 973,
+          "line": 966,
           "column": 1
         }
       ]
@@ -1086,11 +1175,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-19T12:01:39.464Z",
-    "duration": 129576.808,
-    "expected": 29,
+    "startTime": "2026-09-19T10:38:02.325Z",
+    "duration": 233623.371,
+    "expected": 26,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 3,
     "flaky": 0
   }
 }
