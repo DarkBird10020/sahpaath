@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   Check,
   Upload,
+  Search,
   Plus,
   ArrowRight,
   FileText,
@@ -385,7 +386,7 @@ export default function Teacher({
               />
             </label>
             <button className="primary" disabled={busy || searching || !search.trim()}>
-              {searching ? <Spinner /> : <Plus size={17} aria-hidden="true" />}
+              {searching ? <Spinner /> : <Search size={17} aria-hidden="true" />}
               {searching ? "Searching…" : "Search diagrams"}
             </button>
             {searchResults && (

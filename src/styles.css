@@ -4241,7 +4241,6 @@ main:not(.under-header) {
 }
 /* Paper cards with a warm edge and the landing's soft depth. */
 .lesson-main,
-.lesson-sidebar > .create-lesson,
 .concept-panel,
 .tree-panel,
 .transcript-panel,
@@ -4356,4 +4355,212 @@ textarea:focus-visible {
 .lesson-sidebar .create-lesson label {
   display: grid;
   gap: 6px;
+}
+
+/* Workspace navigation and tools share the page's paper, with ink and rules
+   providing hierarchy instead of a stack of floating rounded boxes. */
+.site-header.is-plain {
+  height: auto;
+  min-height: 88px;
+  padding: 16px 5%;
+  background: #f3eee5;
+  border-bottom: 1px solid var(--line);
+}
+.site-header.is-plain .header-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 24px;
+  height: auto;
+  min-width: 0;
+}
+.site-header.is-plain .brand-mark {
+  border-color: #b7aa94;
+  background: transparent;
+}
+.site-header.is-plain nav {
+  min-width: 0;
+  margin: 0;
+  gap: 4px 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.site-header.is-plain nav button,
+.site-header.is-plain nav a {
+  position: relative;
+  padding: 10px 2px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.site-header.is-plain nav button::after,
+.site-header.is-plain nav a::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  background: #a46d20;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms ease;
+}
+.site-header.is-plain nav button:hover:not(:disabled),
+.site-header.is-plain nav a:hover,
+.site-header.is-plain nav [aria-current="page"] {
+  background: transparent;
+  color: var(--ink);
+}
+.site-header.is-plain nav button:hover:not(:disabled)::after,
+.site-header.is-plain nav a:hover::after,
+.site-header.is-plain nav :focus-visible::after,
+.site-header.is-plain nav [aria-current="page"]::after {
+  transform: scaleX(1);
+}
+.site-header.is-plain .header-actions {
+  gap: 8px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+.site-header.is-plain .icon-button {
+  border-color: transparent;
+  border-radius: 8px;
+}
+.site-header.is-plain .icon-button:hover:not(:disabled) {
+  border-color: #b7aa94;
+  background: transparent;
+}
+.lesson-sidebar > .create-lesson {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 24px 0 0;
+}
+.lesson-sidebar > .diagram-search {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.lesson-sidebar .create-lesson h3 {
+  margin: 0;
+  font-family: "Manrope Variable", Arial, sans-serif;
+  font-size: 1.08rem;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+.lesson-sidebar .create-lesson label,
+.lesson-sidebar .upload-panel label {
+  font-size: 0.78rem;
+  gap: 8px;
+}
+.lesson-sidebar input,
+.lesson-sidebar select {
+  min-width: 0;
+  border-radius: 6px;
+  border-color: #b7aa94;
+  background: rgba(255, 253, 248, 0.7);
+  font-size: 0.8rem;
+  padding: 12px;
+}
+.lesson-sidebar input::placeholder {
+  color: #626b70;
+  opacity: 1;
+}
+.lesson-sidebar input:hover:not(:disabled),
+.lesson-sidebar select:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+.lesson-sidebar .create-lesson > button.primary {
+  border-radius: 6px;
+  box-shadow: none;
+  min-height: 46px;
+}
+.lesson-sidebar .create-lesson > button.primary:disabled {
+  background: transparent;
+  color: #626b70;
+  border-color: #b7aa94;
+  opacity: 1;
+}
+.lesson-sidebar .create-lesson > p {
+  font-size: 0.72rem;
+  line-height: 1.65;
+}
+.lesson-sidebar .upload-panel {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.lesson-sidebar .upload-panel summary {
+  justify-content: flex-start;
+  min-height: 44px;
+  gap: 10px;
+  font-weight: 650;
+}
+.lesson-sidebar .upload-panel input[type="file"] {
+  padding: 8px;
+  font-size: 0.72rem;
+}
+.lesson-sidebar input::file-selector-button {
+  font: inherit;
+  color: var(--ink);
+  background: #e9e2d5;
+  border: 0;
+  border-radius: 3px;
+  padding: 8px 10px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+:root[data-contrast="true"] .lesson-sidebar input,
+:root[data-contrast="true"] .lesson-sidebar select,
+:root[data-contrast="true"] .lesson-sidebar .create-lesson > button.primary:disabled {
+  border-color: var(--ink);
+  background: #fff;
+  color: var(--ink);
+}
+:root[data-contrast="true"] .site-header.is-plain nav button::after,
+:root[data-contrast="true"] .site-header.is-plain nav a::after {
+  background: var(--ink);
+}
+@media (max-width: 1280px) {
+  .site-header.is-plain .header-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px 20px;
+  }
+  .site-header.is-plain nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    order: initial;
+    justify-content: flex-start;
+    gap: 4px 24px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+}
+@media (max-width: 600px) {
+  .site-header.is-plain {
+    padding: 12px 4%;
+  }
+  .site-header.is-plain .header-bar {
+    gap: 10px;
+  }
+  .site-header.is-plain .header-actions {
+    padding-left: 8px;
+    gap: 2px;
+  }
+  .site-header.is-plain nav {
+    gap: 2px 18px;
+  }
+  .site-header.is-plain nav button,
+  .site-header.is-plain nav a {
+    font-size: 0.76rem;
+    white-space: normal;
+    text-align: left;
+  }
 }
