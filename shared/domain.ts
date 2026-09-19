@@ -68,6 +68,21 @@ export function calloutOf(map: Pick<DiagramMap, "labels">, part: { labelId: stri
 }
 
 /**
+ * Numbers a numbered diagram skips in its parts: every whole number from 1 to
+ * the highest callout that no active part carries. A teacher reviewing "1 to
+ * last" must be told that 5 is absent, not left to notice 4 is followed by 6.
+ */
+export function missingCallouts(map: Pick<DiagramMap, "labels" | "parts">): number[] {
+  const numbers = map.parts
+    .filter((p) => p.state !== "rejected")
+    .map((p) => calloutOf(map, p))
+    .filter((n): n is number => n !== null);
+  if (numbers.length < 3) return [];
+  const have = new Set(numbers);
+  return Array.from({ length: Math.max(...numbers) }, (_, i) => i + 1).filter((n) => !have.has(n));
+}
+
+/**
  * The number a reader sees for a part: the diagram's own callout number when it
  * has one, otherwise its position. Counting positions on a numbered diagram
  * would shift every number after a callout the OCR missed, so "7" on screen
@@ -505,6 +520,7 @@ export function buildExplorer(
           name: other.name,
           relationship: r.kind,
           direction: outgoing ? ("outgoing" as const) : ("incoming" as const),
+          explanation: r.descriptions?.short ?? null,
         };
       });
     const index = flow ? flow.steps.indexOf(p.id) : -1;

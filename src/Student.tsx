@@ -289,6 +289,8 @@ export default function Student({
                         : "Connected from"}
                     </span>
                     {c.name}
+                    {/* The teacher-approved sentence on how the two connect. */}
+                    {c.explanation && <small className="connection-why">{c.explanation}</small>}
                     <ArrowRight size={16} aria-hidden="true" />
                   </button>
                 ))}

@@ -785,7 +785,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     return res.end(data);
   }
   const lessonRoute = path.match(
-    /^\/api\/lessons\/([\w-]+)(?:\/(map|decision|publish|version|audit|questions|captions|processing-status|license))?$/,
+    /^\/api\/lessons\/([\w-]+)(?:\/(map|decision|publish|version|audit|questions|captions|processing-status|license|reanalyse))?$/,
   );
   if (lessonRoute) {
     const lessonId = id.parse(lessonRoute[1]);
@@ -813,7 +813,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       }
       return json(res, lesson);
     }
-    if (["map", "decision", "publish", "version"].includes(action) && method !== "GET" && isProcessing(store.get(lessonId)))
+    if (["map", "decision", "publish", "version", "reanalyse"].includes(action) && method !== "GET" && isProcessing(store.get(lessonId)))
       throw new HttpError(409, "Diagram processing is still running. Wait for teacher review.");
     if (!action && method === "GET") return json(res, store.get(lessonId));
     if (action === "audit" && method === "GET")
@@ -843,6 +843,31 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
         lessonId,
         "map_edited",
         "Map edited; all decisions reset to prevent stale approvals.",
+      );
+      return json(res, saved);
+    }
+    // Runs the uploaded diagram through analysis again, for a draft whose first
+    // analysis was poor (or made by an older version of the engine). The same
+    // lesson keeps its title, image and license; the map is new, so every
+    // decision starts over, exactly as after a map edit.
+    if (action === "reanalyse" && method === "POST") {
+      const input = z.object({ revision: z.number().int().nonnegative() }).strict().parse(await body(req));
+      const lesson = store.get(lessonId);
+      if (lesson.status === "published")
+        throw new HttpError(409, "Create a new version before analysing this diagram again.");
+      if (lesson.fixtureId || !lesson.image || !/^[\w-]+\.(png|jpe?g)$/.test(lesson.image))
+        throw new HttpError(409, "Only an uploaded diagram can be analysed again.");
+      if (!analysisEngine)
+        throw new HttpError(409, "Automatic analysis is not connected here. Edit the map by hand instead.");
+      const bytes = await readFile(resolve(root, "uploads", lesson.image));
+      const fresh = await createLesson(null, lesson.title, lesson.image, bytes, analysisEngine, lesson.license);
+      lesson.map = fresh.map;
+      lesson.stages = fresh.stages;
+      const saved = store.save(lesson, input.revision);
+      store.audit(
+        lessonId,
+        "reanalysed",
+        `Diagram analysed again: ${saved.map.parts.length} proposed parts. All decisions reset.`,
       );
       return json(res, saved);
     }

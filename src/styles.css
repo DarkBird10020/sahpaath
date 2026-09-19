@@ -1083,6 +1083,9 @@ legend {
 .upload-panel label {
   margin-top: 16px;
 }
+.upload-panel .source-fields {
+  align-items: end;
+}
 .lesson-main {
   min-width: 0;
   background: #fff;
@@ -1333,6 +1336,20 @@ legend {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+/* A part as a reader sees it: number, then name. Relationships put two side by side. */
+.part-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.review-item h4 {
+  flex-wrap: wrap;
+}
+.flow-preview .part-name .callout-no {
+  min-width: 24px;
+  height: 24px;
+  font-size: 0.75rem;
 }
 /* The diagram's own number beside the part's name, like the circles on the page. */
 .callout-no {
@@ -1985,10 +2002,22 @@ input.note-required {
 }
 .connections button {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   width: 100%;
   margin: 7px 0;
   font-size: 0.8rem;
+}
+/* The approved sentence on how two parts connect sits on its own line below. */
+.connections button .connection-why {
+  order: 5;
+  flex-basis: 100%;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  color: var(--muted);
 }
 .connections button span {
   color: var(--muted);
@@ -3882,4 +3911,37 @@ code {
     grid-template-columns: minmax(0, 1fr);
     width: 100%;
   }
+}
+
+/* Analysing again clears every decision, so the confirmation says so in place. */
+.reanalyse-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid #e0b25c;
+  border-radius: 10px;
+  background: #fff8e8;
+  font-size: 0.85rem;
+  color: #6b4a09;
+}
+
+/* A number the diagram has but the lesson does not, named rather than skipped. */
+.missing-callouts {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #e0b25c;
+  border-radius: 10px;
+  background: #fff8e8;
+  color: #6b4a09;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.missing-callouts svg {
+  flex: none;
+  margin-top: 3px;
 }
