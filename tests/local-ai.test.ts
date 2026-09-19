@@ -156,11 +156,21 @@ describe("Splitting OCR lines at arrows", () => {
     const { splitLineWords } = await import("../server/local-ai");
     const pieces = splitLineWords([w("Right", 0), w("ventricle", 50), w("————————p»", 100), w("Pulmonary", 150), w("artery»", 200)]);
     expect(pieces.map((p) => p.map((x) => x.text).join(" "))).toEqual(["Right ventricle", "Pulmonary artery"]);
-    expect(splitLineWords([w("4———", 0), w("Pulmonary", 50), w("veins", 100)]).map((p) => p.map((x) => x.text).join(" "))).toEqual(["Pulmonary veins"]);
+    // A callout the arrow ran into now survives as its own label before the words.
+    expect(splitLineWords([w("4———", 0), w("Pulmonary", 50), w("veins", 100)]).map((p) => p.map((x) => x.text).join(" "))).toEqual(["4", "Pulmonary veins"]);
     const glued = splitLineWords([w("Right", 0), w("ventricle————————p»", 50), w("Pulmonary", 150), w("artery", 200)]);
     expect(glued.map((p) => p.map((x) => x.text).join(" "))).toEqual(["Right ventricle", "Pulmonary artery"]);
     // The first label's box ends inside the glued word, before the arrow.
     expect(glued[0].at(-1)!.bbox.x1).toBeLessThan(90);
+  });
+  it("keeps numbered callouts as standalone labels, in isolation or in a row", async () => {
+    const { splitLineWords } = await import("../server/local-ai");
+    // A callout the arrow ran into survives as its own label...
+    expect(splitLineWords([w("23———", 0)]).map((p) => p.map((x) => x.text).join(" "))).toEqual(["23"]);
+    // ...and a whole row of plain callouts stays one label per number.
+    expect(splitLineWords([w("1", 0), w("2", 50), w("3", 100)]).map((p) => p.map((x) => x.text).join(" "))).toEqual(["1", "2", "3"]);
+    // Two digits glued to an arrow stay together ("12———" is callout 12, not 1 and 2).
+    expect(splitLineWords([w("12———", 0)]).map((p) => p.map((x) => x.text).join(" "))).toEqual(["12"]);
   });
   it("keeps single-letter labels and hyphenated words", async () => {
     const { splitLineWords } = await import("../server/local-ai");
