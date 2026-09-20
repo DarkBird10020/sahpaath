@@ -1388,6 +1388,7 @@ const vite = !production
       appType: "spa",
     })
   : null;
+const probeLoggedAt = new Map<string, number>();
 const server = createServer(async (req, res) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
@@ -1399,8 +1400,13 @@ const server = createServer(async (req, res) => {
     // /health reveals nothing but "is the process up". Denied host names are
     // logged so probe configuration stays observable.
     if (req.url?.split("?")[0] === "/health") {
-      if (!hostAllowed(req.headers.host || ""))
+      // The load balancer probes every few seconds; one line per host per 10 minutes is enough
+      // to keep the probe configuration observable (it was 41% of all log lines).
+      const probeHost = req.headers.host ?? "";
+      if (!hostAllowed(probeHost) && Date.now() - (probeLoggedAt.get(probeHost) ?? 0) > 600_000) {
+        probeLoggedAt.set(probeHost, Date.now());
         console.log(JSON.stringify({ event: "health_probe_denied", host: req.headers.host ?? null }));
+      }
       return json(res, { status: "ok" });
     }
     if (!hostAllowed(req.headers.host || ""))
