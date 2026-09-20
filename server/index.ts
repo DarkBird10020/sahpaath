@@ -50,6 +50,7 @@ import { Logger } from "./core/logger";
 import { sha256Hex } from "./core/ids";
 import { createRepos } from "./repositories";
 import { createAppUsers } from "./repositories/app-users";
+import { seedSamples } from "./seed";
 import { createStorage } from "./core/storage";
 import { createPresignedProvider } from "./core/presign";
 import { DiagramSenseService } from "./services/diagram-sense-service";
@@ -80,6 +81,14 @@ const bind = process.env.SAHPAATH_BIND || "127.0.0.1";
 // listed is refused, keeping the DNS-rebinding protection intact.
 const publicHosts = new Set(
   (process.env.SAHPAATH_PUBLIC_HOSTS || "")
+    .split(",")
+    .map((v) => v.trim().toLowerCase())
+    .filter(Boolean),
+);
+// HTTPS front doors (e.g. an API Gateway URL) forward the ALB Host header but the browser
+// Origin is the front door itself. Only origins listed here may write from another host.
+const trustedOriginHosts = new Set(
+  (process.env.SAHPAATH_TRUSTED_ORIGIN_HOSTS || "")
     .split(",")
     .map((v) => v.trim().toLowerCase())
     .filter(Boolean),
@@ -229,6 +238,8 @@ const router = new Router(logger.child({ component: "http" }));
 
 const repos = await createRepos(config);
 const appUsers = await createAppUsers(config, store);
+// Opt-in (set in the deployed task): a fresh classroom starts with published sample lessons.
+if (process.env.SAHPAATH_SEED_SAMPLES === "1") await seedSamples(store);
 const storage = createStorage({
   s3Bucket: config.s3Bucket,
   awsRegion: config.awsRegion,
@@ -424,7 +435,7 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     // Same-origin write guard: compare HOSTS (not scheme) so requests stay
     // valid behind TLS-terminating proxies (browser Origin https://, target
     // Host http://) while true cross-origin writes stay blocked.
-    if (origin && safeOriginHost(origin) !== req.headers.host)
+    if (origin && safeOriginHost(origin) !== req.headers.host && !trustedOriginHosts.has(safeOriginHost(origin).toLowerCase()))
       throw new HttpError(403, "Cross-origin changes are not allowed.");
     if (req.headers["sec-fetch-site"] === "cross-site")
       throw new HttpError(403, "Cross-site changes are not allowed.");
