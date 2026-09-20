@@ -15,6 +15,7 @@ import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { z } from "zod";
 import { Store } from "./store";
+import { recordMetric, routeShape } from "./metrics";
 import { awsEngine, createLesson, imageType } from "./providers";
 import { GeminiProposalAdapter, LocalOcrAdapter, localOcrLines, localTestEngine, readGeminiConfig } from "./local-ai";
 import { answerAboutDiagram, answerFromLesson, diagramContextSchema, explainDiagram, explainWord, transcribeMedia, transcribeYouTube } from "./tutor";
@@ -1391,16 +1392,22 @@ const server = createServer(async (req, res) => {
       );
     }
   } finally {
-    if (req.url?.startsWith("/api/"))
+    if (req.url?.startsWith("/api/")) {
+      const path = req.url.split("?")[0];
+      const durationMs = Math.round((performance.now() - started) * 100) / 100;
       console.log(
-        JSON.stringify({
-          event: "request",
-          method: req.method,
-          path: req.url.split("?")[0],
-          status: res.statusCode,
-          durationMs: Math.round((performance.now() - started) * 100) / 100,
-        }),
+        JSON.stringify({ event: "request", method: req.method, path, status: res.statusCode, durationMs }),
       );
+      // The same fact as a CloudWatch metric. The route is the collapsed shape,
+      // never the raw path: a dimension per lesson id would be a separate
+      // metric per lesson, which is both useless and expensive.
+      recordMetric({
+        name: "ApiLatency",
+        value: durationMs,
+        unit: "Milliseconds",
+        dimensions: { Route: routeShape(path), Status: String(res.statusCode) },
+      });
+    }
   }
 });
 server.listen(port, bind, () =>

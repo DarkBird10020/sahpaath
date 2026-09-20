@@ -30,6 +30,12 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # The CloudFormation/SAM template: every Ref, Fn::GetAtt and Fn::Sub has
+      # to point at something the template declares. A broken reference would
+      # otherwise only surface during a deploy.
+      - name: Infrastructure template
+        run: npm run check:infra
+
       - name: Install Chromium for the browser tests
         run: npx playwright install --with-deps chromium
 
