@@ -33,6 +33,29 @@
               }
             }
           ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "AbortIncompleteUploads",
+              "Status": "Enabled",
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 7
+              }
+            },
+            {
+              "Id": "ExpireResults",
+              "Status": "Enabled",
+              "Prefix": "results/",
+              "ExpirationInDays": 30
+            },
+            {
+              "Id": "ExpireSourceDiagrams",
+              "Status": "Enabled",
+              "Prefix": "diagrams/",
+              "ExpirationInDays": 90
+            }
+          ]
         }
       }
     },
@@ -174,7 +197,8 @@
               }
             ]
           }
-        ]
+        ],
+        "Tracing": "Active"
       }
     },
     "DiagramPipeline": {
@@ -199,7 +223,28 @@
                 "Payload.$": "$"
               },
               "OutputPath": "$.Payload",
-              "End": true
+              "End": true,
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                },
+                {
+                  "ErrorEquals": [
+                    "States.Timeout"
+                  ],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 2
+                }
+              ]
             }
           }
         },
@@ -210,6 +255,123 @@
                 "Ref": "PipelineWorker"
               }
             }
+          }
+        ],
+        "Tracing": {
+          "Enabled": true
+        }
+      }
+    },
+    "WorkerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${PipelineWorker}"
+        },
+        "RetentionInDays": 14
+      }
+    },
+    "PipelineAlerts": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "DisplayName": "SahPaath pipeline alerts"
+      }
+    },
+    "PipelineAlertsPolicy": {
+      "Type": "AWS::SNS::TopicPolicy",
+      "Properties": {
+        "Topics": [
+          {
+            "Ref": "PipelineAlerts"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "events.amazonaws.com",
+                  "cloudwatch.amazonaws.com"
+                ]
+              },
+              "Action": "sns:Publish",
+              "Resource": {
+                "Ref": "PipelineAlerts"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "WorkerErrorAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "Diagram pipeline worker returned errors",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Statistic": "Sum",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "PipelineWorker"
+            }
+          }
+        ],
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "PipelineAlerts"
+          }
+        ]
+      }
+    },
+    "PipelineFailureRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Description": "Diagram pipeline execution failed or timed out",
+        "EventPattern": {
+          "source": [
+            "aws.states"
+          ],
+          "detail-type": [
+            "Step Functions Execution Status Change"
+          ],
+          "detail": {
+            "status": [
+              "FAILED",
+              "TIMED_OUT",
+              "ABORTED"
+            ],
+            "stateMachineArn": [
+              {
+                "Ref": "DiagramPipeline"
+              }
+            ]
+          }
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Ref": "PipelineAlerts"
+            },
+            "Id": "PipelineAlertsTopic"
           }
         ]
       }
@@ -229,6 +391,18 @@
     "StateMachineArn": {
       "Value": {
         "Ref": "DiagramPipeline"
+      }
+    },
+    "AlertTopicArn": {
+      "Description": "SNS topic carrying pipeline alarms and failures",
+      "Value": {
+        "Ref": "PipelineAlerts"
+      }
+    },
+    "WorkerLogGroup": {
+      "Description": "CloudWatch log group for the pipeline worker",
+      "Value": {
+        "Ref": "WorkerLogGroup"
       }
     }
   }
