@@ -34,6 +34,8 @@ still gets a working classroom.
 | **AWS Step Functions** | Runs the diagram pipeline as a state machine, retrying transient Lambda faults with exponential backoff so a throttle does not reach a teacher as a failed lesson. The per-stage records — status, duration, retries — are written by the worker and read back on the workspace's Processing details tab. | `server/core/orchestrator.ts`, `server/cloud-pipeline.ts` |
 | **AWS Lambda** | The pipeline worker the state machine invokes. | `infra/diagram-pipeline.json` (`PipelineWorker`) |
 | **AWS IAM** | Least-privilege policies per task: the worker may read only `diagrams/*`, write only `results/*`, and call exactly one Bedrock model ARN. | `infra/diagram-pipeline.json` (inline policies) |
+| **Elastic Load Balancing** | Fronts the deployed application in ap-south-1 and terminates the public entry point. | Deployment (see *Running in production*) |
+| **Amazon CloudWatch Metrics** | Application metrics in Embedded Metric Format: API latency by route and status, written as one log line. No SDK, no API call, no extra permission — anything the process writes to stdout on AWS already reaches CloudWatch Logs, and CloudWatch extracts the metric from the line. Silent unless it is running somewhere those lines go. | `server/metrics.ts`, `server/index.ts` |
 
 ## Services declared in infrastructure
 
@@ -55,20 +57,50 @@ is `PAY_PER_REQUEST`, the bucket blocks all public access and encrypts at rest,
 incomplete multipart uploads are aborted after seven days, results expire after
 thirty and source diagrams after ninety.
 
+## Running in production
+
+SahPaath is deployed in **ap-south-1** behind an Application Load Balancer:
+
+```
+http://sahpaath-alb-507640068.ap-south-1.elb.amazonaws.com/
+```
+
+What that deployment actually reports, which anyone can repeat:
+
+| Check | Response | Means |
+|---|---|---|
+| `GET /` | `200`, with `X-Content-Type-Options`, `Referrer-Policy` and `X-Frame-Options` set | Served through **Elastic Load Balancing** |
+| `GET /api/v1/health` | `{"mode":"dynamodb","awsConnected":true}` | The v1 backend is on **DynamoDB**, connected |
+| `GET /api/v1/lessons` with no token | `401` | Authentication is enforced, not decorative |
+| `GET /api/health` | `{"mode":"local","awsConfigured":false,...}` | The diagram pipeline is *not* on Bedrock or Textract |
+
+**Authentication runs on DynamoDB.** A session is a row keyed
+`USER#<id> / SESSION#<id>` carrying only a **SHA-256 hash of the token**, never
+the token, with a global secondary index on `TOKEN#<hash>` so a request can be
+resolved in one query, and a `ttl` attribute so DynamoDB expires the session
+itself rather than a cleanup job doing it:
+
+```
+server/repositories/dynamodb.ts:335   sessions.put / getByTokenHash / delete
+server/services/classroom-service.ts:55, 68, 84   login, resolve, logout
+```
+
 ## What is not connected
 
 Stated plainly, because a reviewer will check:
 
-- **No AWS credentials are configured in this working copy.** `AWS_REGION` and
-  `AWS_BEDROCK_MODEL_ID` are absent, so `readAwsConfig` returns `null` and the
-  app runs its local edition. `/api/health` reports `awsConfigured: false`.
-- **The stack in `infra/` has not been deployed from this machine.** It
-  validates, and it has not been run.
+- **The diagram pipeline half is not on AWS.** In production and locally,
+  `/api/health` reports `awsConfigured: false`: `AWS_REGION` and
+  `AWS_BEDROCK_MODEL_ID` are unset, so `readAwsConfig` returns `null`. Diagram
+  reading falls back to tesseract.js and a Gemini stand-in, and every screen
+  that shows their output labels it a demo simulation.
+- **The stack in `infra/` has not been deployed.** It validates; it has not
+  been run. The live deployment is the load balancer, the application and
+  DynamoDB, not the Step Functions pipeline.
+- **The load balancer serves HTTP, not HTTPS.** A certificate from AWS
+  Certificate Manager is free and would close this; it is not done yet.
 - **Amazon Transcribe is not wired.** Live captions use the browser's own
   speech recognition, and the UI says so rather than implying otherwise.
-- In the local edition, diagram reading uses tesseract.js and a Gemini stand-in
-  in place of Textract and Bedrock. Every screen that shows their output labels
-  it a demo simulation.
 
 ## Checking these claims
 
@@ -76,4 +108,12 @@ Stated plainly, because a reviewer will check:
 npx tsx scripts/check-infra.ts     # template resolves; lists every resource type
 curl localhost:5173/api/health     # reports which edition is in force
 grep -rn "@aws-sdk/" server/       # every AWS call site
+npm test -- metrics                # the metric documents are the shape CloudWatch reads
+```
+
+Metrics are off on a laptop and on by themselves inside Lambda or ECS, so the
+same build behaves correctly in a classroom and in production:
+
+```bash
+SAHPAATH_METRICS=emf npm run dev   # to see the documents locally
 ```
