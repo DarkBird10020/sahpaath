@@ -44,16 +44,19 @@ export default function LandingSections({
   onExplore,
   onTeacher,
   motion = true,
+  /** True when the deployed backend reports its cloud store connected. */
+  cloudLive = false,
 }: {
   onExplore: () => void;
   onTeacher: () => void;
   /** Scroll-driven steps; off with Calm motion or OS reduced motion. */
   motion?: boolean;
+  cloudLive?: boolean;
 }) {
   return (
     <>
       <Playground motion={motion} />
-      <TrustPipeline motion={motion} />
+      <TrustPipeline motion={motion} cloudLive={cloudLive} />
       <section className="finale" data-nav="dark" aria-labelledby="finale-heading">
         <div className="finale-grid" data-drift style={{ "--py": 120 } as CSSProperties} aria-hidden="true" />
         <p className="finale-kicker" data-reveal="wipe">
@@ -411,7 +414,7 @@ const pipeline = [
   },
 ];
 
-function TrustPipeline({ motion }: { motion: boolean }) {
+function TrustPipeline({ motion, cloudLive }: { motion: boolean; cloudLive: boolean }) {
   const [selected, setSelected] = useState(0);
   const outer = useRef<HTMLElement>(null);
   const scroll = useScrollSteps(outer, pipeline.length, motion);
@@ -489,7 +492,11 @@ function TrustPipeline({ motion }: { motion: boolean }) {
          <strong>{active.title}</strong>
          <p>{active.text}</p>
          <span className="pipeline-inspector-note">
-           {selected < 2 ? "Demo simulation · cloud processing is not connected" : "Runs locally · visible in the classroom workspace"}
+           {selected < 2
+             ? cloudLive
+               ? "OCR and AI run in the cloud"
+               : "Demo simulation · cloud processing is not connected"
+             : "Runs locally · visible in the classroom workspace"}
          </span>
        </aside>
      </div>
@@ -497,8 +504,9 @@ function TrustPipeline({ motion }: { motion: boolean }) {
     {/* Outside the pinned area so the timeline fits on one screen. */}
     <div className="trust-after">
       <p className="trust-note" data-reveal="up">
-        In this local edition, the OCR and AI stages run as a labelled demo simulation. Validation, review,
-        publishing and the shared vocabulary run for real. AWS is not connected yet.
+        {cloudLive
+          ? "OCR and AI stages run in the cloud in this edition. Validation, review, publishing and the shared vocabulary run for real."
+          : "In this local edition, the OCR and AI stages run as a labelled demo simulation. Validation, review, publishing and the shared vocabulary run for real."}
       </p>
     </div>
     </>

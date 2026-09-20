@@ -1,0 +1,81 @@
+{
+  "family": "sahpaath-kaniko-build",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::756917284624:role/sahpaath-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::756917284624:role/sahpaath-kaniko-role",
+  "volumes": [
+    { "name": "ecr-auth", "host": {} },
+    { "name": "build-context", "host": {} }
+  ],
+  "containerDefinitions": [
+    {
+      "name": "prepare",
+      "image": "public.ecr.aws/aws-cli/aws-cli:latest",
+      "essential": false,
+      "entryPoint": ["/bin/sh", "-c"],
+      "environment": [{ "name": "AWS_REGION", "value": "ap-south-1" }],
+      "command": [
+        "aws ecr get-login-password --region ap-south-1 > /creds/token && printf '{\"auths\":{\"756917284624.dkr.ecr.ap-south-1.amazonaws.com\":{\"username\":\"AWS\",\"password\":\"%s\"}}}\\n' \"$(cat /creds/token)\" > /creds/config.json && aws s3 cp s3://sahpaath-build-src-756917284624/source.tar.gz /ctx/src.tar.gz && echo SOURCE_READY"
+      ],
+      "mountPoints": [
+        { "sourceVolume": "ecr-auth", "containerPath": "/creds" },
+        { "sourceVolume": "build-context", "containerPath": "/ctx" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "sahpaath-prod",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "prepare"
+        }
+      }
+    },
+    {
+      "name": "extract",
+      "image": "public.ecr.aws/docker/library/busybox:latest",
+      "essential": false,
+      "entryPoint": ["/bin/sh", "-c"],
+      "command": [
+        "until [ -f /ctx/src.tar.gz ]; do sleep 2; done; tar -xzf /ctx/src.tar.gz -C /workspace && touch /workspace/.ready && echo CONTEXT_EXTRACTED"
+      ],
+      "mountPoints": [
+        { "sourceVolume": "build-context", "containerPath": "/ctx" },
+        { "sourceVolume": "build-context", "containerPath": "/workspace" }
+      ],
+      "dependsOn": [{ "containerName": "prepare", "condition": "SUCCESS" }],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "sahpaath-prod",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "extract"
+        }
+      }
+    },
+    {
+      "name": "kaniko",
+      "image": "gcr.io/kaniko-project/executor:debug",
+      "essential": true,
+      "entryPoint": ["/bin/sh", "-c"],
+      "command": [
+        "until [ -f /workspace/.ready ]; do sleep 2; done; /kaniko/executor --dockerfile=/workspace/Dockerfile --context=dir:///workspace --build-arg=VITE_SUPABASE_URL=https://leijvzvbxmqevoxzshbe.supabase.co --build-arg=VITE_SUPABASE_ANON_KEY=sb_publishable_3EvBsth-2JwrBR2JtIeiwQ_jyvFbHe5 --destination=756917284624.dkr.ecr.ap-south-1.amazonaws.com/sahpaath:latest --destination=756917284624.dkr.ecr.ap-south-1.amazonaws.com/sahpaath:v1 --skip-push-permission-check"
+      ],
+      "mountPoints": [
+        { "sourceVolume": "ecr-auth", "containerPath": "/kaniko/.docker" },
+        { "sourceVolume": "build-context", "containerPath": "/workspace" }
+      ],
+      "dependsOn": [{ "containerName": "extract", "condition": "SUCCESS" }],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "sahpaath-prod",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "kaniko"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+.git
+.data
+.freebuff
+.kilo
+node_modules
+dist
+*.log
+test-results
+playwright-report
+.env
+.env.*
+!.env.example
+docs/reports
+.art
+.pipeline-build
+.aws-sam
+skills-scroll-world
