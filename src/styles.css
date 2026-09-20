@@ -3093,20 +3093,78 @@ code {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* Thirteen steps ran to about 1300px and pushed the lesson list far down
+     the sidebar. The guide keeps its own height and scrolls inside itself. */
+  max-height: 42vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #c6bba4 transparent;
+  border-radius: 8px;
+  /* A shadow at the edge where there is more to read, and none where there
+     is not: the two covers travel with the content and uncover the two
+     shadows, which stay with the box. Otherwise the list simply stops, with
+     nothing to say that eight more steps are below the fold. */
+  background:
+    linear-gradient(var(--paper) 30%, rgba(255, 253, 248, 0)) top / 100% 20px no-repeat local,
+    linear-gradient(rgba(255, 253, 248, 0), var(--paper) 70%) bottom / 100% 20px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(20, 54, 95, 0.22), rgba(20, 54, 95, 0)) top / 100% 12px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(20, 54, 95, 0.22), rgba(20, 54, 95, 0)) bottom / 100% 12px no-repeat scroll;
 }
 .demo-steps li {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  /* A column stretches its children, which is what spread each status badge
+     across the whole sidebar. A badge should be as wide as its word. */
+  align-items: flex-start;
+  gap: 4px;
   font-size: 0.8rem;
   border-left: 3px solid var(--line);
   padding-left: 10px;
 }
+/* The mark and the step's name share a line: the status no longer needs one
+   of its own, which is thirteen lines back in a narrow column. */
+.demo-step-head {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0;
+}
+.demo-step-head svg {
+  flex: none;
+  transform: translateY(2px);
+}
 .demo-steps li[data-status="done"] {
   border-left-color: var(--green);
 }
-.demo-steps li[data-status="waiting"] {
+.demo-steps li[data-status="done"] .demo-step-head svg {
+  color: var(--green);
+}
+.demo-steps li[data-status="waiting"],
+.demo-steps li[data-status="simulated"],
+.demo-steps li[data-status="fallback"] {
   border-left-color: var(--amber);
+}
+.demo-steps li[data-status="waiting"] .demo-step-head svg,
+.demo-steps li[data-status="simulated"] .demo-step-head svg,
+.demo-steps li[data-status="fallback"] .demo-step-head svg {
+  color: var(--amber);
+}
+/* It takes focus so a keyboard can scroll it, so it has to show that it has. */
+.demo-steps:focus-visible {
+  outline: 3px solid #b66800;
+  outline-offset: 2px;
+}
+/* The step the guide is asking for right now, so the eye lands on it first. */
+.demo-steps li.is-next {
+  background: #f4efe4;
+  border-left-width: 4px;
+  border-radius: 0 10px 10px 0;
+  padding: 8px 10px 10px;
+}
+.demo-detail-toggle {
+  font-size: 0.72rem;
 }
 .demo-steps small {
   color: var(--muted);
@@ -4256,6 +4314,9 @@ main:not(.under-header) {
 .pipeline details,
 .review-item,
 .diagram,
+.ai-upload,
+.yt-search,
+.empty,
 .term-card {
   background: var(--paper);
   border: 1px solid var(--line);
@@ -4503,20 +4564,6 @@ textarea:focus-visible {
   gap: 10px;
   font-weight: 650;
 }
-.lesson-sidebar .upload-panel input[type="file"] {
-  padding: 8px;
-  font-size: 0.72rem;
-}
-.lesson-sidebar input::file-selector-button {
-  font: inherit;
-  color: var(--ink);
-  background: #e9e2d5;
-  border: 0;
-  border-radius: 3px;
-  padding: 8px 10px;
-  margin-right: 10px;
-  cursor: pointer;
-}
 :root[data-contrast="true"] .lesson-sidebar input,
 :root[data-contrast="true"] .lesson-sidebar select,
 :root[data-contrast="true"] .lesson-sidebar .create-lesson > button.primary:disabled {
@@ -4563,4 +4610,354 @@ textarea:focus-visible {
     white-space: normal;
     text-align: left;
   }
+}
+
+/* ---------- Page polish ---------- */
+/* The footer belongs at the bottom: on a short page it used to float in the
+   middle with page background below it. */
+body {
+  min-height: 100vh;
+}
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+#root > main {
+  flex: 1 0 auto;
+}
+/* A file field in the app's own hand. The browser's control - a grey box
+   reading "Choose File / No file chosen" in the system font - was the one
+   thing on these pages that came from somewhere else. The real input is still
+   there, laid over the strip and invisible, so click, tab and drop all behave
+   as they did; what shows is a paper strip, a pill, and the file's name. */
+.file-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.file-drop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  /* Wraps rather than truncates: on a phone the file's name takes the next
+     line instead of being cut to an ellipsis beside the pill. */
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  min-width: 0;
+  padding: 5px 14px 5px 5px;
+  /* A well, not an outline. Dashed #c9bfab on the card's own #fffdf8 drew a
+     line around nothing; a step darker than the card reads as a place to
+     drop something, the way the landing layers its paper. */
+  border: 1px dashed #c6bba4;
+  border-radius: 14px;
+  background: #f4efe4;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.file-drop input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.file-drop-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* 8px of padding on a 1.4 line puts the well at the same 48px as a field
+     beside it, so their captions start on one line. */
+  flex: none;
+  padding: 8px 16px;
+  line-height: 1.4;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fffdf8;
+  font-weight: 650;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+/* The name of the file, or what kind of file is wanted while none is chosen. */
+.file-drop-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.file-drop-name.is-chosen {
+  color: var(--ink);
+  font-weight: 600;
+}
+.file-drop:hover {
+  border-color: var(--ink);
+  background: #fffdf8;
+}
+.file-drop:hover .file-drop-button {
+  background: #1b4a80;
+}
+/* The focus ring belongs on the pill: the input itself cannot be seen. */
+.file-drop input[type="file"]:focus-visible ~ .file-drop-button {
+  outline: 3px solid #b66800;
+  outline-offset: 2px;
+}
+.file-drop:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.file-drop:has(input:disabled):hover {
+  border-color: #c6bba4;
+  background: #f4efe4;
+}
+.file-drop:has(input:disabled) .file-drop-button,
+.file-drop input:disabled {
+  cursor: not-allowed;
+}
+/* The sidebar is narrower, so the type steps down with it. */
+.lesson-sidebar .file-drop {
+  border-radius: 8px;
+}
+.lesson-sidebar .file-drop-button,
+.lesson-sidebar .file-drop-name {
+  font-size: 0.78rem;
+}
+:root[data-contrast="true"] .file-drop {
+  border-style: solid;
+  border-color: var(--ink);
+  background: #fff;
+}
+/* A button that cannot be pressed yet should look like it is waiting for
+   something, not like a solid grey button that ignores the pointer. Faded
+   navy read as a live control; an outline on paper reads as "not yet". */
+button.primary:disabled:not([aria-busy="true"]) {
+  background: transparent;
+  color: #626b70;
+  border-color: #b7aa94;
+  opacity: 1;
+}
+/* While it is working it stays solid: the spinner is the thing to watch. */
+button.primary[aria-busy="true"] {
+  opacity: 1;
+}
+:root[data-contrast="true"] button.primary:disabled:not([aria-busy="true"]) {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: #fff;
+}
+/* An empty state is still a place: it takes a card like everything else on
+   these pages, instead of floating loose on the bare paper. */
+.empty {
+  padding: 56px 30px;
+}
+/* The lesson picker carries a caption above its select, so centring it left
+   the select sitting below the filter pills. Align the bottoms instead. */
+.inbox-controls {
+  align-items: flex-end;
+}
+
+/* Measurements read as measurements: the name above, the value large, and
+   "Not measured yet." left plainly in place of a number. */
+.metric-grid article {
+  display: grid;
+  gap: 6px;
+  padding: 22px 24px 24px;
+}
+.metric-grid h2 {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2c5fb3;
+}
+.metric-grid p {
+  font-family: "Manrope Variable", Arial, sans-serif;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+}
+.metric-grid p:only-of-type:not(:has(strong)) {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+/* A panel inside a panel is inset paper, not another hard-edged box. Only real
+   panels: "Connected concepts" is a bare section, and tinting it drew a band
+   across the card. */
+.transcript-panel .live-captions,
+.lesson-main .pipeline details {
+  background: #faf6ee;
+  border-color: #e7dfd0;
+  box-shadow: none;
+}
+/* A rounded card needs room inside it, or its rows cut the corners off. The
+   concept list ran edge to edge and broke out of the panel's rounding. */
+.tree-panel {
+  padding: 16px 14px;
+}
+/* The picture sits inside the card's rounding rather than over it. */
+.diagram {
+  overflow: hidden;
+}
+
+/* A simulation label is a quiet amber pill, not a dashed sticker. */
+.simulation {
+  border: 1px solid #e6cf9a;
+  border-radius: 999px;
+  padding: 4px 11px;
+  background: #fbe8bd;
+  color: #7a4d05;
+  font-size: 0.7rem;
+  letter-spacing: 0.01em;
+}
+/* Tabs and the workflow strip in the page's own paper and accent. */
+.workflow-strip {
+  background: #faf6ee;
+  border-block-color: var(--line);
+}
+.tab-row {
+  border-bottom-color: var(--line);
+}
+.tab-row button {
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--muted);
+  transition: color 0.2s ease, box-shadow 0.2s ease;
+}
+.tab-row button:hover:not(:disabled) {
+  background: none;
+  color: var(--ink);
+  box-shadow: inset 0 -3px #e0cfae;
+}
+.tab-row button[aria-pressed="true"] {
+  color: var(--ink);
+  box-shadow: inset 0 -3px #b07922;
+}
+/* Rows that act as buttons lift a little under the pointer, as on the landing. */
+.lesson-links button,
+.connections button,
+.transcript-list button,
+.phrase-grid button,
+.search-result {
+  transition: transform 0.25s cubic-bezier(0.2, 0.75, 0.15, 1), background 0.2s ease, border-color 0.2s ease;
+}
+.lesson-links button:hover:not(:disabled),
+.connections button:hover:not(:disabled),
+.transcript-list button:hover:not(:disabled),
+.phrase-grid button:hover:not(:disabled),
+.search-result:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+:root:not(.motion-on) .lesson-links button,
+:root:not(.motion-on) .connections button,
+:root:not(.motion-on) .transcript-list button,
+:root:not(.motion-on) .phrase-grid button,
+:root:not(.motion-on) .search-result {
+  transition: none;
+  transform: none;
+}
+
+/* Columns hug their content: the concept list used to stretch to the height of
+   the panel beside it, leaving a tall empty card. */
+.explorer-layout {
+  align-items: start;
+}
+/* The banner's buttons wrap instead of pushing out of it on a narrow page. */
+.review-banner {
+  flex-wrap: wrap;
+}
+.review-banner > div:first-child {
+  flex: 1 1 260px;
+}
+.review-banner button {
+  flex: 0 1 auto;
+}
+
+/* When one caption in a row wraps to two lines and its neighbour does not,
+   bottom-aligning the fields pushes the taller one's caption up and the two
+   no longer start together. Each field instead takes the row's full height
+   with its caption in a cell that absorbs the slack, so the captions start on
+   one line and the controls finish on another, at any width. */
+.ai-upload > label,
+.yt-search > label {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-self: stretch;
+  gap: 8px;
+}
+/* Watch & listen lays its two fields and its button on one line. One grid
+   holds every piece, so the captions share a row and the two wells and the
+   button share the next one - each field hands its caption and its well
+   straight to this grid rather than laying them out itself. Left to
+   themselves, a caption that wrapped to two lines pushed its own field up and
+   the two captions no longer started together. */
+.watch-upload {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px 20px;
+}
+.watch-upload > .file-field {
+  display: contents;
+}
+.watch-upload .up-video > .file-field-label {
+  grid-area: 1 / 1;
+}
+.watch-upload .up-video > .file-drop {
+  grid-area: 2 / 1;
+}
+.watch-upload .up-subs > .file-drop {
+  grid-area: 2 / 2;
+}
+.watch-upload .up-subs > .file-field-label {
+  grid-area: 1 / 2;
+}
+.watch-upload > button {
+  grid-area: 2 / 3;
+}
+/* With a video chosen the video field and its button are gone, so the subtitle
+   field takes the whole width rather than sitting in an empty second column. */
+.watch-upload:not(:has(.up-video)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.watch-upload:not(:has(.up-video)) .up-subs > .file-drop {
+  grid-area: 2 / 1;
+}
+.watch-upload:not(:has(.up-video)) .up-subs > .file-field-label {
+  grid-area: 1 / 1;
+}
+/* Narrow: one column, each piece under the last, in reading order. */
+@media (max-width: 760px) {
+  .watch-upload {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .watch-upload .up-subs > .file-field-label {
+    grid-area: 3 / 1;
+  }
+  .watch-upload .up-subs > .file-drop {
+    grid-area: 4 / 1;
+  }
+  .watch-upload > button {
+    grid-area: 5 / 1;
+  }
+}
+/* One control height across a tool row. The file well stood taller than the
+   input beside it, which pushed its caption up: the two captions then began
+   on different lines, and the row read as crooked even though its feet were
+   level. Field, well and button are now the same height everywhere. */
+.ai-upload input:not([type="file"]),
+.ai-upload select,
+.ai-upload .file-drop,
+.ai-upload button,
+.yt-search input,
+.yt-search select,
+.yt-search button {
+  min-height: 48px;
 }

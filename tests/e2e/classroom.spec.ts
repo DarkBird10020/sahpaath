@@ -946,7 +946,7 @@ test("AI helper pages work for students, explain clearly when AI is off, and loa
   await page.getByRole("button", { name: "Watch & listen", exact: true }).click();
   await page.locator(".ai-upload input[type=file]").first().setInputFiles("docs/samples/heart-lecture-test.wav");
   const vtt = "WEBVTT\n\n00:00.000 --> 00:02.900\nBlood leaves the right ventricle.\n\n00:03.400 --> 00:07.400\nIt travels to the lungs.\n";
-  await page.getByLabel("Or load subtitles (.vtt or .srt), free and instant").setInputFiles({ name: "lecture.vtt", mimeType: "text/vtt", buffer: Buffer.from(vtt) });
+  await page.getByLabel("Load subtitles").setInputFiles({ name: "lecture.vtt", mimeType: "text/vtt", buffer: Buffer.from(vtt) });
   await expect(page.locator(".transcript-list li")).toHaveCount(2);
   await page.locator(".transcript-list button").nth(1).click();
   await expect(page.locator(".caption-now")).toContainText("It travels to the lungs.");
@@ -973,7 +973,7 @@ test("the YouTube search says what is missing instead of failing quietly", async
   await expect(page.getByRole("alert")).toContainText("YouTube search is not configured");
   // The offline half of the page is untouched by a failed search.
   await expect(page.getByLabel("Video or audio file")).toBeEnabled();
-  await expect(page.getByLabel("Or load subtitles (.vtt or .srt), free and instant")).toBeEnabled();
+  await expect(page.getByLabel("Load subtitles")).toBeEnabled();
 });
 
 test("relationships say which parts they join, by number and name, never by internal id", async ({ page }) => {

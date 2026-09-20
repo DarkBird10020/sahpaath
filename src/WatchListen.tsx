@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Captions as CaptionsIcon, FileText, Film, Search, Sparkles } from "lucide-react";
 import { api, fileBase64 } from "./api";
 import WordExplainer from "./WordExplainer";
+import { FileField } from "./components";
 import { CaptionsWorking, Spinner } from "./Working";
 import { decodeToMono, encodeWav, MAX_SECONDS, planChunks, SAMPLE_RATE } from "./audioChunks";
 import { loadYouTubeApi, type YouTubePlayer } from "./youtubePlayer";
@@ -327,54 +328,55 @@ export default function WatchListen({ report }: { report: (m: string) => void })
           )}
         </div>
       )}
-      <div className="ai-upload">
+      <div className="ai-upload watch-upload">
         {/* Hidden while a YouTube video is chosen: two identical "Create
             captions with AI" buttons on screen at once asked the reader to
             work out which one they meant. Clear brings this back. */}
+        {/* Both ways in on one line, with the button at the end of it: the two
+            fields first, then the thing you press - the shape the Explain page
+            already uses. */}
         {!video && (
-          <>
-            <label>
-              Video or audio file
-              <input
-                type="file"
-                accept="video/*,audio/*"
-                onChange={(e) => {
-                  const chosen = e.target.files?.[0] ?? null;
-                  reset();
-                  setVideo(null);
-                  setFile(chosen);
-                  setUrl(chosen ? URL.createObjectURL(chosen) : "");
-                  setAudioOnly(false);
-                }}
-              />
-            </label>
-            <button className="primary" disabled={!file || busy} aria-busy={busy} onClick={() => void createCaptions()}>
-              {busy ? <Spinner /> : <Sparkles size={17} aria-hidden="true" />}
-              {busy ? "Creating captions…" : "Create captions with AI"}
-            </button>
-          </>
-        )}
-        <label>
-          {/* Subtitles work for a chosen video too: our own player follows them. */}
-          {video ? "Subtitles for this video (.vtt or .srt), free and instant" : "Or load subtitles (.vtt or .srt), free and instant"}
-          <input
-            type="file"
-            accept=".vtt,.srt,text/vtt"
-            onChange={async (e) => {
-              const sub = e.target.files?.[0];
-              if (!sub) return;
-              const parsed = parseSubtitles(await sub.text());
-              if (!parsed.length) {
-                setError("No captions found in that file. Use a .vtt or .srt subtitle file.");
-                return;
-              }
-              setSegments(parsed);
-              setHardWords([]);
-              setSource(`Subtitles from ${sub.name}.`);
-              setError("");
+          <FileField
+            className="up-video"
+            label="Video or audio file"
+            hint="Up to 30 minutes"
+            accept="video/*,audio/*"
+            onChange={(e) => {
+              const chosen = e.target.files?.[0] ?? null;
+              reset();
+              setVideo(null);
+              setFile(chosen);
+              setUrl(chosen ? URL.createObjectURL(chosen) : "");
+              setAudioOnly(false);
             }}
           />
-        </label>
+        )}
+        {/* Subtitles work for a chosen video too: our own player follows them. */}
+        <FileField
+          className="up-subs"
+          label={video ? "Subtitles for this video" : "Load subtitles"}
+          hint=".vtt or .srt · free and instant"
+          accept=".vtt,.srt,text/vtt"
+          onChange={async (e) => {
+            const sub = e.target.files?.[0];
+            if (!sub) return;
+            const parsed = parseSubtitles(await sub.text());
+            if (!parsed.length) {
+              setError("No captions found in that file. Use a .vtt or .srt subtitle file.");
+              return;
+            }
+            setSegments(parsed);
+            setHardWords([]);
+            setSource(`Subtitles from ${sub.name}.`);
+            setError("");
+          }}
+        />
+        {!video && (
+          <button className="primary" disabled={!file || busy} aria-busy={busy} onClick={() => void createCaptions()}>
+            {busy ? <Spinner /> : <Sparkles size={17} aria-hidden="true" />}
+            {busy ? "Creating captions…" : "Create captions with AI"}
+          </button>
+        )}
       </div>
       {busy && <CaptionsWorking progress={progress || "Listening to the recording…"} />}
       {error && (

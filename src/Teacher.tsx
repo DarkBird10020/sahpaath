@@ -44,7 +44,7 @@ const searchResultSchema = z.object({
   ),
 });
 type SearchResult = z.infer<typeof searchResultSchema>["results"][number];
-import { Diagram, Empty, Status, SurfaceList } from "./components";
+import { Diagram, Empty, FileField, Status, SurfaceList } from "./components";
 import { DiagramWorking, Spinner, Thinking } from "./Working";
 
 type Props = {
@@ -438,13 +438,12 @@ export default function Teacher({
                 placeholder="e.g. Inside a plant"
               />
             </label>
-            <label>
-              PNG or JPEG · up to 5 MB
-              <input
-                type="file"
-                accept="image/png,image/jpeg"
-                disabled={busy}
-                onChange={(e) => {
+            <FileField
+              label="Diagram image"
+              hint="PNG or JPEG · up to 5 MB"
+              accept="image/png,image/jpeg"
+              disabled={busy}
+              onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
                   if (file.size > 5_000_000) {
@@ -480,9 +479,8 @@ export default function Teacher({
                     setAnalysing(false);
                     e.target.value = "";
                   });
-                }}
-              />
-            </label>
+              }}
+            />
             <div className="editor-grid source-fields">
               <label>
                 Source URL or reference

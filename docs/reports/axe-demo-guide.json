@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/#/teacher",
-  "timestamp": "2026-09-19T22:17:26.625Z",
+  "timestamp": "2026-09-20T01:58:59.835Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -26,6 +26,7 @@
     "listitem",
     "meta-viewport",
     "nested-interactive",
+    "scrollable-region-focusable",
     "select-name",
     "summary-name",
     "svg-img-alt",
