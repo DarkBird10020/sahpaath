@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Mic, MicOff, Square, Keyboard, PlayCircle, Download } from "lucide-react";
+import { requestMicrophone, quietSpeechErrors, speechErrorMessage } from "./lib/microphone";
 import { api } from "./api";
 import {
   captionSessionSchema,
@@ -60,6 +61,8 @@ export default function LiveCaptions({
   const [live, setLive] = useState<LiveCaption | null>(null);
   const [typed, setTyped] = useState("");
   const [error, setError] = useState("");
+  // Microphone problems stay until the next attempt; the poll below clears `error` every tick.
+  const [micError, setMicError] = useState("");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const recognition = useRef<Recognition | null>(null);
@@ -99,11 +102,19 @@ export default function LiveCaptions({
   async function start(source: CaptionSource) {
     setBusy(true);
     setError("");
+    setMicError("");
     try {
+      if (source === "browser_speech") {
+        const problem = await requestMicrophone();
+        if (problem) {
+          setMicError(problem);
+          return;
+        }
+      }
       const s = await api("/caption-sessions", captionSessionSchema, "POST", { lessonId: lesson.lessonId, source });
       await load();
       report(`Live captions started: ${sourceLabel[s.source]}.`);
-      if (source === "browser_speech") listen(s.id);
+      if (source === "browser_speech") void listen(s.id);
       if (source === "demo_script") await playSample(s.id);
     } catch (e) {
       setError((e as Error).message);
@@ -121,12 +132,18 @@ export default function LiveCaptions({
       await new Promise((r) => setTimeout(r, 500));
     }
   }
-  function listen(sessionId: string) {
+  async function listen(sessionId: string) {
     const R = Recognizer();
     if (!R) {
-      setError("This browser has no speech recognition. Type captions instead.");
+      setMicError("This browser has no speech recognition. Type captions instead.");
       return;
     }
+    const problem = await requestMicrophone();
+    if (problem) {
+      setMicError(problem);
+      return;
+    }
+    setMicError("");
     const rec = new R();
     rec.lang = "en-IN";
     rec.continuous = true;
@@ -140,12 +157,13 @@ export default function LiveCaptions({
         void post(sessionId, text, r.isFinal).catch((err) => setError((err as Error).message));
       }
     };
-    rec.onerror = (e) =>
-      setError(
-        e.error === "not-allowed"
-          ? "Microphone permission was denied. Allow it in the browser, or type captions."
-          : `Speech recognition stopped (${e.error}). Type captions or start again.`,
-      );
+    rec.onerror = (e) => {
+      if (quietSpeechErrors.has(e.error)) return;
+      // A real failure: stop the auto-restart so it cannot loop on the same error.
+      if (recognition.current === rec) recognition.current = null;
+      setListening(false);
+      setMicError(speechErrorMessage(e.error));
+    };
     rec.onend = () => {
       if (recognition.current === rec) {
         try {
@@ -197,9 +215,9 @@ export default function LiveCaptions({
         Captions support, and do not replace, sign-language interpretation.
         Approved lesson terms are highlighted; lines are shown exactly as heard.
       </p>
-      {error && (
+      {(micError || error) && (
         <p className="error" role="alert">
-          {error}
+          {micError || error}
         </p>
       )}
       {!live ? (
@@ -283,7 +301,7 @@ export default function LiveCaptions({
                     Stop microphone
                   </button>
                 ) : (
-                  <button onClick={() => listen(live.session.id)}>
+                  <button onClick={() => void listen(live.session.id)}>
                     <Mic size={17} aria-hidden="true" />
                     Use microphone
                   </button>

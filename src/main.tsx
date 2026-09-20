@@ -5,6 +5,7 @@ import "@fontsource-variable/manrope";
 import "@fontsource-variable/dm-sans";
 import "./styles.css";
 import "./account.css";
+import { secureRedirectTarget } from "./lib/secureOrigin";
 
 class Boundary extends React.Component<
   { children: React.ReactNode },
@@ -26,7 +27,9 @@ class Boundary extends React.Component<
     );
   }
 }
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const secureTarget = secureRedirectTarget(location);
+if (secureTarget) location.replace(secureTarget);
+else ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <Boundary>
       <App />

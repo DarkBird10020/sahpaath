@@ -1035,3 +1035,46 @@ test("teacher can choose a diagram file without filling the form first", async (
   await expect(page.locator(".upload-panel input[type=file]")).toBeEnabled();
   await expect(page.getByText("You can upload now. Add the license before publishing to students.")).toBeVisible();
 });
+
+test("microphone captions ask for permission first, explain a refusal, and caption what is heard", async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown> & { __asked: number; __deny: boolean };
+    w.__asked = 0;
+    w.__deny = true;
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          w.__asked++;
+          if (w.__deny) throw new DOMException("denied", "NotAllowedError");
+          return { getTracks: () => [{ stop() {} }] };
+        },
+      },
+    });
+    class FakeSpeech {
+      lang = ""; continuous = false; interimResults = false;
+      onresult: ((e: unknown) => void) | null = null;
+      onerror: ((e: unknown) => void) | null = null;
+      onend: (() => void) | null = null;
+      start() {
+        setTimeout(() => this.onresult?.({ resultIndex: 0, results: [Object.assign([{ transcript: "blood reaches the lungs" }], { isFinal: true })] }), 200);
+      }
+      stop() {}
+    }
+    w.webkitSpeechRecognition = FakeSpeech;
+    w.SpeechRecognition = FakeSpeech;
+  });
+  await teacherLogin(page);
+  await createPublished(page);
+  await page.reload();
+  await page.getByRole("button", { name: "Captions", exact: true }).click();
+  await page.getByRole("button", { name: "Start with microphone" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "The microphone is blocked" })).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __asked: number }).__asked)).toBe(1);
+  await expect(page.getByRole("button", { name: "End caption session" })).toHaveCount(0);
+
+  await page.evaluate(() => { (window as unknown as { __deny: boolean }).__deny = false; });
+  await page.getByRole("button", { name: "Start with microphone" }).click();
+  await expect(page.getByRole("log", { name: "Caption lines" }).getByText("blood reaches the lungs")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Stop microphone" })).toBeVisible();
+});
