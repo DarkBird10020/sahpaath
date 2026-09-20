@@ -111,3 +111,34 @@ test("the reading panel stays up while the diagram is still being analysed, then
   await expect(page.getByRole("heading", { name: "Reading your diagram" })).toBeHidden({ timeout: 15_000 });
   await expect(page.getByRole("heading", { name: "A journey through the heart", exact: true }).first()).toBeVisible();
 });
+
+test("a teacher can hide a caption line from the transcript, and it is gone for everyone", async ({ page, playwright }) => {
+  await teacherLogin(page);
+  const lesson = await publishHeart(page);
+  const session = (await (await page.request.post("/api/caption-sessions", { data: { lessonId: lesson.id, source: "typed" } })).json()) as { id: string };
+  const say = async (text: string) => (await (await page.request.post(`/api/caption-sessions/${session.id}/segments`, { data: { text, isFinal: true } })).json()) as { id: string };
+  await say("Blood leaves the right ventricle.");
+  const unwanted = await say("A line the teacher does not want in the history.");
+  await say("It travels to the lungs.");
+  await page.reload();
+  await page.getByRole("button", { name: "Captions", exact: true }).click();
+  const log = page.getByRole("log", { name: "Caption lines" });
+  await expect(log.getByText("A line the teacher does not want in the history.")).toBeVisible();
+  await page.getByRole("button", { name: /Hide this line from the transcript: A line the teacher does not want/ }).click();
+  await expect(log.getByText("A line the teacher does not want in the history.")).toBeHidden();
+  await expect(log.getByText("Blood leaves the right ventricle.")).toBeVisible();
+  // Gone from the API, search and the download, not just the screen.
+  const listed = (await (await page.request.get(`/api/caption-sessions/${session.id}/segments`)).json()) as { text: string }[];
+  expect(listed.map((l) => l.text)).toEqual(["Blood leaves the right ventricle.", "It travels to the lungs."]);
+  const exported = await (await page.request.get(`/api/caption-sessions/${session.id}/export`)).text();
+  expect(exported).not.toContain("does not want");
+  // A student cannot hide lines; the teacher can put it back.
+  const student = await playwright.request.newContext({ baseURL: new URL(page.url()).origin });
+  await student.post("/api/session", { data: { role: "student" } });
+  expect((await student.post(`/api/caption-sessions/${session.id}/segments/${unwanted.id}/hide`)).status()).toBe(403);
+  await student.dispose();
+  expect((await page.request.post(`/api/caption-sessions/${session.id}/segments/${unwanted.id}/restore`)).ok()).toBe(true);
+  const restored = (await (await page.request.get(`/api/caption-sessions/${session.id}/segments`)).json()) as { text: string }[];
+  expect(restored).toHaveLength(3);
+  expect((await page.request.post(`/api/caption-sessions/${session.id}/segments/not-a-line/hide`)).status()).toBe(404);
+});

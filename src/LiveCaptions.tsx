@@ -5,7 +5,7 @@ import { poll } from "./lib/poll";
 import { MicWorking, type MicPhase } from "./Working";
 import { startLiveTranscription } from "./lib/liveTranscribe";
 import { requestMicrophone, quietSpeechErrors, speechErrorMessage } from "./lib/microphone";
-import { api } from "./api";
+import { api, okSchema } from "./api";
 import {
   captionSessionSchema,
   liveCaptionSchema,
@@ -304,6 +304,21 @@ export default function LiveCaptions({
               <article key={s.id}>
                 <div className="caption-meta">
                   <span>{`${Math.floor(s.startMs / 60000)}:${String(Math.floor(s.startMs / 1000) % 60).padStart(2, "0")}`}</span>
+                  {teacher && live && (
+                    <button
+                      className="line-hide"
+                      aria-label={`Hide this line from the transcript: ${s.text}`}
+                      title="Hide this line from the transcript. It is kept in storage, not erased."
+                      onClick={() =>
+                        void api(`/caption-sessions/${live.session.id}/segments/${s.id}/hide`, okSchema, "POST")
+                          .then(load)
+                          .then(() => report("Line hidden from the transcript. It is kept in storage, not erased."))
+                          .catch((err) => setError((err as Error).message))
+                      }
+                    >
+                      Hide line
+                    </button>
+                  )}
                 </div>
                 <p>
                   {segmentsFromHits(s.text, s.matchedTerms).map((seg, i) =>
