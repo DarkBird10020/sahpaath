@@ -180,8 +180,8 @@ cat > sahpaath-taskdef.json <<EOF
   "family": "$FAMILY",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
-  "cpu": "256",
-  "memory": "512",
+  "cpu": "1024",
+  "memory": "2048",
   "executionRoleArn": "$EXEC_ROLE_ARN",
   "taskRoleArn": "$TASK_ROLE_ARN",
   "volumes": [

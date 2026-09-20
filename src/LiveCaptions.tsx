@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Mic, MicOff, Square, Keyboard, PlayCircle, Download } from "lucide-react";
+import { poll } from "./lib/poll";
 import { startLiveTranscription } from "./lib/liveTranscribe";
 import { requestMicrophone, quietSpeechErrors, speechErrorMessage } from "./lib/microphone";
 import { api } from "./api";
@@ -76,25 +77,36 @@ export default function LiveCaptions({
   const teacher = session.role === "teacher";
   const isLive = live?.session.status === "live";
 
+  const knownSession = useRef<{ id: string; listedAt: number } | null>(null);
   const load = async () => {
+    // Once the session is known, only read that one; look for a newer one every 10 s.
+    const known = knownSession.current;
+    if (known && Date.now() - known.listedAt < 10_000) {
+      setLive(await api(`/caption-sessions/${known.id}`, liveCaptionSchema));
+      return;
+    }
     const sessions = await api(
       `/caption-sessions?lessonId=${lesson.lessonId}`,
       z.array(captionSessionSchema),
     );
     const current = [...sessions].reverse().find((s) => s.status === "live") ?? sessions.at(-1);
+    knownSession.current = current ? { id: current.id, listedAt: Date.now() } : null;
     setLive(current ? await api(`/caption-sessions/${current.id}`, liveCaptionSchema) : null);
   };
   useEffect(() => {
     let active = true;
     const tick = () =>
-      void load()
+      load()
         .then(() => active && setError(""))
-        .catch((e) => active && setError((e as Error).message));
-    tick();
-    const timer = setInterval(tick, 1500);
+        .catch((e) => {
+          if (active) setError((e as Error).message);
+          throw e;
+        });
+    void tick().catch(() => {});
+    const stop = poll(tick, 1500);
     return () => {
       active = false;
-      clearInterval(timer);
+      stop();
       recognition.current?.stop();
       void stopAi.current?.();
     };
@@ -119,6 +131,7 @@ export default function LiveCaptions({
         }
       }
       const s = await api("/caption-sessions", captionSessionSchema, "POST", { lessonId: lesson.lessonId, source });
+      knownSession.current = null;
       await load();
       report(`Live captions started: ${sourceLabel[s.source]}.`);
       if (source === "browser_speech") void listen(s.id);
@@ -221,6 +234,7 @@ export default function LiveCaptions({
     setBusy(true);
     try {
       await api(`/caption-sessions/${live.session.id}/end`, captionSessionSchema, "POST");
+      knownSession.current = null;
       await load();
       report("Caption session ended. The transcript stays searchable.");
     } catch (e) {

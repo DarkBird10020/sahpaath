@@ -47,5 +47,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 
-# npm start = tsx server/index.ts --production (serves dist/ + API, no vite).
-CMD ["npm", "start"]
+# Serves dist/ + the API, no vite (what `npm start` runs).
+# Run node directly (not through npm) so a deploy's SIGTERM reaches the server, which
+# then finishes in-flight requests and exits cleanly instead of being killed.
+CMD ["node", "--import", "tsx", "server/index.ts", "--production"]

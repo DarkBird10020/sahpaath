@@ -2,8 +2,8 @@
   "family": "sahpaath-prod",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
-  "cpu": "256",
-  "memory": "512",
+  "cpu": "1024",
+  "memory": "2048",
   "executionRoleArn": "arn:aws:iam::756917284624:role/sahpaath-ecs-execution-role",
   "taskRoleArn": "arn:aws:iam::756917284624:role/sahpaath-ecs-task-role",
   "volumes": [
@@ -33,12 +33,15 @@
       {"name": "SAHPAATH_DDB_TABLE", "value": "sahpaath-core"},
       {"name": "SAHPAATH_S3_BUCKET", "value": "sahpaath-prod-756917284624"},
       {"name": "SAHPAATH_LOG_LEVEL", "value": "info"},
-      {"name": "SAHPAATH_PUBLIC_HOSTS", "value": "sahpaath-alb-507640068.ap-south-1.elb.amazonaws.com"}
+      {"name": "SAHPAATH_PUBLIC_HOSTS", "value": "sahpaath-alb-507640068.ap-south-1.elb.amazonaws.com"},
+      {"name": "SAHPAATH_TRUSTED_ORIGIN_HOSTS", "value": "dnde2gq0rg.execute-api.ap-south-1.amazonaws.com"},
+      {"name": "SAHPAATH_SEED_SAMPLES", "value": "1"}
     ],
     "secrets": [
       {"name": "SAHPAATH_TEACHER_PASSWORD", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:SAHPAATH_TEACHER_PASSWORD::"},
       {"name": "SAHPAATH_UPLOAD_TOKEN_SECRET", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:SAHPAATH_UPLOAD_TOKEN_SECRET::"},
       {"name": "GEMINI_API_KEY", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:GEMINI_API_KEY::"},
+      {"name": "YOUTUBE_API_KEY", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:YOUTUBE_API_KEY::"},
       {"name": "SUPABASE_URL", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:SUPABASE_URL::"},
       {"name": "SUPABASE_JWKS_URL", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:SUPABASE_JWKS_URL::"},
       {"name": "SUPABASE_PUBLISHABLE_KEY", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:SUPABASE_PUBLISHABLE_KEY::"}

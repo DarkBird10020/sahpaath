@@ -17,6 +17,7 @@ import { z } from "zod";
 import { Store } from "./store";
 import { recordMetric, routeShape } from "./metrics";
 import { awsEngine, createLesson, imageType } from "./providers";
+import type { Lesson } from "../shared/schema";
 import { GeminiProposalAdapter, LocalOcrAdapter, localOcrLines, localTestEngine, readGeminiConfig } from "./local-ai";
 import { answerAboutDiagram, answerFromLesson, diagramContextSchema, explainDiagram, explainWord, transcribeMedia, transcribeYouTube } from "./tutor";
 import { lookupVideo, MAX_VIDEO_SECONDS, parseVideoId, readYouTubeConfig, searchYouTube, YouTubeError } from "./youtube";
@@ -123,8 +124,15 @@ function needTutor() {
   return tutor;
 }
 // Our own wording only; provider error text can contain account details.
+// The 502s in production had no reason in the logs. Record what the provider said,
+// with any API key stripped, so the next failure can be diagnosed.
+function logFailure(kind: string, error: unknown) {
+  const reason = String((error as Error)?.message ?? error).replace(/key=[^&\s"']+/gi, "key=redacted").slice(0, 200);
+  console.log(JSON.stringify({ event: "upstream_failure", kind, reason }));
+}
 function aiFailure(error: unknown): never {
   if (error instanceof HttpError) throw error;
+  logFailure("ai", error);
   const safe = (error as { userMessage?: unknown } | null)?.userMessage;
   if (error instanceof z.ZodError || error instanceof SyntaxError)
     throw new HttpError(502, "The AI answer was incomplete. Please try again.");
@@ -139,6 +147,7 @@ function needYouTube() {
 // YouTube's own wording is safe to show; anything else keeps our phrasing.
 function youTubeFailure(error: unknown): never {
   if (error instanceof HttpError) throw error;
+  logFailure("youtube", error);
   if (error instanceof YouTubeError) throw new HttpError(error.status === 403 ? 502 : 502, error.userMessage);
   throw new HttpError(502, "YouTube search is unavailable right now. Try again, or paste a video link.");
 }
@@ -240,6 +249,64 @@ const repos = await createRepos(config);
 const appUsers = await createAppUsers(config, store);
 // Opt-in (set in the deployed task): a fresh classroom starts with published sample lessons.
 if (process.env.SAHPAATH_SEED_SAMPLES === "1") await seedSamples(store);
+
+// Reading a diagram (OCR, then the AI proposal) takes 20-60 s. Doing it inside the
+// upload request runs into every proxy timeout (API Gateway stops at 30 s), so the
+// request returns at once with the lesson marked "waiting" and the work continues
+// here. The Teacher page already polls /processing-status while Analysis is waiting.
+const analysing = new Set<string>();
+function markAnalysing(lesson: Lesson): Lesson {
+  return {
+    ...lesson,
+    stages: lesson.stages.map((stage) =>
+      stage.name === "OCR labels"
+        ? { ...stage, status: "waiting" as const, detail: "Reading the text on the diagram.", error: null }
+        : stage.name === "Analysis"
+          ? { ...stage, status: "waiting" as const, detail: "The AI proposal starts once the text is read. This takes up to a minute; the page updates by itself.", error: null }
+          : stage,
+    ),
+  };
+}
+function stopAnalysis(lessonId: string, reason: string) {
+  const current = store.get(lessonId);
+  if (!isProcessing(current)) return;
+  store.save(
+    {
+      ...current,
+      stages: current.stages.map((stage) =>
+        (stage.name === "OCR labels" || stage.name === "Analysis") && stage.status === "waiting"
+          ? { ...stage, status: "fallback" as const, detail: reason, error: reason }
+          : stage,
+      ),
+    },
+    current.revision,
+  );
+  store.audit(lessonId, "analysis_stopped", reason);
+}
+function analyseInBackground(lessonId: string, run: () => Promise<Lesson>, done: string) {
+  analysing.add(lessonId);
+  void (async () => {
+    try {
+      const fresh = await run();
+      const current = store.get(lessonId);
+      if (!isProcessing(current)) return;
+      store.save({ ...current, map: fresh.map, stages: fresh.stages }, current.revision);
+      store.audit(lessonId, "analysis_finished", done);
+    } catch (error) {
+      console.log(JSON.stringify({ event: "analysis_failed", lessonId, reason: String((error as Error).message).slice(0, 200) }));
+      try {
+        stopAnalysis(lessonId, "Analysis could not finish. Choose Analyse the diagram again, or edit the map by hand.");
+      } catch { /* the lesson may have changed meanwhile; nothing more to do */ }
+    } finally {
+      analysing.delete(lessonId);
+    }
+  })();
+}
+// A restart loses in-process work: never leave a lesson "waiting" for a job that no longer exists.
+if (!cloudConfig(process.env))
+  for (const lesson of store.list())
+    if (isProcessing(lesson) && !analysing.has(lesson.id))
+      stopAnalysis(lesson.id, "Analysis was interrupted by a restart. Choose Analyse the diagram again, or edit the map by hand.");
 const storage = createStorage({
   s3Bucket: config.s3Bucket,
   awsRegion: config.awsRegion,
@@ -725,21 +792,17 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       store.audit(lesson.id, "processing_started", `Step Functions job ${lesson.jobId} queued.`);
       return json(res, lesson, 201);
     }
-    return json(
-      res,
-      store.add(
-        // AWS runs only when fully configured; otherwise the manual editor.
-        await createLesson(
-          null,
-          input.title,
-          name,
-          bytes,
-          analysisEngine,
-          input.license,
-        ),
-      ),
-      201,
-    );
+    if (analysisEngine) {
+      const pending = store.add(markAnalysing(await createLesson(null, input.title, name, undefined, null, input.license)));
+      analyseInBackground(
+        pending.id,
+        () => createLesson(null, input.title, name, bytes, analysisEngine, input.license),
+        "Diagram analysed; ready for teacher review.",
+      );
+      return json(res, pending, 201);
+    }
+    // AWS runs only when fully configured; otherwise the manual editor.
+    return json(res, store.add(await createLesson(null, input.title, name, bytes, null, input.license)), 201);
   }
   if (path === "/api/published" && method === "GET")
     return json(res, store.publishedList());
@@ -904,14 +967,13 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
       if (!analysisEngine)
         throw new HttpError(409, "Automatic analysis is not connected here. Edit the map by hand instead.");
       const bytes = await readFile(resolve(root, "uploads", lesson.image));
-      const fresh = await createLesson(null, lesson.title, lesson.image, bytes, analysisEngine, lesson.license);
-      lesson.map = fresh.map;
-      lesson.stages = fresh.stages;
-      const saved = store.save(lesson, input.revision);
-      store.audit(
+      const image = lesson.image;
+      const saved = store.save(markAnalysing(lesson), input.revision);
+      store.audit(lessonId, "reanalysis_started", "Diagram is being analysed again. All decisions will be reset.");
+      analyseInBackground(
         lessonId,
-        "reanalysed",
-        `Diagram analysed again: ${saved.map.parts.length} proposed parts. All decisions reset.`,
+        () => createLesson(null, lesson.title, image, bytes, analysisEngine, lesson.license),
+        "Diagram analysed again. All decisions reset.",
       );
       return json(res, saved);
     }
@@ -1326,6 +1388,7 @@ const vite = !production
       appType: "spa",
     })
   : null;
+const probeLoggedAt = new Map<string, number>();
 const server = createServer(async (req, res) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
@@ -1337,8 +1400,13 @@ const server = createServer(async (req, res) => {
     // /health reveals nothing but "is the process up". Denied host names are
     // logged so probe configuration stays observable.
     if (req.url?.split("?")[0] === "/health") {
-      if (!hostAllowed(req.headers.host || ""))
+      // The load balancer probes every few seconds; one line per host per 10 minutes is enough
+      // to keep the probe configuration observable (it was 41% of all log lines).
+      const probeHost = req.headers.host ?? "";
+      if (!hostAllowed(probeHost) && Date.now() - (probeLoggedAt.get(probeHost) ?? 0) > 600_000) {
+        probeLoggedAt.set(probeHost, Date.now());
         console.log(JSON.stringify({ event: "health_probe_denied", host: req.headers.host ?? null }));
+      }
       return json(res, { status: "ok" });
     }
     if (!hostAllowed(req.headers.host || ""))
@@ -1423,6 +1491,13 @@ const server = createServer(async (req, res) => {
     }
   }
 });
+// Stop taking requests on a deploy and let running ones finish, instead of being killed at the deadline.
+for (const signal of ["SIGTERM", "SIGINT"] as const)
+  process.on(signal, () => {
+    console.log(JSON.stringify({ event: "shutdown", signal }));
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 10_000).unref();
+  });
 server.listen(port, bind, () =>
   console.log(
     `SahPaath local classroom: http://127.0.0.1:${port}\n${cloudConfig(process.env) ? "Step Functions processing configured (live verification required)." : readAwsConfig(process.env) ? "Direct AWS processing configured (live verification required)." : analysisEngine ? `AWS is not connected. Diagram analysis test stand-in: ${analysisEngine.ocrName} + ${analysisEngine.modelName}.` : "AWS is not connected."} Local teacher password: ${process.env.SAHPAATH_TEACHER_PASSWORD ? "(configured in environment)" : "sahpaath-local"}`,

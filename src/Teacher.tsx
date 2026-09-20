@@ -14,6 +14,7 @@ import {
   CircleCheck,
   AlertTriangle,
 } from "lucide-react";
+import { poll } from "./lib/poll";
 import { api } from "./api";
 import MapEditor from "./MapEditor";
 import DemoGuide from "./DemoGuide";
@@ -111,16 +112,16 @@ export default function Teacher({
   useEffect(() => {
     if (!selected || !processing) return;
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
+    const stop = poll(async () => {
       try {
         await api(`/lessons/${selected}/processing-status`, lessonSchema);
         if (!cancelled) await onChange();
-      } catch (e) { if (!cancelled) setError((e as Error).message); }
-      if (!cancelled) timer = setTimeout(() => void poll(), 3000);
-    };
-    timer = setTimeout(() => void poll(), 1000);
-    return () => { cancelled = true; clearTimeout(timer); };
+      } catch (e) {
+        if (!cancelled) setError((e as Error).message);
+        throw e;
+      }
+    }, 3000);
+    return () => { cancelled = true; stop(); };
   }, [selected, processing, onChange]);
   const issues = lesson ? validateMap(lesson.map) : [];
   // Whether this analysis recorded any confidence at all, for the one line that
@@ -286,13 +287,14 @@ export default function Teacher({
         }
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
+        throw e;
       }
     };
-    void load();
-    const timer = setInterval(() => void load(), 4000);
+    void load().catch(() => {});
+    const stop = poll(load, 4000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      stop();
     };
   }, [selected, tab]);
   const addFixture = () =>

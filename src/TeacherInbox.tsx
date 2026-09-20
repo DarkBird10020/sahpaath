@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { z } from "zod";
+import { poll } from "./lib/poll";
 import { api } from "./api";
 import {
   inboxRowSchema,
@@ -49,13 +50,14 @@ export default function TeacherInbox({
         }
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
+        throw e;
       }
     };
-    void load();
-    const timer = setInterval(() => void load(), 5000);
+    void load().catch(() => {});
+    const stop = poll(load, 5000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      stop();
     };
   }, []);
 

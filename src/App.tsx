@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, Headphones, LogOut, MessageSquare, Pin, PinOff, ScanText, Settings2 } from "lucide-react";
-import { api, okSchema } from "./api";
+import { api, okSchema, AUTH_CHANGED } from "./api";
+import { poll } from "./lib/poll";
 import { completeAuthCallback, initialAuthCallback, getAccessToken, supabase, supabaseSignOut } from "./lib/supabase";
 import {
   lessonSchema,
@@ -143,6 +144,19 @@ export default function App() {
     }
   }, [preferences]);
   useEffect(() => {
+    const reread = () => {
+      void api("/session", sessionSchema)
+        .catch(async (error) => {
+          if (await getAccessToken()) return api("/session", sessionSchema, "POST", {});
+          throw error;
+        })
+        .then(setSession)
+        .catch(() => setSession(null));
+    };
+    window.addEventListener(AUTH_CHANGED, reread);
+    return () => window.removeEventListener(AUTH_CHANGED, reread);
+  }, []);
+  useEffect(() => {
     let active = true;
     const oauthReturn = initialAuthCallback.isCallback;
     void (oauthReturn
@@ -205,18 +219,21 @@ export default function App() {
   useEffect(() => {
     if (!session || session.needsRoleSelection) return;
     let active = true;
-    const timer = setInterval(() => {
-      void api("/published", z.array(publishedSchema))
-        .then((value) => {
-          if (active) setPublished(value);
-        })
-        .catch((e) => {
-          if (active) setError((e as Error).message);
-        });
-    }, 5000);
+    const stop = poll(
+      () =>
+        api("/published", z.array(publishedSchema))
+          .then((value) => {
+            if (active) setPublished(value);
+          })
+          .catch((e) => {
+            if (active) setError((e as Error).message);
+            throw e;
+          }),
+      5000,
+    );
     return () => {
       active = false;
-      clearInterval(timer);
+      stop();
     };
   }, [session]);
   useEffect(() => {
@@ -649,8 +666,9 @@ export default function App() {
                     aria-invalid={!!error}
                   />
                   <span id="password-help" className="small">
-                    Default for local development: <code>sahpaath-local</code>.
-                    Change it in your .env file.
+                    {import.meta.env.DEV
+                      ? <>Default for local development: <code>sahpaath-local</code>. Change it in your .env file.</>
+                      : "Ask your teacher administrator for the classroom password."}
                   </span>
                 </label>
               )}

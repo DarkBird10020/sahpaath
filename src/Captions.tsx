@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { ArrowRight, MessageCircle, Search, Download } from "lucide-react";
+import { poll } from "./lib/poll";
 import { api } from "./api";
 import CaptionCorrection from "./CaptionCorrection";
 import LiveCaptions from "./LiveCaptions";
@@ -73,13 +74,14 @@ export default function Captions({
         }
       } catch (e) {
         if (active) setError((e as Error).message);
+        throw e;
       }
     };
-    void load();
-    const timer = setInterval(() => void load(), 4000);
+    void load().catch(() => {});
+    const stop = poll(load, 4000);
     return () => {
       active = false;
-      clearInterval(timer);
+      stop();
     };
   }, [lesson.lessonId, lesson.version]);
   async function add(text: string, source: Caption["source"]) {
