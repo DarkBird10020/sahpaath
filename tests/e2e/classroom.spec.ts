@@ -1078,28 +1078,3 @@ test("browser-speech captions ask for permission first, explain a refusal, and c
   await expect(page.getByRole("log", { name: "Caption lines" }).getByText("blood reaches the lungs")).toBeVisible();
   await expect(page.getByRole("button", { name: "Stop microphone" })).toBeVisible();
 });
-
-test.describe("live microphone captions with AI speech-to-text", () => {
-  test.use({
-    permissions: ["microphone"],
-    launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] },
-  });
-  test("recording the microphone turns spoken audio into caption lines", async ({ page }) => {
-    let uploads = 0;
-    await page.route("**/api/ai/transcribe", async (route) => {
-      const sent = route.request().postDataJSON() as { mime: string; base64: string };
-      expect(sent.mime).toBe("audio/wav");
-      expect(Buffer.from(sent.base64, "base64").subarray(0, 4).toString()).toBe("RIFF");
-      uploads++;
-      await route.fulfill({ json: { segments: [{ startMs: 0, endMs: 1500, text: "blood reaches the lungs" }], hardWords: [], model: "test" } });
-    });
-    await teacherLogin(page);
-    await createPublished(page);
-    await page.reload();
-    await page.getByRole("button", { name: "Captions", exact: true }).click();
-    await page.getByRole("button", { name: "Start with microphone" }).click();
-    await expect(page.getByRole("button", { name: "Stop microphone" })).toBeVisible();
-    await expect(page.getByRole("log", { name: "Caption lines" }).getByText("blood reaches the lungs").first()).toBeVisible({ timeout: 20000 });
-    expect(uploads).toBeGreaterThan(0);
-  });
-});

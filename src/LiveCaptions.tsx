@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Mic, MicOff, Square, Keyboard, PlayCircle, Download } from "lucide-react";
+import { poll } from "./lib/poll";
 import { startLiveTranscription } from "./lib/liveTranscribe";
 import { requestMicrophone, quietSpeechErrors, speechErrorMessage } from "./lib/microphone";
 import { api } from "./api";
@@ -87,14 +88,17 @@ export default function LiveCaptions({
   useEffect(() => {
     let active = true;
     const tick = () =>
-      void load()
+      load()
         .then(() => active && setError(""))
-        .catch((e) => active && setError((e as Error).message));
-    tick();
-    const timer = setInterval(tick, 1500);
+        .catch((e) => {
+          if (active) setError((e as Error).message);
+          throw e;
+        });
+    void tick().catch(() => {});
+    const stop = poll(tick, 1500);
     return () => {
       active = false;
-      clearInterval(timer);
+      stop();
       recognition.current?.stop();
       void stopAi.current?.();
     };

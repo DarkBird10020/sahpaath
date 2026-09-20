@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Circle, PlayCircle, RotateCcw } from "lucide-react";
+import { poll } from "./lib/poll";
 import { api } from "./api";
 import { demoStateSchema, type DemoState } from "../shared/schema";
 
@@ -30,14 +31,17 @@ export default function DemoGuide({
   useEffect(() => {
     let active = true;
     const load = () =>
-      void api("/demo/state", demoStateSchema)
+      api("/demo/state", demoStateSchema)
         .then((s) => active && setState(s))
-        .catch((e) => active && setError((e as Error).message));
-    load();
-    const timer = setInterval(load, 3000);
+        .catch((e) => {
+          if (active) setError((e as Error).message);
+          throw e;
+        });
+    void load().catch(() => {});
+    const stop = poll(load, 3000);
     return () => {
       active = false;
-      clearInterval(timer);
+      stop();
     };
   }, []);
   async function call(path: "start" | "reset") {

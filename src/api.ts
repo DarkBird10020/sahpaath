@@ -23,13 +23,25 @@ export async function api<T>(
       body: value === undefined ? undefined : JSON.stringify(value),
     });
   } catch {
+    throw new Error("Cannot reach the classroom. Check your connection and try again.");
+  }
+  let data: unknown = null;
+  try {
+    data = await response.json();
+  } catch {
+    // A gateway or proxy error page is not JSON; say what happened in plain words.
+  }
+  if (!response.ok) {
+    const known = z.object({ error: z.string() }).safeParse(data);
+    if (known.success) throw new Error(known.data.error);
     throw new Error(
-      "Cannot reach the local classroom. Start the server with npm run dev, then retry.",
+      response.status === 429
+        ? "Too many requests. Wait a moment and try again."
+        : response.status >= 500
+          ? "The classroom is busy or restarting. Try again in a few seconds."
+          : `The classroom could not complete that request (${response.status}).`,
     );
   }
-  const data: unknown = await response.json();
-  if (!response.ok)
-    throw new Error(z.object({ error: z.string() }).parse(data).error);
   return schema.parse(data);
 }
 export const okSchema = z.object({ ok: z.boolean() });

@@ -14,6 +14,7 @@ import {
   CircleCheck,
   AlertTriangle,
 } from "lucide-react";
+import { poll } from "./lib/poll";
 import { api } from "./api";
 import MapEditor from "./MapEditor";
 import DemoGuide from "./DemoGuide";
@@ -286,13 +287,14 @@ export default function Teacher({
         }
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
+        throw e;
       }
     };
-    void load();
-    const timer = setInterval(() => void load(), 4000);
+    void load().catch(() => {});
+    const stop = poll(load, 4000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      stop();
     };
   }, [selected, tab]);
   const addFixture = () =>
