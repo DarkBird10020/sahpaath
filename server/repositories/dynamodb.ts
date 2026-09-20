@@ -45,11 +45,15 @@ export function createDynamoRepos(client: DocumentClient, table: string): Repos 
         await client.put({
           TableName: table,
           Item: { ...l, pk: LESSON_PK(l.lessonId), sk: "META", gpk: `TEACHER#${l.teacherId}`, gsk: `LESSON#${l.updatedAt}` },
-          ConditionExpression: expectedRevision === null
-            ? "attribute_not_exists(pk)"
-            : "attribute_exists(pk) AND #rev = :rev",
-          ExpressionAttributeNames: { "#rev": "revision" },
-          ExpressionAttributeValues: { ":rev": expectedRevision },
+          // Real DynamoDB rejects ExpressionAttributeNames/values that the
+          // condition does not use, so the create path carries no extra keys.
+          ...(expectedRevision === null
+            ? { ConditionExpression: "attribute_not_exists(pk)" }
+            : {
+                ConditionExpression: "attribute_exists(pk) AND #rev = :rev",
+                ExpressionAttributeNames: { "#rev": "revision" },
+                ExpressionAttributeValues: { ":rev": expectedRevision },
+              }),
         }).catch(mapConditional("lesson.put"));
       },
       async get(id) {
@@ -75,18 +79,24 @@ export function createDynamoRepos(client: DocumentClient, table: string): Repos 
               Put: {
                 TableName: table,
                 Item: { ...d, pk: DIAG_PK(d.diagramId), sk: "META" },
-                ConditionExpression: expectedRevision === null
-                  ? "attribute_not_exists(pk)"
-                  : "attribute_exists(pk) AND #rev = :rev",
-                ExpressionAttributeNames: { "#rev": "revision" },
-                ExpressionAttributeValues: { ":rev": expectedRevision },
+                ...(expectedRevision === null
+                  ? { ConditionExpression: "attribute_not_exists(pk)" }
+                  : {
+                      ConditionExpression: "attribute_exists(pk) AND #rev = :rev",
+                      ExpressionAttributeNames: { "#rev": "revision" },
+                      ExpressionAttributeValues: { ":rev": expectedRevision },
+                    }),
               },
             },
             {
+              // Lesson->diagram pointer. Content is immutable (same keys, same
+              // diagramId), and key attributes always exist on an existing row,
+              // so a not-exists condition would reject every legitimate update
+              // of the diagram (real DynamoDB rejects it; in-memory fakes did
+              // not). Unconditional Put: the row is idempotent by content.
               Put: {
                 TableName: table,
                 Item: { pk: LESSON_PK(d.lessonId), sk: `DIAG#${d.diagramId}`, diagramId: d.diagramId },
-                ConditionExpression: "attribute_not_exists(pk) OR attribute_not_exists(sk)",
               },
             },
           ],

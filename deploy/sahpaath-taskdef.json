@@ -1,0 +1,56 @@
+{
+  "family": "sahpaath-prod",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::756917284624:role/sahpaath-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::756917284624:role/sahpaath-ecs-task-role",
+  "volumes": [
+    {"name": "sahpaath-data", "efsVolumeConfiguration": {"fileSystemId": "fs-0dde24911976e4f83", "transitEncryption": "ENABLED"}}
+  ],
+  "containerDefinitions": [
+    {
+    "name": "efs-init",
+    "image": "public.ecr.aws/docker/library/busybox:latest",
+    "essential": false,
+    "entryPoint": ["/bin/sh", "-c"],
+    "command": ["mkdir -p /data && chown -R 1000:1000 /data && echo EFS_READY"],
+    "mountPoints": [{"sourceVolume": "sahpaath-data", "containerPath": "/data"}],
+    "logConfiguration": {"logDriver": "awslogs", "options": {"awslogs-group": "sahpaath-prod", "awslogs-region": "ap-south-1", "awslogs-stream-prefix": "efs-init"}}
+  },
+  {
+    "name": "sahpaath-web",
+    "image": "756917284624.dkr.ecr.ap-south-1.amazonaws.com/sahpaath:latest",
+    "portMappings": [{"containerPort": 3000, "protocol": "tcp"}],
+    "essential": true,
+    "dependsOn": [{"containerName": "efs-init", "condition": "SUCCESS"}],
+    "mountPoints": [{"sourceVolume": "sahpaath-data", "containerPath": "/data"}],
+    "environment": [
+      {"name": "PORT", "value": "3000"},
+      {"name": "SAHPAATH_BIND", "value": "0.0.0.0"},
+      {"name": "SAHPAATH_STORE", "value": "dynamodb"},
+      {"name": "SAHPAATH_DDB_TABLE", "value": "sahpaath-core"},
+      {"name": "SAHPAATH_S3_BUCKET", "value": "sahpaath-prod-756917284624"},
+      {"name": "SAHPAATH_LOG_LEVEL", "value": "info"},
+      {"name": "SAHPAATH_PUBLIC_HOSTS", "value": "sahpaath-alb-507640068.ap-south-1.elb.amazonaws.com"}
+    ],
+    "secrets": [
+      {"name": "SAHPAATH_TEACHER_PASSWORD", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:SAHPAATH_TEACHER_PASSWORD::"},
+      {"name": "SAHPAATH_UPLOAD_TOKEN_SECRET", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:SAHPAATH_UPLOAD_TOKEN_SECRET::"},
+      {"name": "GEMINI_API_KEY", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:GEMINI_API_KEY::"},
+      {"name": "SUPABASE_URL", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:SUPABASE_URL::"},
+      {"name": "SUPABASE_JWKS_URL", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:SUPABASE_JWKS_URL::"},
+      {"name": "SUPABASE_PUBLISHABLE_KEY", "valueFrom": "arn:aws:secretsmanager:ap-south-1:756917284624:secret:sahpaath/prod/app-s3qkQ0:SUPABASE_PUBLISHABLE_KEY::"}
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "sahpaath-prod",
+        "awslogs-region": "ap-south-1",
+        "awslogs-stream-prefix": "web"
+      }
+    }
+  }
+]
+}

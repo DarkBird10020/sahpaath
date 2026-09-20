@@ -1,0 +1,33 @@
+version: 0.2
+
+# SahPaath image build in CodeBuild (no local Docker needed).
+# CodeBuild project settings (create once IAM allows codebuild:*):
+#   source:        this repo (GitHub or S3 zip of the project)
+#   environment:   aws/codebuild/standard:7.0, BUILD_GENERAL1_SMALL,
+#                  Privileged mode: ON  (required for Docker-in-Docker)
+#   service role:  needs ecr:GetAuthorizationToken/PutImage/InitiateLayerUpload/
+#                  BatchCheckLayerAvailability/CompleteLayerUpload on the
+#                  sahpaath repo, s3 read on the source bucket, logs:*
+# Run: Start build with env var AWS_DEFAULT_REGION=ap-south-1.
+
+env:
+  variables:
+    IMAGE_REPO: "756917284624.dkr.ecr.ap-south-1.amazonaws.com/sahpaath"
+    IMAGE_TAG: "latest"
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $IMAGE_REPO
+  build:
+    commands:
+      - echo Build started on $(date)
+      - docker build -t $IMAGE_REPO:$IMAGE_TAG -t $IMAGE_REPO:$CODEBUILD_BUILD_NUMBER .
+  post_build:
+    commands:
+      - docker push $IMAGE_REPO:$IMAGE_TAG
+      - docker push $IMAGE_REPO:$CODEBUILD_BUILD_NUMBER
+      - echo Image pushed: $IMAGE_REPO:$IMAGE_TAG and :$CODEBUILD_BUILD_NUMBER
+artifacts:
+  files: []

@@ -64,6 +64,22 @@ export default function App() {
   const [loginRole, setLoginRole] = useState<"teacher" | "student">("teacher");
   const [password, setPassword] = useState("");
   const [summary, setSummary] = useState<Summary | null>(null);
+  // Whether the deployed backend reports its cloud store (DynamoDB) connected;
+  // drives the landing-page "demo simulation" vs "cloud" wording honestly.
+  const [cloudLive, setCloudLive] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    api("/v1/health", z.object({ awsConnected: z.boolean().default(false) }))
+      .then((h) => {
+        if (!cancelled) setCloudLive(h.awsConnected);
+      })
+      .catch(() => {
+        /* health probe failing is not a landing-page concern */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // Where to go after logging in, when a visitor picked a page first.
   const [afterLogin, setAfterLogin] = useState<string | null>(null);
   const [preferences, setPreferences] = useState(() => {
@@ -532,7 +548,7 @@ export default function App() {
         {page === "home" && (
           <>
             <DiagramStory calm={!motion} onExplore={() => void openTool("explore")} />
-            <LandingSections motion={motion} onExplore={() => void openTool("explore")} onTeacher={openTeacher} />
+            <LandingSections motion={motion} onExplore={() => void openTool("explore")} onTeacher={openTeacher} cloudLive={cloudLive} />
           </>
         )}
         {!sessionReady && page !== "home" && <p role="status">Opening your classroom…</p>}
@@ -749,7 +765,7 @@ export default function App() {
         </a>
         <p>Same lesson. Your way in.</p>
         <button onClick={() => go("evaluation")}>Evidence & limitations</button>
-        <span>Local edition · AWS not connected</span>
+        <span>{cloudLive ? "Cloud edition · Gemini, DynamoDB & S3 connected" : "Local edition · AWS not connected"}</span>
       </footer>
     </>
   );

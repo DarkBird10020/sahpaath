@@ -70,6 +70,25 @@ import { appRoleSchema, appUserSchema, type AppRole } from "../shared/schema";
 if (existsSync(".env")) loadEnvFile(".env");
 const production = process.argv.includes("--production");
 const port = Number(process.env.PORT || 5173);
+// Bind address: loopback for local development; containers set SAHPAATH_BIND=0.0.0.0
+// so the platform load balancer can reach the server.
+const bind = process.env.SAHPAATH_BIND || "127.0.0.1";
+// Extra Host headers to accept in production (comma-separated), e.g. the ALB
+// DNS name or a custom domain. Loopback is always accepted; anything not
+// listed is refused, keeping the DNS-rebinding protection intact.
+const publicHosts = new Set(
+  (process.env.SAHPAATH_PUBLIC_HOSTS || "")
+    .split(",")
+    .map((v) => v.trim().toLowerCase())
+    .filter(Boolean),
+);
+function hostAllowed(host: string): boolean {
+  if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return true;
+  if (publicHosts.has(host.toLowerCase())) return true;
+  // Also accept the hostname with any port (Host includes the port for http).
+  const bare = host.toLowerCase().replace(/:\d+$/, "");
+  return publicHosts.has(bare);
+}
 const root = resolve(process.env.SAHPAATH_DATA_DIR || ".data");
 const store = new Store(resolve(root, "sahpaath.sqlite"));
 const password = process.env.SAHPAATH_TEACHER_PASSWORD || "sahpaath-local";
@@ -111,6 +130,14 @@ function youTubeFailure(error: unknown): never {
   if (error instanceof HttpError) throw error;
   if (error instanceof YouTubeError) throw new HttpError(error.status === 403 ? 502 : 502, error.userMessage);
   throw new HttpError(502, "YouTube search is unavailable right now. Try again, or paste a video link.");
+}
+/** Host portion of an Origin header ("https://a.b:8080" -> "a.b:8080"), or "" when unparseable. */
+function safeOriginHost(origin: string): string {
+  try {
+    return new URL(origin).host;
+  } catch {
+    return "";
+  }
 }
 // Interim (non-final) caption text is display-only and never stored.
 const partials = new Map<string, string>();
@@ -391,7 +418,10 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
   limited(req.socket.remoteAddress || "local", 500);
   if (method !== "GET") {
     const origin = req.headers.origin;
-    if (origin && origin !== `http://${req.headers.host}`)
+    // Same-origin write guard: compare HOSTS (not scheme) so requests stay
+    // valid behind TLS-terminating proxies (browser Origin https://, target
+    // Host http://) while true cross-origin writes stay blocked.
+    if (origin && safeOriginHost(origin) !== req.headers.host)
       throw new HttpError(403, "Cross-origin changes are not allowed.");
     if (req.headers["sec-fetch-site"] === "cross-site")
       throw new HttpError(403, "Cross-site changes are not allowed.");
@@ -1288,7 +1318,16 @@ const server = createServer(async (req, res) => {
   res.setHeader("X-Frame-Options", "DENY");
   const started = performance.now();
   try {
-    if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(req.headers.host || ""))
+    // Load-balancer / orchestrator health probe: answered BEFORE the host
+    // allowlist. ALB probes may carry an empty or target-IP Host header, and
+    // /health reveals nothing but "is the process up". Denied host names are
+    // logged so probe configuration stays observable.
+    if (req.url?.split("?")[0] === "/health") {
+      if (!hostAllowed(req.headers.host || ""))
+        console.log(JSON.stringify({ event: "health_probe_denied", host: req.headers.host ?? null }));
+      return json(res, { status: "ok" });
+    }
+    if (!hostAllowed(req.headers.host || ""))
       throw new HttpError(403, "Local host only.");
     const url = new URL(req.url || "/", `http://127.0.0.1:${port}`);
     // Nothing that starts with a dot belongs to the app: the database under
@@ -1364,7 +1403,7 @@ const server = createServer(async (req, res) => {
       );
   }
 });
-server.listen(port, "127.0.0.1", () =>
+server.listen(port, bind, () =>
   console.log(
     `SahPaath local classroom: http://127.0.0.1:${port}\n${cloudConfig(process.env) ? "Step Functions processing configured (live verification required)." : readAwsConfig(process.env) ? "Direct AWS processing configured (live verification required)." : analysisEngine ? `AWS is not connected. Diagram analysis test stand-in: ${analysisEngine.ocrName} + ${analysisEngine.modelName}.` : "AWS is not connected."} Local teacher password: ${process.env.SAHPAATH_TEACHER_PASSWORD ? "(configured in environment)" : "sahpaath-local"}`,
   ),

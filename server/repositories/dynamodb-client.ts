@@ -52,13 +52,16 @@ export interface DocumentClient {
 export async function createAwsDocumentClient(
   region: string,
   profile: string | null,
+  options?: { noProfile?: boolean },
 ): Promise<DocumentClient> {
   const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
   const { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, DeleteCommand, TransactWriteCommand } =
     await import("@aws-sdk/lib-dynamodb");
+  // noProfile: containers resolve credentials through the task IAM role
+  // (default provider chain); a profile name would break that.
   const base = new DynamoDBClient({
     region,
-    ...(profile ? {} : {}),
+    ...(profile && !options?.noProfile ? { profile } : {}),
   });
   const doc = DynamoDBDocumentClient.from(base);
   return {
