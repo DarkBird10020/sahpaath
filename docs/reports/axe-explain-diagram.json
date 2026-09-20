@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:5174/#/diagram",
-  "timestamp": "2026-09-20T01:59:14.062Z",
+  "timestamp": "2026-09-20T07:04:12.208Z",
   "violations": [],
   "passes": [
     "aria-allowed-attr",
@@ -13,6 +13,7 @@
     "aria-roles",
     "aria-valid-attr-value",
     "aria-valid-attr",
+    "avoid-inline-spacing",
     "button-name",
     "bypass",
     "color-contrast",
@@ -22,6 +23,8 @@
     "html-lang-valid",
     "label",
     "link-name",
+    "list",
+    "listitem",
     "meta-viewport",
     "nested-interactive",
     "target-size"

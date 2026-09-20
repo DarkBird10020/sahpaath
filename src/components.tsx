@@ -176,6 +176,9 @@ export function Diagram({
               return a && b ? (
                 <path
                   key={r.id}
+                  // The flow is a flow: the dashes travel along it, so the
+                  // picture shows the direction rather than only pointing.
+                  className="flow-line"
                   d={`M${a.x * 440} ${a.y * 500 + 23}L${b.x * 440} ${b.y * 500 - 25}`}
                   stroke="#467a8b"
                   strokeWidth="2"

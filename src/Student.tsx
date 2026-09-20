@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import { Words } from "./motion";
 import { z } from "zod";
 import {
   ArrowLeft,
@@ -178,12 +179,20 @@ export default function Student({
                 ? "Classroom communication"
                 : "Diagram Explorer"}
           </span>
+          {/* Keyed on the page, so the heading writes itself again each time
+              a reader moves between explore, captions and communicate. */}
           <h1>
-            {page === "communicate"
-              ? "Your question belongs here."
-              : page === "captions"
-                ? "Follow the lesson. Find your words."
-                : "A lesson, at your pace."}
+            <Words
+              key={page}
+              timed
+              text={
+                page === "communicate"
+                  ? "Your question belongs here."
+                  : page === "captions"
+                    ? "Follow the lesson. Find your words."
+                    : "A lesson, at your pace."
+              }
+            />
           </h1>
         </div>
         <label className="lesson-picker">
@@ -225,13 +234,18 @@ export default function Student({
               />
             </aside>
             <section className="concept-panel" aria-label="Selected concept">
-              <span className="section-kicker">
-                Concept {position + 1} of {lesson.map.parts.length}
-              </span>
-              <h2>{part.name}</h2>
-              <p className="concept-description">
-                {node?.detailedDescription ?? part.description}
-              </p>
+              {/* Keyed on the part, so moving to another concept replays this
+                  block's entrance: the one place in the product where a little
+                  motion says "that part, now this one" rather than decorating. */}
+              <div className="concept-lead" key={part.id}>
+                <span className="section-kicker">
+                  Concept {position + 1} of {lesson.map.parts.length}
+                </span>
+                <h2>{part.name}</h2>
+                <p className="concept-description">
+                  {node?.detailedDescription ?? part.description}
+                </p>
+              </div>
               {node?.detailedDescription &&
                 node.detailedDescription !== part.description && (
                   <details className="description-levels">

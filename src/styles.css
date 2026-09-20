@@ -4640,9 +4640,10 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  /* Wraps rather than truncates: on a phone the file's name takes the next
-     line instead of being cut to an ellipsis beside the pill. */
-  flex-wrap: wrap;
+  /* One line, always, on anything but a phone: a hint long enough to wrap made
+     this well taller than the field or the button beside it, and the whole row
+     went out of line. Narrow screens still stack rather than truncate. */
+  flex-wrap: nowrap;
   gap: 10px 12px;
   min-width: 0;
   padding: 5px 14px 5px 5px;
@@ -4782,11 +4783,6 @@ button.primary[aria-busy="true"] {
   letter-spacing: -0.02em;
   color: var(--ink);
   margin: 0;
-}
-.metric-grid p:only-of-type:not(:has(strong)) {
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--muted);
 }
 /* A panel inside a panel is inset paper, not another hard-edged box. Only real
    panels: "Connected concepts" is a bare section, and tinting it drew a band
@@ -4960,4 +4956,319 @@ button.primary[aria-busy="true"] {
 .yt-search select,
 .yt-search button {
   min-height: 48px;
+}
+
+/* ---------- The review column ---------- */
+/* Asking for the note keeps the column readable; it opens in place, and it
+   opens itself wherever one is required or already written. */
+.add-note {
+  align-self: flex-start;
+  font-size: 0.78rem;
+}
+.confidence-note {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+}
+/* The banner says to start with the flagged content, so the flagged card has
+   to be the one the eye finds: a warm rail down its edge and a warmer page
+   under it, while the items that are already clean sit back. */
+.review-item:has(.findings),
+.review-item:has(.grounded.warn) {
+  border-left: 3px solid var(--amber);
+  background: #fffaf0;
+}
+
+/* A rail under the four steps, filled to where the lesson has reached. Four
+   circles with nothing between them read as four unrelated chips. */
+.workflow-strip {
+  position: relative;
+}
+.workflow-strip::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  width: var(--done, 0%);
+  max-width: 100%;
+  background: var(--ink);
+  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- Metric cards ----------
+   A metric is its number. The label sits quiet above it and a bar under it
+   carries the same value again for the eye. With nothing recorded the card
+   still holds that shape, so the grid reads as waiting rather than as dead. */
+.metric-grid .metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 2px 0 0;
+  font-family: "Manrope Variable", Arial, sans-serif;
+  font-size: 2.1rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.metric-unit {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.metric-grid .metric.is-blank .metric-value {
+  color: #b3aa98;
+}
+.metric-bar {
+  display: block;
+  height: 3px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background: #e7e0d2;
+  overflow: hidden;
+  position: relative;
+}
+.metric-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--fill, 0%);
+  border-radius: inherit;
+  background: var(--ink);
+  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+:root[data-contrast="true"] .metric.is-blank .metric-value {
+  color: var(--ink);
+}
+
+/* ---------- Explore: the connected-concept rows ----------
+   Three items with space-between left the target name floating in the middle
+   of the row, so a column of them had nothing to scan down. A grid gives the
+   relationship, the name and the arrow a column each. */
+.connections button {
+  display: grid;
+  grid-template-columns: minmax(78px, max-content) 1fr auto;
+  align-items: center;
+  gap: 2px 14px;
+  text-align: left;
+}
+.connections button .connection-why {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+/* ---------- The review history, as a sequence ----------
+   A rail runs down the events with a dot on each, so the list reads as one
+   thing that happened after another rather than as detached paragraphs. */
+.activity-feed {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.activity-feed > li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 0 0 20px;
+}
+/* The rail joins one dot to the next, and stops at the last. */
+.activity-feed > li::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 14px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--line);
+}
+.activity-feed > li:last-child::before {
+  display: none;
+}
+.activity-dot {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+  position: relative;
+  z-index: 1;
+}
+.activity-body strong {
+  font-size: 0.86rem;
+  text-transform: capitalize;
+}
+.activity-body p {
+  margin: 3px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.activity-feed time {
+  font-size: 0.74rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ---------- The pipeline says what each stage cost ---------- */
+.stage-duration {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
+  color: var(--muted);
+  margin-left: auto;
+}
+.lesson-main .pipeline details summary .stage-status {
+  margin-left: 14px;
+}
+
+/* ---------- The diagram stays with the item being judged ----------
+   The source column ran out halfway down while the review column carried on,
+   which left a tall empty gutter and put the picture off screen exactly when
+   a reviewer needed it. */
+@media (min-width: 1000px) {
+  .review-columns .source-panel {
+    position: sticky;
+    top: 86px;
+    align-self: start;
+  }
+}
+
+/* ---------- Captions: one card, not a card inside a card ----------
+   "Live captions" sat in its own bordered box inside the transcript panel:
+   two borders and two backgrounds around the same piece of content. */
+.transcript-panel .live-captions {
+  border: 0;
+  padding-inline: 0;
+  background: transparent;
+  box-shadow: none;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+}
+/* The simulation badge sits in the button row at button height and reads as a
+   fourth button. It is a label on the row, so it says so quietly. */
+.live-captions .button-row .simulation {
+  align-self: center;
+  min-height: 0;
+  padding: 5px 12px;
+  font-size: 0.72rem;
+}
+
+/* ---------- The class code ----------
+   A teacher reads this out to a room. Set at body size it was the hardest
+   thing on the page to read; spaced and enlarged, it can be read off a screen
+   from the back of a classroom, and copied in one press. */
+.class-code {
+  align-items: center;
+}
+.class-code > span {
+  display: grid;
+  gap: 2px;
+}
+.class-code-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.class-code-value {
+  font-family: "Manrope Variable", Arial, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+.class-code .link-button {
+  margin-left: auto;
+  font-size: 0.78rem;
+}
+
+/* ---------- What the page will do, where nothing was ----------
+   Both tool pages ended at their upload card with half a screen of bare paper
+   under it. These are the page's own stages, in order, sized to be read at a
+   glance and to step back the moment there is real content to show. */
+.next-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 26px 34px;
+  list-style: none;
+  margin: 44px 0 10px;
+  padding: 26px 0 0;
+  border-top: 1px solid var(--line);
+}
+.next-steps > li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: start;
+  gap: 4px 12px;
+}
+.next-steps > li > span {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  font-family: "Manrope Variable", Arial, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.next-steps > li > strong {
+  align-self: center;
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+}
+.next-steps > li > small {
+  grid-column: 2;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ---------- Login ----------
+   The left column carried an arbitrary 30px of padding, so its heading began
+   below the card's top edge and the two halves never agreed on a starting
+   line. Centring both blocks against each other composes the page instead. */
+.login-page {
+  align-items: center;
+}
+.login-copy {
+  padding-top: 0;
+}
+
+/* The status sits at the right edge whether or not the stage recorded a
+   duration; otherwise a stage without one left its status stranded mid-row. */
+.lesson-main .pipeline summary:not(:has(.stage-duration)) .stage-status {
+  margin-left: auto;
+}
+/* A rail joins one stage to the next, so the pipeline reads as a sequence of
+   steps rather than a stack of unrelated cards. */
+.lesson-main .pipeline details {
+  position: relative;
+}
+.lesson-main .pipeline details:not(:last-of-type)::after {
+  content: "";
+  position: absolute;
+  left: 28px;
+  top: 100%;
+  width: 2px;
+  height: 12px;
+  background: var(--line);
+}
+/* The 2px nudge above is for a single 0.9rem line; this row's first line is the
+   smaller caption, so the icon would sit 2px below the text it belongs to. */
+.account-details .class-code > svg {
+  margin-top: 0;
+}
+/* On a phone there is no room beside the pill, so the name takes its own line
+   rather than being cut to an ellipsis. */
+@media (max-width: 620px) {
+  .file-drop {
+    flex-wrap: wrap;
+  }
 }
