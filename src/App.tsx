@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, Headphones, LogOut, MessageSquare, Pin, PinOff, ScanText, Settings2 } from "lucide-react";
 import { api, okSchema } from "./api";
-import { getAccessToken, supabase, supabaseSignOut } from "./lib/supabase";
+import { completeAuthCallback, initialAuthCallback, getAccessToken, supabase, supabaseSignOut } from "./lib/supabase";
 import {
   lessonSchema,
   publishedSchema,
@@ -34,7 +34,7 @@ function locationPage() {
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const [page, updatePage] = useState(locationPage);
+  const [page, updatePage] = useState(() => initialAuthCallback.isCallback ? "account" : locationPage());
   const [sessionReady, setSessionReady] = useState(false);
   const setPage = useCallback((next: string) => {
     if (locationPage() !== next) history.pushState(null, "", `#/${next}`);
@@ -144,11 +144,12 @@ export default function App() {
   }, [preferences]);
   useEffect(() => {
     let active = true;
-    const oauthReturn = new URLSearchParams(location.search).get("auth") === "callback";
+    const oauthReturn = initialAuthCallback.isCallback;
     void (oauthReturn
-      ? getAccessToken().then((token) => token ? api("/session", sessionSchema, "POST", {}) : api("/session", sessionSchema))
+      ? completeAuthCallback().then(() => api("/session", sessionSchema, "POST", {}))
       : api("/session", sessionSchema))
       .catch(async (error) => {
+        if (oauthReturn) throw error;
         // Email confirmation and refreshed Supabase sessions may arrive without
         // the local classroom cookie. Recreate it from the verified identity.
         if (await getAccessToken()) return api("/session", sessionSchema, "POST", {});
@@ -164,7 +165,13 @@ export default function App() {
           }
         }
       })
-      .catch((error) => { if (active && oauthReturn) setError(error.message); })
+      .catch((error) => {
+        if (active && oauthReturn) {
+          history.replaceState(null, "", `${location.pathname}#/account`);
+          updatePage("account");
+          setError(error.message);
+        }
+      })
       .finally(() => { if (active) setSessionReady(true); });
     return () => { active = false; };
   }, []);

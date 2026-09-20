@@ -107,9 +107,9 @@ const correctInput = z
 export interface RouteDeps {
   /** Supabase bearer + cookie authentication components. */
   appAuth: AuthComponents;
-  listAppUsers: () => AppUser[];
-  findAppUser: (id: string) => AppUser | undefined;
-  setAppUserRole: (id: string, role: AppUser["role"]) => AppUser;
+  listAppUsers: () => AppUser[] | Promise<AppUser[]>;
+  findAppUser: (id: string) => AppUser | undefined | Promise<AppUser | undefined>;
+  setAppUserRole: (id: string, role: AppUser["role"]) => AppUser | Promise<AppUser>;
   auditAdmin: (
     action: string,
     detail: string,
@@ -194,7 +194,7 @@ export function registerRoutes(router: Router, deps: RouteDeps): Router {
   router.get("/api/v1/me", async (ctx) => {
     const principal = await requireAuth(ctx.req, deps.appAuth);
     if (principal.via === "supabase") {
-      const user = deps.findAppUser(principal.userId);
+      const user = await deps.findAppUser(principal.userId);
       if (!user) throw notFoundError("Application user not found.");
       return { kind: "app" as const, user, supabaseConfigured: true };
     }
@@ -225,11 +225,11 @@ export function registerRoutes(router: Router, deps: RouteDeps): Router {
     const input = await readJson(ctx.req, roleChangeInput);
     if (ctx.params.userId === admin.userId)
       throw forbiddenError("Administrators cannot change their own role.");
-    const target = deps.findAppUser(ctx.params.userId);
+    const target = await deps.findAppUser(ctx.params.userId);
     if (!target) throw notFoundError("User not found.");
     // No self-service promotion: an ADMIN grant can only come from another
     // admin (or the bootstrap allowlist), never from the target themselves.
-    const updated = deps.setAppUserRole(ctx.params.userId, input.role);
+    const updated = await deps.setAppUserRole(ctx.params.userId, input.role);
     deps.auditAdmin("role_changed", `Role of user ${updated.email} changed to ${input.role}.`, admin.userId, {
       targetUserId: updated.id,
       previousRole: target.role,

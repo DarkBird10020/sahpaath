@@ -48,6 +48,7 @@ import { loadConfig } from "./core/config";
 import { Logger } from "./core/logger";
 import { sha256Hex } from "./core/ids";
 import { createRepos } from "./repositories";
+import { createAppUsers } from "./repositories/app-users";
 import { createStorage } from "./core/storage";
 import { createPresignedProvider } from "./core/presign";
 import { DiagramSenseService } from "./services/diagram-sense-service";
@@ -226,6 +227,7 @@ const logger = new Logger(undefined, config.logLevel, { service: "sahpaath" });
 const router = new Router(logger.child({ component: "http" }));
 
 const repos = await createRepos(config);
+const appUsers = await createAppUsers(config, store);
 const storage = createStorage({
   s3Bucket: config.s3Bucket,
   awsRegion: config.awsRegion,
@@ -269,7 +271,7 @@ async function resolveSupabaseUser(identity: {
   supabaseUserId: string;
   email: string | null;
 }): Promise<Principal> {
-  const existing = store.findUserBySupabaseId(identity.supabaseUserId);
+  const existing = await appUsers.findUserBySupabaseId(identity.supabaseUserId);
   if (existing)
     return {
       userId: existing.id,
@@ -281,7 +283,7 @@ async function resolveSupabaseUser(identity: {
   const email = identity.email || "";
   const role: AppRole = adminAllowlist.includes(email.toLowerCase()) ? "ADMIN" : "USER";
   const name = email ? email.split("@")[0] : "Classroom member";
-  const created = store.createUser({
+  const created = await appUsers.createUser({
     supabaseUserId: identity.supabaseUserId,
     email,
     name,
@@ -401,9 +403,9 @@ registerRoutes(router, {
     store.db.prepare("DELETE FROM sessions WHERE token=?").run(sha256Hex(token));
   },
   appAuth: auth,
-  listAppUsers: () => store.listUsers(),
-  findAppUser: (id) => store.findUserById(id),
-  setAppUserRole: (id, role) => store.setUserRole(id, role),
+  listAppUsers: () => appUsers.listUsers(),
+  findAppUser: (id) => appUsers.findUserById(id),
+  setAppUserRole: (id, role) => appUsers.setUserRole(id, role),
   auditAdmin: (action, detail, actorUserId, extra) => {
     store.audit("", `admin_${action}`, detail, actorUserId, extra as never);
     logger.info(`admin.${action}`, { actor: actorUserId, ...extra });
@@ -450,10 +452,10 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
         // Classroom onboarding is self-service after verified sign-in. ADMIN is
         // never assignable here and existing administrators keep their role.
         if (choice.role && principal.role !== "ADMIN") {
-          const updated = store.setUserRole(principal.userId, choice.role === "teacher" ? "TEACHER" : "USER");
+          const updated = await appUsers.setUserRole(principal.userId, choice.role === "teacher" ? "TEACHER" : "USER");
           principal.role = updated.role;
         }
-        const user = appUserSchema.parse(store.findUserById(principal.userId));
+        const user = appUserSchema.parse(await appUsers.findUserById(principal.userId));
         const token = randomBytes(32).toString("hex");
         const code = randomBytes(3).toString("hex").toUpperCase();
         store.db.prepare("DELETE FROM sessions WHERE expires < ?").run(Date.now());

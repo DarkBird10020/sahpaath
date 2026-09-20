@@ -16,6 +16,7 @@ export interface PutCommandInput {
 export interface GetCommandInput {
   TableName: string;
   Key: Record<string, unknown>;
+  ConsistentRead?: boolean;
 }
 
 export interface QueryCommandInput {
@@ -26,6 +27,8 @@ export interface QueryCommandInput {
   ExpressionAttributeNames?: Record<string, string>;
   ExpressionAttributeValues: Record<string, unknown>;
   ScanIndexForward?: boolean;
+  ConsistentRead?: boolean;
+  ExclusiveStartKey?: Record<string, unknown>;
 }
 
 export interface TransactWriteCommandInput {
@@ -34,6 +37,7 @@ export interface TransactWriteCommandInput {
 
 export interface QueryResult {
   Items?: Record<string, unknown>[];
+  LastEvaluatedKey?: Record<string, unknown>;
 }
 
 export interface GetResult {

@@ -11,6 +11,9 @@
  * zero behaviour change.
  */
 import { createClient, type SupabaseClient, type Session } from "@supabase/supabase-js";
+import { readAuthCallback } from "./authCallback";
+
+export const initialAuthCallback = readAuthCallback(location.href);
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -32,6 +35,16 @@ export async function getAccessToken(): Promise<string | null> {
   return (await getSupabaseSession())?.access_token ?? null;
 }
 
+export async function completeAuthCallback(): Promise<void> {
+  if (initialAuthCallback.error) throw new Error(`Sign-in failed: ${initialAuthCallback.error}`);
+  if (!supabase) throw new Error("Sign-in is not configured on this site.");
+  const initialized = await supabase.auth.initialize();
+  if (initialized.error) throw initialized.error;
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  if (!data.session) throw new Error("Sign-in did not return a session. Please try Continue with Google again.");
+}
+
 /** Sign out of Supabase (no-op when not configured). */
 export async function supabaseSignOut(): Promise<void> {
   if (supabase) {
@@ -43,7 +56,7 @@ export async function supabaseSignOut(): Promise<void> {
 /** Sign up with email + password through Supabase (never our backend). */
 export async function supabaseSignUp(email: string, password: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
-  return supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${location.origin}/#/account` } });
+  return supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${location.origin}/?auth=callback` } });
 }
 
 /** Sign in with email + password through Supabase (never our backend). */
@@ -54,7 +67,7 @@ export async function supabaseSignIn(email: string, password: string) {
 
 export async function supabaseSignInWithGoogle() {
   if (!supabase || !url || !anonKey) throw new Error("Sign-in is not configured yet.");
-  const response = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: anonKey } });
+  const response = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: anonKey }, signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error("Could not reach sign-in. Please try again.");
   const settings = await response.json();
   if (!settings.external?.google) throw new Error("Google sign-in is not available yet. Please use email sign-in for now.");

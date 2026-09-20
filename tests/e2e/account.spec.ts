@@ -56,6 +56,26 @@ test("Google button requests OAuth with an application callback", async ({ page 
   expect(new URL(page.url()).searchParams.get("redirect_to")).toBe("http://127.0.0.1:5174/?auth=callback");
 });
 
+test("OAuth provider errors remain visible and sensitive callback parameters are cleared", async ({ page }) => {
+  await page.goto("/?auth=callback#error=access_denied&error_description=Google+sign-in+was+cancelled");
+  await expect(page.getByRole("alert").filter({ hasText: "Sign-in failed: Google sign-in was cancelled" })).toBeVisible();
+  await expect(page).toHaveURL(/\/#\/account$/);
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+});
+
+test("a callback without a returned session is recoverable", async ({ page }) => {
+  await page.goto("/?auth=callback");
+  await expect(page.getByRole("alert").filter({ hasText: "Sign-in did not return a session. Please try Continue with Google again." })).toBeVisible();
+  await expect(page).toHaveURL(/\/#\/account$/);
+});
+
+test("Google token callback creates the classroom session before role selection", async ({ page }) => {
+  await mockIdentity(page);
+  await page.goto("/?auth=callback#access_token=test-token&refresh_token=test-refresh&token_type=bearer&expires_in=3600");
+  await expect(page.getByRole("heading", { name: "Choose your role" })).toBeVisible();
+  await expect(page).toHaveURL(/\/#\/choose-role$/);
+});
+
 async function mockIdentity(page: Page, confirmEmail = false, failBridge = false) {
   let signedIn = false;
   const session = { role: "student", code: "ABC123", needsRoleSelection: true };
