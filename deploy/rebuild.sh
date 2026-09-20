@@ -45,7 +45,7 @@ echo "watch: aws logs tail sahpaath-prod --log-stream-names kaniko/kaniko/$TASK_
 EXIT=""
 for _ in 1 2 3 4 5 6; do
   EXIT=$("$AWS" ecs describe-tasks --region "$REGION" --cluster sahpaath --tasks "$TASK_ID" \
-    --query "tasks[0].containers[?name=='kaniko'][0].exitCode" --output text)
+    --query "tasks[0].containers[?name=='kaniko'].exitCode | [0]" --output text)
   [ -n "$EXIT" ] && [ "$EXIT" != "None" ] && break
   sleep 5
   EXIT=""

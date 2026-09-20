@@ -66,3 +66,23 @@ it("never overlaps a slow request and stays quiet in a hidden tab", async () => 
   expect(run).toHaveBeenCalledTimes(2);
   stop();
 });
+
+it("gives up after three signed-out or forbidden answers instead of asking forever", async () => {
+  const run = vi.fn(async () => {
+    throw Object.assign(new Error("Teacher access is required."), { status: 403 });
+  });
+  poll(run, 1000);
+  await vi.advanceTimersByTimeAsync(120_000);
+  expect(run).toHaveBeenCalledTimes(3);
+  expect(listeners.size).toBe(0);
+});
+
+it("keeps trying after ordinary server errors", async () => {
+  const run = vi.fn(async () => {
+    throw Object.assign(new Error("busy"), { status: 503 });
+  });
+  const stop = poll(run, 1000);
+  await vi.advanceTimersByTimeAsync(120_000);
+  expect(run.mock.calls.length).toBeGreaterThan(3);
+  stop();
+});

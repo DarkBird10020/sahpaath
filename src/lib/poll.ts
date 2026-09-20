@@ -7,6 +7,7 @@
 export function poll(run: () => Promise<unknown>, intervalMs: number, maxMs = 30_000): () => void {
   let stopped = false;
   let failures = 0;
+  let authFailures = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const schedule = (ms: number) => {
     if (!stopped) timer = setTimeout(() => void tick(), ms);
@@ -17,10 +18,20 @@ export function poll(run: () => Promise<unknown>, intervalMs: number, maxMs = 30
     try {
       await run();
       failures = 0;
-    } catch {
+      authFailures = 0;
+    } catch (error) {
       failures++;
+      const status = (error as { status?: number }).status;
+      authFailures = status === 401 || status === 403 ? authFailures + 1 : 0;
+      // Signed out or not allowed: asking again cannot help, so stop after three tries.
+      if (authFailures >= 3) return stop();
     }
     schedule(Math.min(intervalMs * 2 ** failures, maxMs));
+  };
+  const stop = () => {
+    stopped = true;
+    clearTimeout(timer);
+    document.removeEventListener("visibilitychange", onVisible);
   };
   const onVisible = () => {
     if (stopped || document.hidden) return;
@@ -29,9 +40,5 @@ export function poll(run: () => Promise<unknown>, intervalMs: number, maxMs = 30
   };
   document.addEventListener("visibilitychange", onVisible);
   schedule(intervalMs);
-  return () => {
-    stopped = true;
-    clearTimeout(timer);
-    document.removeEventListener("visibilitychange", onVisible);
-  };
+  return stop;
 }

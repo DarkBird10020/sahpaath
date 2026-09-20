@@ -77,12 +77,20 @@ export default function LiveCaptions({
   const teacher = session.role === "teacher";
   const isLive = live?.session.status === "live";
 
+  const knownSession = useRef<{ id: string; listedAt: number } | null>(null);
   const load = async () => {
+    // Once the session is known, only read that one; look for a newer one every 10 s.
+    const known = knownSession.current;
+    if (known && Date.now() - known.listedAt < 10_000) {
+      setLive(await api(`/caption-sessions/${known.id}`, liveCaptionSchema));
+      return;
+    }
     const sessions = await api(
       `/caption-sessions?lessonId=${lesson.lessonId}`,
       z.array(captionSessionSchema),
     );
     const current = [...sessions].reverse().find((s) => s.status === "live") ?? sessions.at(-1);
+    knownSession.current = current ? { id: current.id, listedAt: Date.now() } : null;
     setLive(current ? await api(`/caption-sessions/${current.id}`, liveCaptionSchema) : null);
   };
   useEffect(() => {
@@ -123,6 +131,7 @@ export default function LiveCaptions({
         }
       }
       const s = await api("/caption-sessions", captionSessionSchema, "POST", { lessonId: lesson.lessonId, source });
+      knownSession.current = null;
       await load();
       report(`Live captions started: ${sourceLabel[s.source]}.`);
       if (source === "browser_speech") void listen(s.id);
@@ -225,6 +234,7 @@ export default function LiveCaptions({
     setBusy(true);
     try {
       await api(`/caption-sessions/${live.session.id}/end`, captionSessionSchema, "POST");
+      knownSession.current = null;
       await load();
       report("Caption session ended. The transcript stays searchable.");
     } catch (e) {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, Headphones, LogOut, MessageSquare, Pin, PinOff, ScanText, Settings2 } from "lucide-react";
-import { api, okSchema } from "./api";
+import { api, okSchema, AUTH_CHANGED } from "./api";
 import { poll } from "./lib/poll";
 import { completeAuthCallback, initialAuthCallback, getAccessToken, supabase, supabaseSignOut } from "./lib/supabase";
 import {
@@ -143,6 +143,19 @@ export default function App() {
       /* Preferences still apply if storage is unavailable. */
     }
   }, [preferences]);
+  useEffect(() => {
+    const reread = () => {
+      void api("/session", sessionSchema)
+        .catch(async (error) => {
+          if (await getAccessToken()) return api("/session", sessionSchema, "POST", {});
+          throw error;
+        })
+        .then(setSession)
+        .catch(() => setSession(null));
+    };
+    window.addEventListener(AUTH_CHANGED, reread);
+    return () => window.removeEventListener(AUTH_CHANGED, reread);
+  }, []);
   useEffect(() => {
     let active = true;
     const oauthReturn = initialAuthCallback.isCallback;

@@ -95,3 +95,24 @@ protection; repo scanned — no committed credentials.
   returned empty exitCode -> false BUILD FAILED), and rollouts now register a NEW
   task-def revision pinned to the fresh digest instead of --force-new-deployment
   on a :latest tag (which could silently redeploy the old image)
+
+## 2026-09-20 evening — fixes from reading the production logs
+- HTTPS: CloudFront needs account verification, so an API Gateway HTTP API
+  (dnde2gq0rg.execute-api.ap-south-1.amazonaws.com, `ANY /{proxy+}` + `ANY /` to
+  the ALB) is the HTTPS front door. `SAHPAATH_TRUSTED_ORIGIN_HOSTS` lets its Origin
+  write. The SPA redirects the plain-http ELB address to it. API Gateway cuts
+  requests at 30 s, which is why diagram analysis now runs in the background.
+- Diagram upload / re-analyse return at once with Analysis "waiting"; OCR + Gemini
+  run in the server and the Teacher page polls /processing-status. A restart marks
+  interrupted analyses stopped instead of waiting forever. Upload had taken 22-58 s
+  (OCR 10-25 s on a quarter vCPU, then Gemini 11-33 s).
+- Task size raised 0.25 vCPU / 0.5 GB -> 1 vCPU / 2 GB for tesseract OCR
+  (about +$27/month; set `cpu`/`memory` back in the task definition to revert).
+- Pollers (`src/lib/poll.ts`): one request at a time, paused in hidden tabs,
+  backoff up to 30 s, stop after 3 consecutive 401/403. Live captions read one
+  session per tick. A 401/403 makes the app re-read its session (another tab may
+  have replaced the shared cookie with a different role).
+- Server logs the reason for AI/YouTube failures (`upstream_failure`, key redacted)
+  and handles SIGTERM (`shutdown`); the container runs node directly, not via npm.
+- rebuild.sh read the kaniko exit code with a query that returned nothing, so it
+  reported BUILD FAILED after successful builds; fixed.
