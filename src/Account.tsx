@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Words } from "./motion";
 import GoogleSignIn from "./GoogleSignIn";
 import {
   ArrowLeft,
@@ -73,6 +74,9 @@ export default function Account({
   const [password, setPassword] = useState("");
   const [notice, setNotice] = useState("");
   const [showEmail, setShowEmail] = useState(false);
+  // The class code is the one thing here a teacher reads out to a room, so it
+  // is set to be read at a distance and copied in one press.
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -127,7 +131,9 @@ export default function Account({
     <section className="login-page account-page">
       <div className="login-copy">
         <UserIcon size={42} aria-hidden="true" />
-        <h1>Your account.</h1>
+        <h1>
+          <Words text="Your account." timed />
+        </h1>
         <p>
           {supabase
             ? "Sign in with your email. Passwords are handled by Supabase Auth — this classroom never sees them."
@@ -182,9 +188,27 @@ export default function Account({
                   Role: <strong>{session.role === "teacher" ? "teacher" : "student"}</strong>
                 </span>
               </li>
-              <li>
+              <li className="class-code">
                 <ShieldCheck size={16} aria-hidden="true" />
-                <span>Anonymous class code: {session.code}</span>
+                <span>
+                  <span className="class-code-label">Anonymous class code</span>
+                  <strong className="class-code-value">{session.code}</strong>
+                </span>
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    void navigator.clipboard
+                      ?.writeText(session.code)
+                      .then(() => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      })
+                      .catch(() => setCopied(false));
+                  }}
+                >
+                  {copied ? "Copied" : "Copy"}
+                </button>
               </li>
             </ul>
             {supabase && (

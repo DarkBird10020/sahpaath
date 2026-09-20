@@ -271,3 +271,221 @@
 .motion-on .site-header > :nth-child(3) {
   animation-delay: 180ms;
 }
+
+/* ---------- Lists arrive one after another ----------
+   A page that paints all at once reads as a document. These are the lists a
+   reader lands on: the review column, the metrics, the lessons, the inbox and
+   the pipeline. Time-based, short, and never in the way of the next click. */
+.motion-on .review-items > article,
+.motion-on .metric-grid > article,
+.motion-on .lesson-links > button,
+.motion-on .inbox-thread > article,
+.motion-on .pipeline > details,
+.motion-on .concept-panel .flow-steps > button {
+  animation: mo-enter 0.42s var(--mo-ease) both;
+}
+.motion-on .review-items > article:nth-of-type(2),
+.motion-on .metric-grid > article:nth-of-type(2),
+.motion-on .lesson-links > button:nth-of-type(2),
+.motion-on .inbox-thread > article:nth-of-type(2),
+.motion-on .pipeline > details:nth-of-type(2),
+.motion-on .concept-panel .flow-steps > button:nth-of-type(2) {
+  animation-delay: 45ms;
+}
+.motion-on .review-items > article:nth-of-type(3),
+.motion-on .metric-grid > article:nth-of-type(3),
+.motion-on .lesson-links > button:nth-of-type(3),
+.motion-on .inbox-thread > article:nth-of-type(3),
+.motion-on .pipeline > details:nth-of-type(3),
+.motion-on .concept-panel .flow-steps > button:nth-of-type(3) {
+  animation-delay: 90ms;
+}
+.motion-on .review-items > article:nth-of-type(4),
+.motion-on .metric-grid > article:nth-of-type(4),
+.motion-on .lesson-links > button:nth-of-type(4),
+.motion-on .inbox-thread > article:nth-of-type(4),
+.motion-on .pipeline > details:nth-of-type(4),
+.motion-on .concept-panel .flow-steps > button:nth-of-type(4) {
+  animation-delay: 135ms;
+}
+.motion-on .review-items > article:nth-of-type(5),
+.motion-on .metric-grid > article:nth-of-type(5),
+.motion-on .lesson-links > button:nth-of-type(5),
+.motion-on .inbox-thread > article:nth-of-type(5),
+.motion-on .pipeline > details:nth-of-type(5),
+.motion-on .concept-panel .flow-steps > button:nth-of-type(5) {
+  animation-delay: 180ms;
+}
+/* Past the fifth the wait would be felt rather than seen, so it stops growing. */
+.motion-on .review-items > article:nth-of-type(n + 6),
+.motion-on .metric-grid > article:nth-of-type(n + 6),
+.motion-on .lesson-links > button:nth-of-type(n + 6),
+.motion-on .inbox-thread > article:nth-of-type(n + 6),
+.motion-on .pipeline > details:nth-of-type(n + 6),
+.motion-on .concept-panel .flow-steps > button:nth-of-type(n + 6) {
+  animation-delay: 220ms;
+}
+
+/* ---------- A card answers the pointer ----------
+   Not a lift: raising a card moves its own buttons out from under the cursor.
+   The edge warms and the shadow deepens, which is enough to say "this is a
+   thing", and it costs nothing on a machine that cannot paint it. */
+.motion-on .review-item,
+.motion-on .metric-grid article,
+.motion-on .lesson-links button,
+.motion-on .inbox-thread article {
+  transition:
+    border-color 0.25s var(--mo-ease),
+    box-shadow 0.25s var(--mo-ease);
+}
+.motion-on .review-item:hover,
+.motion-on .metric-grid article:hover,
+.motion-on .inbox-thread article:hover {
+  border-color: #c3b8a4;
+  box-shadow: 0 22px 44px -34px rgba(20, 54, 95, 0.55);
+}
+
+/* ---------- Explore: one concept gives way to the next ----------
+   Stepping through a lesson is the product's whole point, and the text used to
+   swap with nothing between the two. Keyed on the part, so it replays on every
+   move, and short enough never to stand between a reader and the words. */
+/* Wipes and moves, and never fades: a fading element is a lower-contrast
+   element for as long as the fade lasts, which axe measures and fails. Every
+   other entrance in this file works the same way for the same reason. */
+@keyframes mo-concept {
+  from {
+    transform: translateY(10px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(-40px);
+  }
+}
+.motion-on .concept-lead {
+  animation: mo-concept 0.34s var(--mo-ease) both;
+}
+.motion-on .concept-lead h2 {
+  animation: mo-concept 0.42s var(--mo-ease) both;
+  animation-delay: 50ms;
+}
+.motion-on .concept-lead .concept-description {
+  animation: mo-concept 0.46s var(--mo-ease) both;
+  animation-delay: 95ms;
+}
+
+/* ---------- A card answers the pointer ----------
+   A soft light follows the cursor across whichever card it is over. This is
+   what reads as alive in a still screenshot and in a demo video, and it costs
+   one custom property on one element per frame. */
+.motion-on .review-item,
+.motion-on .metric-grid article,
+.motion-on .lesson-main,
+.motion-on .concept-panel,
+.motion-on .tree-panel,
+.motion-on .transcript-panel,
+.motion-on .glossary-panel,
+.motion-on .inbox-thread article,
+.motion-on .ai-upload,
+.motion-on .yt-search,
+.motion-on .login-form,
+.motion-on .term-card,
+.motion-on .map-editor {
+  position: relative;
+  isolation: isolate;
+}
+.motion-on .is-lit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  /* Light falling on paper, in this page's own colours: a warm core the
+     amber of the wordmark's dot, inside a wide, cold ink halo. The flat blue
+     wash it replaced belonged to no part of this palette. */
+  background:
+    radial-gradient(
+      150px circle at var(--mx, 50%) var(--my, 50%),
+      rgba(182, 104, 0, 0.1),
+      rgba(182, 104, 0, 0.03) 45%,
+      transparent 72%
+    ),
+    radial-gradient(
+      340px circle at var(--mx, 50%) var(--my, 50%),
+      rgba(20, 54, 95, 0.045),
+      transparent 74%
+    );
+  animation: mo-lit 0.45s var(--mo-ease) both;
+}
+/* The edge warms under the pointer too, so the card is lit rather than merely
+   tinted. */
+.motion-on .is-lit {
+  border-color: #cdbfa4;
+}
+@keyframes mo-lit {
+  from {
+    clip-path: circle(0% at var(--mx, 50%) var(--my, 50%));
+  }
+  to {
+    clip-path: circle(140% at var(--mx, 50%) var(--my, 50%));
+  }
+}
+
+/* ---------- The page is never quite still ----------
+   Two very slow warm lights drifting behind the paper, far too soft to read as
+   decoration and far too slow to pull at the eye, but the page is alive the
+   moment it opens rather than only while something is scrolling. */
+@keyframes mo-drift-a {
+  from {
+    transform: translate3d(-6vw, -3vh, 0) scale(1);
+  }
+  to {
+    transform: translate3d(7vw, 5vh, 0) scale(1.18);
+  }
+}
+@keyframes mo-drift-b {
+  from {
+    transform: translate3d(5vw, 4vh, 0) scale(1.12);
+  }
+  to {
+    transform: translate3d(-6vw, -4vh, 0) scale(1);
+  }
+}
+.motion-on main:not(.under-header)::before,
+.motion-on main:not(.under-header)::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  width: 60vw;
+  height: 60vw;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(90px);
+}
+.motion-on main:not(.under-header)::before {
+  top: -18vw;
+  left: -10vw;
+  background: radial-gradient(circle, rgba(44, 95, 179, 0.09), transparent 66%);
+  animation: mo-drift-a 34s ease-in-out infinite alternate;
+}
+.motion-on main:not(.under-header)::after {
+  bottom: -24vw;
+  right: -12vw;
+  background: radial-gradient(circle, rgba(182, 104, 0, 0.08), transparent 66%);
+  animation: mo-drift-b 42s ease-in-out infinite alternate;
+}
+
+/* ---------- The flow flows ----------
+   The arrows between parts carry travelling dashes, so a reader can see which
+   way the lesson runs without reading a single label. Slow, and only while the
+   page has motion on. */
+@keyframes mo-flow {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+.motion-on .diagram .flow-line {
+  stroke-dasharray: 10 18;
+  animation: mo-flow 1.6s linear infinite;
+}

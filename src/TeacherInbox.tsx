@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Words } from "./motion";
 import {
   Check,
   Inbox,
@@ -107,7 +108,9 @@ export default function TeacherInbox({
       <div className="inbox-header">
         <div>
           <span className="section-kicker">Teacher inbox</span>
-          <h1>Every question, one desk.</h1>
+          <h1>
+            <Words text="Every question, one desk." timed />
+          </h1>
           <p className="small">
             What your class sent while learning — newest first. You decide what
             needs an answer; nothing leaves this room.

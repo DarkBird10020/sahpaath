@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Words } from "./motion";
 import { z } from "zod";
 import {
   Check,
@@ -81,6 +82,10 @@ export default function Teacher({
   const [editor, setEditor] = useState(false);
   const [focusItem, setFocusItem] = useState("");
   const [notePromptFor, setNotePromptFor] = useState("");
+  // Which card's note field is open. Eight always-open, always-empty boxes
+  // stacked down the column was the heaviest thing on this screen; the field
+  // is asked for now, and still opens itself wherever one is required.
+  const [openNote, setOpenNote] = useState("");
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [questions, setQuestions] = useState<Question[]>([]);
   const [audit, setAudit] = useState<Audit[]>([]);
@@ -118,6 +123,12 @@ export default function Teacher({
     return () => { cancelled = true; clearTimeout(timer); };
   }, [selected, processing, onChange]);
   const issues = lesson ? validateMap(lesson.map) : [];
+  // Whether this analysis recorded any confidence at all, for the one line that
+  // replaces the same two dead sentences repeated on every card.
+  const measuredAnywhere = !lesson
+    ? false
+    : lesson.map.labels.some((l) => l.confidence !== null) ||
+      lesson.map.parts.some((p) => p.modelConfidence !== null);
   const sequence = lesson ? sequencePartIds(lesson.map) : [];
   const missing = lesson ? missingCallouts(lesson.map) : [];
   const pending = lesson
@@ -357,7 +368,9 @@ export default function Teacher({
       <div className="page-heading">
         <div>
           <span className="section-kicker">Teacher workspace</span>
-          <h1>Make the lesson open to everyone.</h1>
+          <h1>
+            <Words text="Make the lesson open to everyone." timed />
+          </h1>
           <p>Review once. Connect every way of learning.</p>
         </div>
         <span className="local-pill">
@@ -664,7 +677,14 @@ export default function Teacher({
                   }
                 />
               </div>
-              <div className="workflow-strip" aria-label="Lesson progress">
+              {/* The four steps were four loose circles with nothing between
+                  them. A rail under the strip fills to where the lesson has
+                  actually reached, and moves when it advances. */}
+              <div
+                className="workflow-strip"
+                aria-label="Lesson progress"
+                style={{ "--done": `${(lesson.status === "published" ? 4 : 2.5) * 25}%` } as React.CSSProperties}
+              >
                 {["Upload", "Validate", "Review", "Publish"].map((s, i) => (
                   <span
                     key={s}
@@ -905,6 +925,14 @@ export default function Teacher({
                           {new Set(issues.map((i) => i.itemId)).size} to check
                         </span>
                       </div>
+                      {/* Said once, above the column, instead of on all eight
+                          cards: nothing here has a measured confidence yet. */}
+                      {!measuredAnywhere && (
+                        <p className="small confidence-note">
+                          No confidence figures were recorded for this analysis, so none are shown on the
+                          items. Check each one against the diagram.
+                        </p>
+                      )}
                       {missing.length > 0 && (
                         <p className="missing-callouts" role="note">
                           <AlertTriangle size={15} aria-hidden="true" />
@@ -943,6 +971,14 @@ export default function Teacher({
                                 (l) => l.id === item.labelId,
                               )
                             : null;
+                          // A note is asked for when something is flagged, and
+                          // stays open once there is one to read.
+                          const noteWanted = findings.some((f) => f.severity === "warning");
+                          const noteOpen =
+                            noteWanted ||
+                            !!(notes[item.id] ?? item.reviewNote) ||
+                            openNote === item.id ||
+                            notePromptFor === item.id;
                           const label = isPart
                             ? item.name
                             : "from" in item
@@ -988,19 +1024,22 @@ export default function Teacher({
                                   )}
                                   {grounded ? "Grounded" : "Not grounded"}
                                 </span>
-                                {sourceLabel && (
+                                {/* Only a figure we actually have. Printed on
+                                    every card, "Not measured yet." and "Not
+                                    provided." were the same two dead lines
+                                    repeated down the whole column; the note
+                                    above the list says it once instead. */}
+                                {sourceLabel && sourceLabel.source === "model_read" && (
                                   <span className="small">
-                                    {sourceLabel.source === "model_read"
-                                      ? `Number ${sourceLabel.text} read by the AI model, not OCR`
-                                      : `OCR confidence: ${sourceLabel.confidence === null ? "Not measured yet." : `${sourceLabel.confidence}%`}`}
+                                    Number {sourceLabel.text} read by the AI model, not OCR
                                   </span>
                                 )}
-                                {"modelConfidence" in item && (
+                                {sourceLabel && sourceLabel.source !== "model_read" && sourceLabel.confidence !== null && (
+                                  <span className="small">OCR confidence: {sourceLabel.confidence}%</span>
+                                )}
+                                {"modelConfidence" in item && item.modelConfidence !== null && (
                                   <span className="small">
-                                    Model confidence:{" "}
-                                    {item.modelConfidence === null
-                                      ? "Not provided."
-                                      : `${item.modelConfidence}% (the model’s own estimate)`}
+                                    Model confidence: {item.modelConfidence}% (the model’s own estimate)
                                   </span>
                                 )}
                               </div>
@@ -1089,30 +1128,39 @@ export default function Teacher({
                               )}
                               {lesson.status !== "published" && (
                                 <div className="decision-controls">
-                                  <label>
-                                    Review note
-                                    {findings.some(
-                                      (f) => f.severity === "warning",
-                                    )
-                                      ? " (required for flagged content)"
-                                      : " (optional)"}
-                                    <input
-                                      aria-label={`Review note for ${label}`}
-                                      value={notes[item.id] ?? item.reviewNote}
-                                      maxLength={1000}
-                                      className={
-                                        notePromptFor === item.id
-                                          ? "note-required"
-                                          : undefined
-                                      }
-                                      onChange={(e) =>
-                                        setNotes({
-                                          ...notes,
-                                          [item.id]: e.target.value,
-                                        })
-                                      }
-                                    />
-                                  </label>
+                                  {noteOpen ? (
+                                    <label>
+                                      Review note
+                                      {noteWanted
+                                        ? " (required for flagged content)"
+                                        : " (optional)"}
+                                      <input
+                                        autoFocus={openNote === item.id}
+                                        aria-label={`Review note for ${label}`}
+                                        value={notes[item.id] ?? item.reviewNote}
+                                        maxLength={1000}
+                                        className={
+                                          notePromptFor === item.id
+                                            ? "note-required"
+                                            : undefined
+                                        }
+                                        onChange={(e) =>
+                                          setNotes({
+                                            ...notes,
+                                            [item.id]: e.target.value,
+                                          })
+                                        }
+                                      />
+                                    </label>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="link-button add-note"
+                                      onClick={() => setOpenNote(item.id)}
+                                    >
+                                      Add a review note
+                                    </button>
+                                  )}
                                   <div className="button-row">
                                     <button
                                       className="approve"
@@ -1314,6 +1362,9 @@ export default function Teacher({
                         {s.simulation && (
                           <span className="simulation">Demo simulation</span>
                         )}
+                        {s.durationMs !== null && (
+                          <span className="stage-duration">{s.durationMs.toFixed(1)} ms</span>
+                        )}
                         <span className="stage-status">{s.status}</span>
                       </summary>
                       <p>{s.detail}</p>
@@ -1409,12 +1460,21 @@ export default function Teacher({
                     ))
                   )}
                   <h3>Review history</h3>
-                  <ol className="audit-list">
+                  {/* A history is a sequence, so it reads as one: a rail down
+                      the events, and how long ago rather than a full timestamp.
+                      The exact time stays on the element for anyone who wants
+                      it. */}
+                  <ol className="audit-list activity-feed">
                     {audit.map((a) => (
                       <li key={a.id}>
-                        <strong>{a.action.replaceAll("_", " ")}</strong>
-                        <p>{a.detail}</p>
-                        <time>{new Date(a.createdAt).toLocaleString()}</time>
+                        <span className="activity-dot" aria-hidden="true" />
+                        <div className="activity-body">
+                          <strong>{a.action.replaceAll("_", " ")}</strong>
+                          <p>{a.detail}</p>
+                        </div>
+                        <time dateTime={a.createdAt} title={new Date(a.createdAt).toLocaleString()}>
+                          {since(a.createdAt)}
+                        </time>
                       </li>
                     ))}
                   </ol>
@@ -1427,6 +1487,25 @@ export default function Teacher({
     </div>
   );
 }
+/** How long ago, in the words a reader uses. The exact time stays in `title`. */
+function since(iso: string) {
+  const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (seconds < 45) return "just now";
+  const steps: [number, string][] = [
+    [60, "min"],
+    [3600, "hour"],
+    [86400, "day"],
+  ];
+  for (const [unit, name] of steps) {
+    const next = unit * (name === "min" ? 60 : name === "hour" ? 24 : 365);
+    if (seconds < next) {
+      const n = Math.round(seconds / unit);
+      return `${n} ${name}${n === 1 ? "" : "s"} ago`;
+    }
+  }
+  return new Date(iso).toLocaleDateString();
+}
+
 /**
  * A part as a reader sees it: the diagram's own number, then its name. Used for
  * a part's title and for both ends of a relationship, so "6 → 7" can never

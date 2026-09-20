@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Words } from "./motion";
 import { z } from "zod";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Globe, MessageCircle, Search, Sparkles, Upload } from "lucide-react";
 import { api, fileBase64 } from "./api";
@@ -204,7 +205,9 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
   return (
     <div className="workspace ai-page">
       <span className="section-kicker">AI helper</span>
-      <h1>Explain any diagram.</h1>
+      <h1>
+        <Words text="Explain any diagram." timed />
+      </h1>
       <p className="ai-intro">
         Stuck on a diagram in a book, e-book or worksheet? Upload a picture of it. It opens in the diagram explorer: move
         through its parts with the keyboard, follow the flow, hear each part read aloud and ask about anything. No teacher
@@ -262,7 +265,7 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
       >
         <FileField
           label={credit ? "Or upload your own" : "Diagram image"}
-          hint="PNG or JPEG, up to 5 MB"
+          hint="PNG or JPEG · 5 MB"
           accept="image/png,image/jpeg"
           onChange={(e) => {
             const chosen = e.target.files?.[0] ?? null;
@@ -303,6 +306,29 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
           </figure>
         )}
       </form>
+      {/* The page ended here, and below it was half a screen of empty paper
+          until something was loaded. These are the page's own three stages -
+          the same ones the working state counts through while it runs - so the
+          space says what will happen rather than nothing at all. */}
+      {!busy && !result && (
+        <ol className="next-steps" aria-label="What happens after you choose a diagram">
+          <li>
+            <span aria-hidden="true">1</span>
+            <strong>The labels are read</strong>
+            <small>Straight off the picture, before a word of explanation is written.</small>
+          </li>
+          <li>
+            <span aria-hidden="true">2</span>
+            <strong>Parts and connections are proposed</strong>
+            <small>Each one has to trace back to a label that is really on the diagram.</small>
+          </li>
+          <li>
+            <span aria-hidden="true">3</span>
+            <strong>It opens in the explorer</strong>
+            <small>Move through the parts by keyboard, follow the flow, hear each one read aloud.</small>
+          </li>
+        </ol>
+      )}
       {busy && (
         <DiagramWorking
           image={preview || null}

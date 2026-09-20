@@ -42,6 +42,63 @@ export function useMotion(calm: boolean) {
   return on;
 }
 
+/** Cards the pointer can light. Selected here rather than tagged in the markup
+ * so one listener covers every page. */
+const LIT = ".review-item, .metric-grid article, .lesson-main, .concept-panel, .tree-panel, .transcript-panel, .glossary-panel, .inbox-thread article, .ai-upload, .yt-search, .login-form, .term-card, .map-editor";
+
+/**
+ * A card answers the pointer: a soft light follows the cursor across whichever
+ * card it is over, written as two custom properties on that card. One listener
+ * for the whole page, one frame per move, and nothing at all when motion is off.
+ */
+export function usePointerLight(on: boolean) {
+  useEffect(() => {
+    if (!on || !matchMedia("(pointer: fine)").matches) return;
+    let frame = 0;
+    let lit: HTMLElement | null = null;
+    // The newest position, painted on the next frame. Keeping the position
+    // rather than the event means a frame that never arrives cannot wedge the
+    // whole thing: the next move simply replaces what is waiting.
+    let next: { x: number; y: number; card: HTMLElement | null } | null = null;
+    const clear = () => {
+      lit?.classList.remove("is-lit");
+      lit = null;
+    };
+    const paint = () => {
+      frame = 0;
+      const now = next;
+      next = null;
+      if (!now) return;
+      if (now.card !== lit) clear();
+      if (!now.card) return;
+      const box = now.card.getBoundingClientRect();
+      now.card.style.setProperty("--mx", `${Math.round(now.x - box.left)}px`);
+      now.card.style.setProperty("--my", `${Math.round(now.y - box.top)}px`);
+      now.card.classList.add("is-lit");
+      lit = now.card;
+    };
+    const move = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      next = { x: event.clientX, y: event.clientY, card: target?.closest<HTMLElement>(LIT) ?? null };
+      if (!frame) frame = requestAnimationFrame(paint);
+    };
+    // Only when the pointer truly leaves the document: a leave listener on the
+    // window also fires as the pointer crosses between elements, which put the
+    // light out again the instant it was lit.
+    const leave = (event: PointerEvent) => {
+      if (!event.relatedTarget) clear();
+    };
+    addEventListener("pointermove", move, { passive: true });
+    document.documentElement.addEventListener("pointerleave", leave);
+    return () => {
+      cancelAnimationFrame(frame);
+      removeEventListener("pointermove", move);
+      document.documentElement.removeEventListener("pointerleave", leave);
+      clear();
+    };
+  }, [on]);
+}
+
 /**
  * The landing header stays visible at the top or when pinned. Keyboard focus
  * reveals it; pointer focus must not accidentally pin it after a click.

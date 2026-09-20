@@ -14,7 +14,7 @@ import {
 import { summarySchema, type Summary } from "../shared/evaluation";
 import DiagramStory from "./DiagramStory";
 import LandingSections from "./LandingSections";
-import { useMotion, useStickyHeader } from "./motion";
+import { useMotion, useStickyHeader, usePointerLight } from "./motion";
 import NavMenu from "./NavMenu";
 import Teacher from "./Teacher";
 import Account from "./Account";
@@ -85,6 +85,7 @@ export default function App() {
   const main = useRef<HTMLElement>(null);
   const header = useRef<HTMLElement>(null);
   const motion = useMotion(preferences.calm);
+  usePointerLight(motion);
   const [menu, setMenu] = useState(false);
   const closeMenu = useCallback(() => setMenu(false), []);
   useEffect(() => {
@@ -696,16 +697,32 @@ export default function App() {
                 ] as const
               ).map(([label, key, ratio]) => {
                 const value = summary?.[key] ?? null;
+                // The number is the card, not a sentence about the number. With
+                // nothing recorded the card shows the shape a figure will take -
+                // a dash where it goes, a flat bar under it - instead of saying
+                // "Not measured yet." ten times down the grid. The paragraph
+                // above the grid already says it once, with the run count.
                 return (
-                  <article key={label}>
+                  <article key={label} className={value === null ? "metric is-blank" : "metric"}>
                     <h2>{label}</h2>
-                    <p>
-                      {value === null
-                        ? "Not measured yet."
-                        : ratio
-                          ? `${Math.round(value * 1000) / 10}%`
-                          : `${Math.round(value * 100) / 100} ms`}
+                    <p className="metric-value">
+                      {value === null ? (
+                        <>
+                          <span aria-hidden="true">—</span>
+                          <span className="sr-only">Not measured yet.</span>
+                        </>
+                      ) : (
+                        <>
+                          {ratio ? Math.round(value * 1000) / 10 : Math.round(value * 100) / 100}
+                          <span className="metric-unit">{ratio ? "%" : "ms"}</span>
+                        </>
+                      )}
                     </p>
+                    <span
+                      className="metric-bar"
+                      aria-hidden="true"
+                      style={{ "--fill": ratio && value !== null ? `${Math.min(100, value * 100)}%` : "0%" } as React.CSSProperties}
+                    />
                   </article>
                 );
               })}

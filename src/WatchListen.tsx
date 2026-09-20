@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Words } from "./motion";
 import { z } from "zod";
 import { Captions as CaptionsIcon, FileText, Film, Search, Sparkles } from "lucide-react";
 import { api, fileBase64 } from "./api";
@@ -262,7 +263,9 @@ export default function WatchListen({ report }: { report: (m: string) => void })
   return (
     <div className="workspace ai-page">
       <span className="section-kicker">Watch &amp; listen</span>
-      <h1>Captions that explain the hard words.</h1>
+      <h1>
+        <Words text="Captions that explain the hard words." timed />
+      </h1>
       <p className="ai-intro">
         Search YouTube for a lesson, or load a video, a lecture recording or an audiobook chapter of your own (up to 30
         minutes). Get captions that follow along, then tap any highlighted word for a simple meaning.
@@ -355,7 +358,7 @@ export default function WatchListen({ report }: { report: (m: string) => void })
         <FileField
           className="up-subs"
           label={video ? "Subtitles for this video" : "Load subtitles"}
-          hint=".vtt or .srt · free and instant"
+          hint=".vtt or .srt"
           accept=".vtt,.srt,text/vtt"
           onChange={async (e) => {
             const sub = e.target.files?.[0];
@@ -378,6 +381,27 @@ export default function WatchListen({ report }: { report: (m: string) => void })
           </button>
         )}
       </div>
+      {/* Half a screen of empty paper sat below this until a file was loaded.
+          These are what the page actually does with one, in order. */}
+      {!busy && !segments.length && !url && !video && (
+        <ol className="next-steps" aria-label="What happens after you choose a file">
+          <li>
+            <span aria-hidden="true">1</span>
+            <strong>The recording is listened to</strong>
+            <small>Up to thirty minutes of video, a lecture or an audiobook chapter.</small>
+          </li>
+          <li>
+            <span aria-hidden="true">2</span>
+            <strong>Captions are written and timed</strong>
+            <small>They follow along with the player, line by line, as it plays.</small>
+          </li>
+          <li>
+            <span aria-hidden="true">3</span>
+            <strong>The hard words are marked</strong>
+            <small>Tap any highlighted word and a simple meaning comes up beside it.</small>
+          </li>
+        </ol>
+      )}
       {busy && <CaptionsWorking progress={progress || "Listening to the recording…"} />}
       {error && (
         <p className="error" role="alert">
