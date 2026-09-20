@@ -1359,6 +1359,15 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     const published = store.published(lessonId);
     return json(res, store.captionSessions(lessonId).filter((s) => s.version === published.version));
   }
+  // Hide (or restore) one line of a caption session. Nothing is erased; see Store.hideSegment.
+  const captionLine = path.match(/^\/api\/caption-sessions\/([\w-]+)\/segments\/([\w-]+)\/(hide|restore)$/);
+  if (captionLine && method === "POST") {
+    teacher(req);
+    const [, sessionId, segmentId, what] = captionLine;
+    const found = what === "hide" ? store.hideSegment(sessionId, segmentId) : store.restoreSegment(sessionId, segmentId);
+    if (!found) throw new HttpError(404, "That caption line was not found.");
+    return json(res, { ok: true });
+  }
   const captionSession = path.match(
     /^\/api\/caption-sessions\/([\w-]+)(?:\/(segments|search|export|end|credentials))?$/,
   );

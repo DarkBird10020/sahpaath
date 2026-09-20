@@ -47,6 +47,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS evaluation_runs (id TEXT PRIMARY KEY, fixture_id TEXT NOT NULL, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS caption_sessions (id TEXT PRIMARY KEY, lesson_id TEXT NOT NULL, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS caption_segments (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, lesson_id TEXT NOT NULL, body TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS hidden_segments (id TEXT PRIMARY KEY, hidden_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS demo (key TEXT PRIMARY KEY, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, role TEXT NOT NULL, code TEXT NOT NULL, expires INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS account_sessions (token TEXT PRIMARY KEY REFERENCES sessions(token) ON DELETE CASCADE, role_selected INTEGER NOT NULL DEFAULT 0);
@@ -425,14 +426,37 @@ export class Store {
   segments(sessionId: string): Segment[] {
     return (
       this.db
-        .prepare("SELECT body FROM caption_segments WHERE session_id=? ORDER BY rowid")
+        .prepare("SELECT body FROM caption_segments WHERE session_id=? AND id NOT IN (SELECT id FROM hidden_segments) ORDER BY rowid")
         .all(sessionId) as { body: string }[]
     ).map((r) => segmentSchema.parse(JSON.parse(r.body)));
+  }
+  /**
+   * Takes one line out of the transcript everywhere (live view, search, export, glossary)
+   * without erasing it: the stored line is untouched and restoreSegment() puts it back.
+   * Returns false when the line is not in that session.
+   */
+  hideSegment(sessionId: string, segmentId: string): boolean {
+    const row = this.db
+      .prepare("SELECT lesson_id FROM caption_segments WHERE id=? AND session_id=?")
+      .get(segmentId, sessionId) as { lesson_id: string } | undefined;
+    if (!row) return false;
+    this.db.prepare("INSERT OR IGNORE INTO hidden_segments VALUES (?, ?)").run(segmentId, new Date().toISOString());
+    this.audit(row.lesson_id, "caption_line_hidden", `Caption line ${segmentId} was hidden from the transcript at the teacher's request. It is kept in storage.`);
+    return true;
+  }
+  restoreSegment(sessionId: string, segmentId: string): boolean {
+    const row = this.db
+      .prepare("SELECT lesson_id FROM caption_segments WHERE id=? AND session_id=?")
+      .get(segmentId, sessionId) as { lesson_id: string } | undefined;
+    if (!row) return false;
+    this.db.prepare("DELETE FROM hidden_segments WHERE id=?").run(segmentId);
+    this.audit(row.lesson_id, "caption_line_restored", `Caption line ${segmentId} was put back in the transcript.`);
+    return true;
   }
   lessonSegments(lessonId: string, version: number): Segment[] {
     return (
       this.db
-        .prepare("SELECT body FROM caption_segments WHERE lesson_id=? ORDER BY rowid")
+        .prepare("SELECT body FROM caption_segments WHERE lesson_id=? AND id NOT IN (SELECT id FROM hidden_segments) ORDER BY rowid")
         .all(lessonId) as { body: string }[]
     )
       .map((r) => segmentSchema.parse(JSON.parse(r.body)))

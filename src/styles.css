@@ -5284,3 +5284,26 @@ button.primary[aria-busy="true"] {
     flex-wrap: wrap;
   }
 }
+
+.caption-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.line-hide {
+  border: 1px solid transparent;
+  background: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: #4b5f72;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.line-hide:hover,
+.line-hide:focus-visible {
+  opacity: 1;
+  border-color: #dcd6c9;
+  background: #fffdf8;
+}
