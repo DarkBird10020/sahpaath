@@ -247,6 +247,7 @@ export const captionSchema = z.object({
 export const captionSourceSchema = z.enum([
   "transcribe",
   "browser_speech",
+  "ai_speech",
   "typed",
   "demo_script",
 ]);

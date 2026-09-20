@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Mic, MicOff, Square, Keyboard, PlayCircle, Download } from "lucide-react";
+import { startLiveTranscription } from "./lib/liveTranscribe";
 import { requestMicrophone, quietSpeechErrors, speechErrorMessage } from "./lib/microphone";
 import { api } from "./api";
 import {
@@ -18,6 +19,7 @@ import { segmentsFromHits } from "../shared/vocabulary";
 const sourceLabel: Record<CaptionSource, string> = {
   transcribe: "Amazon Transcribe",
   browser_speech: "Browser speech recognition · your browser’s own speech service, not AWS",
+  ai_speech: "AI speech-to-text · microphone audio is sent to Google Gemini; lines appear a few seconds after speaking",
   typed: "Typed live by the teacher",
   demo_script: "Demo simulation · scripted lecture lines",
 };
@@ -39,6 +41,9 @@ type Recognition = {
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
 };
+const aiTranscriptSchema = z.object({
+  segments: z.array(z.object({ startMs: z.number(), endMs: z.number(), text: z.string() })),
+});
 const Recognizer = (): (new () => Recognition) | undefined =>
   (window as unknown as Record<string, new () => Recognition>).SpeechRecognition ??
   (window as unknown as Record<string, new () => Recognition>).webkitSpeechRecognition;
@@ -66,6 +71,7 @@ export default function LiveCaptions({
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const recognition = useRef<Recognition | null>(null);
+  const stopAi = useRef<(() => Promise<void>) | null>(null);
   const lastInterim = useRef(0);
   const teacher = session.role === "teacher";
   const isLive = live?.session.status === "live";
@@ -90,6 +96,7 @@ export default function LiveCaptions({
       active = false;
       clearInterval(timer);
       recognition.current?.stop();
+      void stopAi.current?.();
     };
   }, [lesson.lessonId, lesson.version]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -104,7 +111,7 @@ export default function LiveCaptions({
     setError("");
     setMicError("");
     try {
-      if (source === "browser_speech") {
+      if (source === "browser_speech" || source === "ai_speech") {
         const problem = await requestMicrophone();
         if (problem) {
           setMicError(problem);
@@ -115,6 +122,7 @@ export default function LiveCaptions({
       await load();
       report(`Live captions started: ${sourceLabel[s.source]}.`);
       if (source === "browser_speech") void listen(s.id);
+      if (source === "ai_speech") void listenAi(s.id);
       if (source === "demo_script") await playSample(s.id);
     } catch (e) {
       setError((e as Error).message);
@@ -177,7 +185,31 @@ export default function LiveCaptions({
     rec.start();
     setListening(true);
   }
+  async function listenAi(sessionId: string) {
+    const problem = await requestMicrophone();
+    if (problem) {
+      setMicError(problem);
+      return;
+    }
+    setMicError("");
+    try {
+      stopAi.current = await startLiveTranscription({
+        onChunk: async (base64, offsetMs) => {
+          const t = await api("/ai/transcribe", aiTranscriptSchema, "POST", { mime: "audio/wav", base64, offsetMs });
+          for (const seg of t.segments) await post(sessionId, seg.text, true);
+          await load();
+        },
+        onError: (message) => setMicError(`Live captions paused: ${message}`),
+      });
+      setListening(true);
+    } catch (e) {
+      setMicError((e as Error).message || "The microphone could not be opened. Type captions instead.");
+    }
+  }
   function stopListening() {
+    const stop = stopAi.current;
+    stopAi.current = null;
+    void stop?.();
     const rec = recognition.current;
     recognition.current = null;
     rec?.stop();
@@ -294,14 +326,14 @@ export default function LiveCaptions({
               </button>
             </form>
             <div className="button-row">
-              {Recognizer() &&
+              {(Recognizer() || live.session.source === "ai_speech") &&
                 (listening ? (
                   <button onClick={stopListening}>
                     <MicOff size={17} aria-hidden="true" />
                     Stop microphone
                   </button>
                 ) : (
-                  <button onClick={() => void listen(live.session.id)}>
+                  <button onClick={() => void (live.session.source === "ai_speech" ? listenAi(live.session.id) : listen(live.session.id))}>
                     <Mic size={17} aria-hidden="true" />
                     Use microphone
                   </button>
@@ -314,10 +346,14 @@ export default function LiveCaptions({
           </div>
         ) : (
           <div className="button-row live-controls">
+            <button className="primary" disabled={busy} onClick={() => void start("ai_speech")}>
+              <Mic size={17} aria-hidden="true" />
+              Start with microphone
+            </button>
             {Recognizer() && (
-              <button className="primary" disabled={busy} onClick={() => void start("browser_speech")}>
+              <button disabled={busy} onClick={() => void start("browser_speech")}>
                 <Mic size={17} aria-hidden="true" />
-                Start with microphone
+                Use browser speech instead
               </button>
             )}
             <button disabled={busy} onClick={() => void start("typed")}>
@@ -331,10 +367,11 @@ export default function LiveCaptions({
             <span className="simulation">Sample lecture = Demo simulation</span>
           </div>
         ))}
-      {teacher && Recognizer() && (
+      {teacher && (
         <p className="small">
-          The microphone option uses your browser’s speech service (Chrome sends
-          audio to Google). Amazon Transcribe is not connected.
+          “Start with microphone” sends short audio parts to Google Gemini and adds each line a few
+          seconds after it is spoken. “Use browser speech” uses your browser’s own speech service
+          instead. Amazon Transcribe is not connected.
         </p>
       )}
     </section>
