@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from "react";
 import {
   Check,
   Circle,
@@ -9,6 +16,7 @@ import {
   MessageCircle,
   ArrowUpRight,
   Network,
+  Upload,
 } from "lucide-react";
 import type { DiagramMap, Published, TermSurfaces } from "../shared/schema";
 import { partNumber } from "../shared/domain";
@@ -47,6 +55,43 @@ export function Empty({
       <h2>{title}</h2>
       <p>{children}</p>
     </div>
+  );
+}
+/**
+ * A file field in the app's own hand. The browser's own control is a grey box
+ * reading "Choose File / No file chosen", in the operating system's font: it is
+ * the one thing on these pages that does not belong to them. The real input is
+ * still here, laid over the strip, so clicking, tabbing and dropping all work
+ * exactly as before - only the paint is ours, and the chosen file is named.
+ */
+export function FileField({
+  label,
+  hint = "No file chosen yet",
+  className,
+  onChange,
+  ...rest
+}: { label: ReactNode; hint?: string; className?: string } & InputHTMLAttributes<HTMLInputElement>) {
+  const [chosen, setChosen] = useState("");
+  const handle = (event: ChangeEvent<HTMLInputElement>) => {
+    setChosen(event.target.files?.[0]?.name ?? "");
+    onChange?.(event);
+  };
+  return (
+    <label className={className ? `file-field ${className}` : "file-field"}>
+      <span className="file-field-label">{label}</span>
+      <span className="file-drop">
+        <input type="file" onChange={handle} {...rest} />
+        {/* Paint only: the input itself already announces that it takes a file
+            and which one is chosen, so these must not join its name. */}
+        <span className="file-drop-button" aria-hidden="true">
+          <Upload size={16} />
+          Choose a file
+        </span>
+        <span className={chosen ? "file-drop-name is-chosen" : "file-drop-name"} aria-hidden="true">
+          {chosen || hint}
+        </span>
+      </span>
+    </label>
   );
 }
 export function Diagram({

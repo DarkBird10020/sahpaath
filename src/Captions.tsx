@@ -14,7 +14,7 @@ import {
   type TermSurfaces,
 } from "../shared/schema";
 import { highlightSegments } from "../shared/vocabulary";
-import { Empty, Status, SurfaceList } from "./components";
+import { Empty, FileField, Status, SurfaceList } from "./components";
 
 export default function Captions({
   lesson,
@@ -266,23 +266,21 @@ export default function Captions({
                 Load heart sample transcript
               </button>
             </div>
-            <label>
-              Or load a text file
-              <input
-                type="file"
-                accept=".txt,text/plain"
-                disabled={busy}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  if (file.size > 12000) {
-                    setError("Use a text file smaller than 12 KB.");
-                    return;
-                  }
-                  await add(await file.text(), "loaded_transcript");
-                }}
-              />
-            </label>
+            <FileField
+              label="Load a text file"
+              hint="Plain text · up to 12 KB"
+              accept=".txt,text/plain"
+              disabled={busy}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 12000) {
+                  setError("Use a text file smaller than 12 KB.");
+                  return;
+                }
+                await add(await file.text(), "loaded_transcript");
+              }}
+            />
           </form>
         )}
       </section>

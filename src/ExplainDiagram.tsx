@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Globe, MessageCircle, Search, Sparkles, Upload } from "lucide-react";
 import { api, fileBase64 } from "./api";
-import { ConceptTree, Diagram, Speak } from "./components";
+import { ConceptTree, Diagram, FileField, Speak } from "./components";
 import WordExplainer from "./WordExplainer";
 import { DiagramWorking, Spinner, Thinking } from "./Working";
 import { mapSchema, type DiagramMap } from "../shared/schema";
@@ -260,22 +260,20 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
           void explain();
         }}
       >
-        <label>
-          {credit ? "Or upload your own (PNG or JPEG, up to 5 MB)" : "Diagram image (PNG or JPEG, up to 5 MB)"}
-          <input
-            type="file"
-            accept="image/png,image/jpeg"
-            onChange={(e) => {
-              const chosen = e.target.files?.[0] ?? null;
-              if (chosen && chosen.size > 5_000_000) {
-                setResult(null);
-                setError("Choose an image smaller than 5 MB.");
-                return;
-              }
-              choose(chosen, null);
-            }}
-          />
-        </label>
+        <FileField
+          label={credit ? "Or upload your own" : "Diagram image"}
+          hint="PNG or JPEG, up to 5 MB"
+          accept="image/png,image/jpeg"
+          onChange={(e) => {
+            const chosen = e.target.files?.[0] ?? null;
+            if (chosen && chosen.size > 5_000_000) {
+              setResult(null);
+              setError("Choose an image smaller than 5 MB.");
+              return;
+            }
+            choose(chosen, null);
+          }}
+        />
         <label>
           Your question (optional)
           <input
