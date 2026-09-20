@@ -40,6 +40,8 @@ export async function startLiveTranscription(opts: {
   chunkMs?: number;
   onChunk: (base64: string, offsetMs: number) => Promise<void>;
   onError: (message: string) => void;
+  /** Loudness of the last moment (0-1), about 8 times a second, for a level meter. */
+  onLevel?: (level: number) => void;
 }): Promise<() => Promise<void>> {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
@@ -55,8 +57,16 @@ export async function startLiveTranscription(opts: {
   let sentMs = 0;
   let queue: Promise<void> = Promise.resolve();
   let open = true;
+  let lastLevelAt = 0;
   processor.onaudioprocess = (e) => {
-    if (open) pieces.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    if (!open) return;
+    const block = new Float32Array(e.inputBuffer.getChannelData(0));
+    pieces.push(block);
+    const now = performance.now();
+    if (opts.onLevel && now - lastLevelAt > 120) {
+      lastLevelAt = now;
+      opts.onLevel(rms(block));
+    }
   };
   source.connect(processor);
   processor.connect(mute);

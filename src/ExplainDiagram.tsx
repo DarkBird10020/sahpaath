@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Words } from "./motion";
 import { z } from "zod";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Globe, MessageCircle, Search, Sparkles, Upload } from "lucide-react";
-import { api, fileBase64 } from "./api";
+import { api, apiJob, fileBase64 } from "./api";
 import { ConceptTree, Diagram, FileField, Speak } from "./components";
 import WordExplainer from "./WordExplainer";
 import { DiagramWorking, Spinner, Thinking } from "./Working";
@@ -146,7 +146,7 @@ export default function ExplainDiagram({ report }: { report: (m: string) => void
     setResult(null);
     setReply(null);
     try {
-      const value = await api("/ai/explain-diagram", explanationSchema, "POST", {
+      const value = await apiJob("/ai/explain-diagram", explanationSchema, {
         mime: file.type,
         base64: await fileBase64(file),
         question: question.trim() || null,

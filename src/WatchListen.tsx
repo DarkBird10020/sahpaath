@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Words } from "./motion";
 import { z } from "zod";
 import { Captions as CaptionsIcon, FileText, Film, Search, Sparkles } from "lucide-react";
-import { api, fileBase64 } from "./api";
+import { api, apiJob, fileBase64 } from "./api";
 import WordExplainer from "./WordExplainer";
 import { FileField } from "./components";
 import { CaptionsWorking, Spinner } from "./Working";
@@ -167,7 +167,7 @@ export default function WatchListen({ report }: { report: (m: string) => void })
     reset();
     try {
       setProgress(`Watching “${video.title}” and writing captions…`);
-      const t = await api("/ai/transcribe-youtube", transcriptSchema, "POST", { videoId: video.videoId });
+      const t = await apiJob("/ai/transcribe-youtube", transcriptSchema, { videoId: video.videoId });
       setSegments(t.segments);
       setHardWords(t.hardWords);
       setSource(`AI captions (${t.model}). They can contain mistakes.`);

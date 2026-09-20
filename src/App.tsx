@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { ArrowRight, BookOpen, Captions as CaptionsIcon, Compass, GraduationCap, Headphones, LogOut, MessageSquare, Pin, PinOff, ScanText, Settings2 } from "lucide-react";
-import { api, okSchema, AUTH_CHANGED } from "./api";
+import { api, ApiError, okSchema, AUTH_CHANGED } from "./api";
 import { poll } from "./lib/poll";
 import { completeAuthCallback, initialAuthCallback, getAccessToken, supabase, supabaseSignOut } from "./lib/supabase";
 import {
@@ -161,7 +161,10 @@ export default function App() {
     const oauthReturn = initialAuthCallback.isCallback;
     void (oauthReturn
       ? completeAuthCallback().then(() => api("/session", sessionSchema, "POST", {}))
-      : api("/session", sessionSchema))
+      : api("/session?probe=1", sessionSchema.nullable()).then((value) => {
+          if (value === null) throw new ApiError("Sign in first.", 401);
+          return value;
+        }))
       .catch(async (error) => {
         if (oauthReturn) throw error;
         // Email confirmation and refreshed Supabase sessions may arrive without

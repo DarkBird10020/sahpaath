@@ -62,3 +62,52 @@ test("a tab whose role was changed by another tab notices, recovers and stops as
   // It used to keep polling the teacher-only endpoint every 3 s (301 forbidden answers in one evening).
   expect(demoCalls - settled).toBeLessThanOrEqual(1);
 });
+
+test("a first visit while signed out leaves the console and network clean", async ({ page }) => {
+  const problems: string[] = [];
+  page.on("console", (m) => {
+    if (m.type() === "error") problems.push(`console: ${m.text()}`);
+  });
+  page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
+  page.on("response", (r) => {
+    if (r.status() >= 400) problems.push(`${r.status()} ${new URL(r.url()).pathname}`);
+  });
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "SahPaath home" })).toBeVisible();
+  await page.waitForTimeout(3000);
+  expect(problems).toEqual([]);
+});
+
+test("the reading panel stays up while the diagram is still being analysed, then the review opens", async ({ page }) => {
+  await page.goto("/");
+  await page.request.post("/api/session", { data: { role: "teacher", password: "e2e-teacher" } });
+  const real = (await (await page.request.post("/api/lessons", { data: { fixtureId: "heart" } })).json()) as Lesson;
+  let reading = true;
+  // The server answers an upload at once and analyses in the background: the lesson exists,
+  // its map is still empty and its Analysis stage says "waiting".
+  const whileReading = (lesson: Lesson): Lesson => ({
+    ...lesson,
+    map: { labels: [], parts: [], relations: [], flows: [] },
+    stages: lesson.stages.map((stage) => (stage.name === "Analysis" || stage.name === "OCR labels" ? { ...stage, status: "waiting" as const } : stage)),
+  });
+  await page.route(/\/api\/lessons$/, async (route) => {
+    if (!reading || route.request().method() !== "GET") return route.continue();
+    const all = (await (await route.fetch()).json()) as Lesson[];
+    await route.fulfill({ json: all.map((l) => (l.id === real.id ? whileReading(l) : l)) });
+  });
+  await page.route(/\/api\/lessons\/[\w-]+\/processing-status$/, async (route) => {
+    if (!reading) return route.continue();
+    await route.fulfill({ json: whileReading(real) });
+  });
+  await page.goto("about:blank");
+  await page.goto("/#/teacher");
+  await expect(page.getByRole("heading", { name: "Reading your diagram" })).toBeVisible();
+  // Not the empty lesson that used to appear the moment the upload request returned.
+  await expect(page.getByText("0 concepts")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Edit map" })).toHaveCount(0);
+  await page.waitForTimeout(6000);
+  await expect(page.getByRole("heading", { name: "Reading your diagram" })).toBeVisible(); // still waiting
+  reading = false; // the background analysis finished
+  await expect(page.getByRole("heading", { name: "Reading your diagram" })).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "A journey through the heart", exact: true }).first()).toBeVisible();
+});

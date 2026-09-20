@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 vi.mock("../src/lib/supabase", () => ({ getAccessToken: async () => null }));
-import { api, ApiError, AUTH_CHANGED } from "../src/api";
+import { api, apiJob, ApiError, AUTH_CHANGED } from "../src/api";
 
 const signals: string[] = [];
 beforeEach(() => {
@@ -55,4 +55,62 @@ it("turns proxy error pages and timeouts into plain words, never a JSON parse er
   const offline = await failure(api("/x", any));
   expect(offline.message).toMatch(/Check your connection/);
   expect(offline.message).not.toMatch(/npm run dev/);
+});
+
+// --- apiJob: long AI calls run as background jobs the page polls ---
+const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
+const scripted = (...steps: (Response | Error)[]) => {
+  const calls: string[] = [];
+  vi.stubGlobal("fetch", async (url: string) => {
+    calls.push(url);
+    const step = steps.shift();
+    if (!step) throw new Error("unexpected extra request " + url);
+    if (step instanceof Error) throw step;
+    return step;
+  });
+  return calls;
+};
+const result = z.object({ title: z.string() });
+
+it("starts the job, polls until it is done, and returns the parsed result", async () => {
+  vi.useFakeTimers();
+  const calls = scripted(reply(202, { jobId: "job-1" }), reply(200, { state: "running" }), reply(200, { state: "running" }), reply(200, { state: "done", result: { title: "Heart" } }));
+  const promise = apiJob("/ai/explain-diagram", result, { mime: "image/png" });
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(await promise).toEqual({ title: "Heart" });
+  expect(calls).toEqual(["/api/ai/explain-diagram?async=1", "/api/ai/jobs/job-1", "/api/ai/jobs/job-1", "/api/ai/jobs/job-1"]);
+  vi.useRealTimers();
+});
+
+it("reports a failed job with the server's reason and status", async () => {
+  vi.useFakeTimers();
+  scripted(reply(202, { jobId: "job-2" }), reply(200, { state: "failed", status: 422, error: "No speech was found in that video." }));
+  const outcome = failure(apiJob("/ai/transcribe-youtube", result, { videoId: "x" }));
+  await vi.advanceTimersByTimeAsync(2000);
+  const error = await outcome;
+  expect(error.message).toBe("No speech was found in that video.");
+  expect(error.status).toBe(422);
+  vi.useRealTimers();
+});
+
+it("survives a couple of dropped connections while the job keeps running, but not endless ones", async () => {
+  vi.useFakeTimers();
+  scripted(reply(202, { jobId: "job-3" }), new TypeError("net"), new TypeError("net"), reply(200, { state: "done", result: { title: "ok" } }));
+  const survived = apiJob("/ai/x", result, {});
+  await vi.advanceTimersByTimeAsync(6000);
+  expect(await survived).toEqual({ title: "ok" });
+  scripted(reply(202, { jobId: "job-4" }), new TypeError("net"), new TypeError("net"), new TypeError("net"), new TypeError("net"));
+  const gaveUp = failure(apiJob("/ai/x", result, {}));
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect((await gaveUp).message).toMatch(/Check your connection/);
+  vi.useRealTimers();
+});
+
+it("gives up with a clear message when a job never finishes", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("fetch", async (url: string) => reply(url.includes("async=1") ? 202 : 200, url.includes("async=1") ? { jobId: "job-5" } : { state: "running" }));
+  const stuck = failure(apiJob("/ai/x", result, {}, 10_000));
+  await vi.advanceTimersByTimeAsync(20_000);
+  expect((await stuck).message).toMatch(/taking too long/);
+  vi.useRealTimers();
 });

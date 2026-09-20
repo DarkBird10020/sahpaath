@@ -4189,6 +4189,18 @@ code {
   from { transform: scaleY(0.15); }
   to { transform: scaleY(1); }
 }
+.working-mic .working-wave i {
+  animation: none;
+  transform: scaleY(var(--s, 0.12));
+  transition: transform 0.12s ease-out;
+}
+.working-mic.is-busy .working-wave i {
+  animation: working-wave 1s ease-in-out infinite alternate;
+  transform: none;
+}
+.working-mic .working-stages {
+  margin-bottom: 4px;
+}
 .working-lines {
   display: grid;
   gap: 10px;
