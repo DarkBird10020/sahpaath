@@ -62,6 +62,37 @@ export async function api<T>(
   return schema.parse(data);
 }
 export const okSchema = z.object({ ok: z.boolean() });
+
+const jobSchema = z.object({
+  state: z.enum(["running", "done", "failed"]),
+  result: z.unknown().optional(),
+  status: z.number().optional(),
+  error: z.string().optional(),
+});
+/**
+ * For AI calls that can take longer than a proxy allows (30 s): start the work on the
+ * server, then ask how it is going every 1.5 s until it finishes.
+ */
+export async function apiJob<T>(path: string, schema: z.ZodType<T>, value: unknown, timeoutMs = 5 * 60_000): Promise<T> {
+  const { jobId } = await api(`${path}?async=1`, z.object({ jobId: z.string() }), "POST", value);
+  const deadline = Date.now() + timeoutMs;
+  let blips = 0;
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    let job: z.infer<typeof jobSchema>;
+    try {
+      job = await api(`/ai/jobs/${jobId}`, jobSchema);
+      blips = 0;
+    } catch (error) {
+      // A dropped connection while waiting should not lose a job that is still running.
+      if ((error as { status?: number }).status === undefined && ++blips < 4) continue;
+      throw error;
+    }
+    if (job.state === "done") return schema.parse(job.result);
+    if (job.state === "failed") throw new ApiError(job.error ?? "AI help is unavailable right now. Please try again.", job.status ?? 502);
+    if (Date.now() > deadline) throw new Error("This is taking too long. Please try again in a minute.");
+  }
+}
 /** Base64 of a file without the "data:...;base64," prefix. */
 export function fileBase64(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {

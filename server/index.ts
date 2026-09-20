@@ -254,6 +254,32 @@ if (process.env.SAHPAATH_SEED_SAMPLES === "1") await seedSamples(store);
 // upload request runs into every proxy timeout (API Gateway stops at 30 s), so the
 // request returns at once with the lesson marked "waiting" and the work continues
 // here. The Teacher page already polls /processing-status while Analysis is waiting.
+// Long AI calls (explain a diagram, caption a YouTube video) can outlast a proxy's 30 s
+// limit. With ?async=1 they answer 202 at once and the page polls /api/ai/jobs/:id.
+// Results live in memory for 15 minutes and are only readable by the session that started them.
+type Job = { code: string; state: "running" | "done" | "failed"; result?: unknown; status?: number; error?: string; at: number };
+const jobs = new Map<string, Job>();
+function startJob(code: string, work: () => Promise<unknown>): string {
+  const now = Date.now();
+  for (const [key, job] of jobs) if (now - job.at > 900_000) jobs.delete(key);
+  if (jobs.size >= 200) throw new HttpError(503, "The classroom is busy. Try again in a minute.");
+  const id = randomUUID();
+  const job: Job = { code, state: "running", at: now };
+  jobs.set(id, job);
+  void work().then(
+    (result) => Object.assign(job, { state: "done", result, at: Date.now() }),
+    (error) => {
+      const known = error instanceof HttpError;
+      Object.assign(job, {
+        state: "failed",
+        status: known ? error.status : 502,
+        error: known ? error.message : "AI help is unavailable right now. Please try again.",
+        at: Date.now(),
+      });
+    },
+  );
+  return id;
+}
 const analysing = new Set<string>();
 function markAnalysing(lesson: Lesson): Lesson {
   return {
@@ -1163,19 +1189,32 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     // OCR runs once and feeds both the explanation and the explorer map.
     let ocrRun: ReturnType<typeof localOcrLines> | null = null;
     const ocr = () => (ocrRun ??= localOcrLines(bytes, ocrCacheDir));
-    try {
-      const [explanation, structure] = await Promise.all([
-        explainDiagram(config, { bytes, mime: input.mime }, ocr, input.question || null),
-        // The explorer map is optional: if it fails, the explanation still opens.
-        localTestEngine(config, ocrCacheDir, fetch, () => ocr()).run({ bytes, mime: input.mime }).catch(() => null),
-      ]);
-      return json(res, {
-        ...explanation,
-        model: config.model,
-        map: structure?.ok ? structure.map : null,
-        mapFindings: structure?.ok ? structure.issues.length : null,
-      });
-    } catch (error) { aiFailure(error); }
+    const work = async () => {
+      try {
+        const [explanation, structure] = await Promise.all([
+          explainDiagram(config, { bytes, mime: input.mime }, ocr, input.question || null),
+          // The explorer map is optional: if it fails, the explanation still opens.
+          localTestEngine(config, ocrCacheDir, fetch, () => ocr()).run({ bytes, mime: input.mime }).catch(() => null),
+        ]);
+        return {
+          ...explanation,
+          model: config.model,
+          map: structure?.ok ? structure.map : null,
+          mapFindings: structure?.ok ? structure.issues.length : null,
+        };
+      } catch (error) { aiFailure(error); }
+    };
+    if (url.searchParams.get("async") === "1") return json(res, { jobId: startJob(s.code, work) }, 202);
+    return json(res, await work());
+  }
+  const jobRoute = path.match(/^\/api\/ai\/jobs\/([\w-]{8,64})$/);
+  if (jobRoute && method === "GET") {
+    const s = session(req);
+    const job = jobs.get(jobRoute[1]);
+    if (!job || job.code !== s.code) throw new HttpError(404, "That request is no longer available. Please try again.");
+    if (job.state === "running") return json(res, { state: "running" });
+    if (job.state === "done") return json(res, { state: "done", result: job.result });
+    return json(res, { state: "failed", status: job.status, error: job.error });
   }
   if (path === "/api/ai/ask-diagram" && method === "POST") {
     const s = session(req);
@@ -1278,12 +1317,16 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
           `That video is ${Math.round(video.durationSeconds / 60)} minutes long. AI captions support up to ${MAX_VIDEO_SECONDS / 60} minutes.`,
         );
     }
-    try {
-      const t = await transcribeYouTube(config, `https://www.youtube.com/watch?v=${videoId}`);
-      if (!t.segments.length)
-        throw new HttpError(422, "No speech was found in that video. It may be silent, private or unavailable in this region.");
-      return json(res, { segments: t.segments, hardWords: t.hardWords, model: config.model });
-    } catch (error) { aiFailure(error); }
+    const work = async () => {
+      try {
+        const t = await transcribeYouTube(config, `https://www.youtube.com/watch?v=${videoId}`);
+        if (!t.segments.length)
+          throw new HttpError(422, "No speech was found in that video. It may be silent, private or unavailable in this region.");
+        return { segments: t.segments, hardWords: t.hardWords, model: config.model };
+      } catch (error) { aiFailure(error); }
+    };
+    if (url.searchParams.get("async") === "1") return json(res, { jobId: startJob(s.code, work) }, 202);
+    return json(res, await work());
   }
   // ClassCaption: live sessions of timed final segments on a published version.
   if (path === "/api/caption-sessions" && method === "POST") {
@@ -1429,7 +1472,10 @@ const server = createServer(async (req, res) => {
       )
         throw new HttpError(403, "Invalid path.");
       const file = extname(requested) ? requested : resolve("dist/index.html");
-      const contents = await readFile(file);
+      const contents = await readFile(file).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT" || error.code === "EISDIR") throw new HttpError(404, "Not found.");
+        throw error;
+      });
       const types: Record<string, string> = {
         ".html": "text/html",
         ".js": "text/javascript",
@@ -1451,12 +1497,19 @@ const server = createServer(async (req, res) => {
       const mapped = toErrorResponse(error);
       json(res, mapped.body, mapped.status);
     } else {
+      // Node system errors (ENOENT, EACCES, ...) are the server's problem, not a conflict,
+      // and their text names internal paths: log them, answer with a plain 500.
+      const systemCode = (error as NodeJS.ErrnoException | null)?.code;
+      const internal = typeof systemCode === "string" && /^E[A-Z]+$/.test(systemCode);
+      if (internal) logFailure("server", error);
       const status =
         error instanceof HttpError
           ? error.status
           : error instanceof z.ZodError
             ? 400
-            : 409;
+            : internal
+              ? 500
+              : 409;
       json(
         res,
         {
@@ -1465,9 +1518,11 @@ const server = createServer(async (req, res) => {
               ? error.issues
                   .map((i) => `${i.path.join(".")}: ${i.message}`)
                   .join("; ")
-              : error instanceof Error
-                ? error.message
-                : "Request failed. Retry or reload the lesson.",
+              : internal
+                ? "Something went wrong on the server. Please try again."
+                : error instanceof Error
+                  ? error.message
+                  : "Request failed. Retry or reload the lesson.",
         },
         status,
       );
