@@ -18,6 +18,7 @@ import { Store } from "./store";
 import { recordMetric, routeShape } from "./metrics";
 import { awsEngine, createLesson, imageType } from "./providers";
 import type { Lesson } from "../shared/schema";
+import { createSlots } from "./slots";
 import { GeminiProposalAdapter, LocalOcrAdapter, localOcrLines, localTestEngine, readGeminiConfig } from "./local-ai";
 import { answerAboutDiagram, answerFromLesson, diagramContextSchema, explainDiagram, explainWord, transcribeMedia, transcribeYouTube } from "./tutor";
 import { lookupVideo, MAX_VIDEO_SECONDS, parseVideoId, readYouTubeConfig, searchYouTube, YouTubeError } from "./youtube";
@@ -281,6 +282,8 @@ function startJob(code: string, work: () => Promise<unknown>): string {
   return id;
 }
 const analysing = new Set<string>();
+// OCR is CPU-bound: two at a time on this container, the rest wait their turn.
+const analysisSlots = createSlots(2);
 function markAnalysing(lesson: Lesson): Lesson {
   return {
     ...lesson,
@@ -313,7 +316,7 @@ function analyseInBackground(lessonId: string, run: () => Promise<Lesson>, done:
   analysing.add(lessonId);
   void (async () => {
     try {
-      const fresh = await run();
+      const fresh = await analysisSlots.run(run);
       const current = store.get(lessonId);
       if (!isProcessing(current)) return;
       store.save({ ...current, map: fresh.map, stages: fresh.stages }, current.revision);
@@ -616,8 +619,20 @@ async function api(req: IncomingMessage, res: ServerResponse, url: URL) {
     );
     return json(res, { role: input.role, code });
   }
-  if (path === "/api/session" && method === "GET")
+  if (path === "/api/session" && method === "GET") {
+    // The page's first "am I signed in?" check asks with ?probe=1 and gets 200 + null when
+    // signed out, so a normal first visit does not print a red 401 in the console.
+    // Every other caller keeps the 401 contract.
+    if (url.searchParams.get("probe") === "1") {
+      try {
+        return json(res, session(req));
+      } catch (error) {
+        if (error instanceof HttpError && error.status === 401) return json(res, null);
+        throw error;
+      }
+    }
     return json(res, session(req));
+  }
   if (path === "/api/session" && method === "DELETE") {
     const token = req.headers.cookie
       ?.split(";")

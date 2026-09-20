@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Words } from "./motion";
 import { z } from "zod";
 import {
@@ -48,6 +48,10 @@ const searchResultSchema = z.object({
 type SearchResult = z.infer<typeof searchResultSchema>["results"][number];
 import { Diagram, Empty, FileField, Status, SurfaceList } from "./components";
 import { DiagramWorking, Spinner, Thinking } from "./Working";
+
+/** The server answers an upload at once and reads the diagram in the background. */
+const isReading = (lesson: { stages: { name: string; status: string }[] }) =>
+  lesson.stages.some((stage) => stage.name === "Analysis" && stage.status === "waiting");
 
 type Props = {
   lessons: Lesson[];
@@ -123,6 +127,25 @@ export default function Teacher({
     }, 3000);
     return () => { cancelled = true; stop(); };
   }, [selected, processing, onChange]);
+  // When the background reading of THIS lesson finishes, say what came out and open the right view.
+  const watchedLesson = useRef<string | null>(null);
+  useEffect(() => {
+    if (processing && lesson) {
+      watchedLesson.current = lesson.id;
+      return;
+    }
+    if (!watchedLesson.current || lesson?.id !== watchedLesson.current) return;
+    watchedLesson.current = null;
+    const parts = lesson.map.parts.length;
+    setEditor(parts === 0);
+    report(
+      parts
+        ? `Analysis ready: ${parts} proposed parts from ${lesson.map.labels.length} OCR labels. Review every item.`
+        : lesson.map.labels.length
+          ? "OCR labels found, but no proposal. Build the map in the manual editor."
+          : "The diagram was read, but nothing was found. Add visible labels in the manual map editor.",
+    );
+  }, [processing, lesson]); // eslint-disable-line react-hooks/exhaustive-deps
   const issues = lesson ? validateMap(lesson.map) : [];
   // Whether this analysis recorded any confidence at all, for the one line that
   // replaces the same two dead sentences repeated on every card.
@@ -243,7 +266,7 @@ export default function Teacher({
     setReanalysing(true);
     void run(
       () => api(`/lessons/${lesson.id}/reanalyse`, lessonSchema, "POST", { revision: lesson.revision }),
-      "Diagram analysed again. Review the new proposal from the top.",
+      "Reading your diagram again. The new proposal opens by itself when it is ready.",
     ).finally(() => setReanalysing(false));
   }
   async function run(
@@ -324,6 +347,10 @@ export default function Teacher({
     }
   }
   async function useSearchResult(r: SearchResult) {
+    if (analysing || processing || fetching) {
+      setError("A diagram is still being read. Wait for it to finish before choosing another.");
+      return;
+    }
     setFetching(r.imageUrl ?? r.thumbUrl);
     setError("");
     try {
@@ -351,12 +378,17 @@ export default function Teacher({
           },
         });
         onSelect(created.id);
-        const proposed = created.map.parts.length > 0;
-        setEditor(!proposed);
-        if (proposed)
-          uploaded = `Analysis ready: ${created.map.parts.length} proposed parts from ${created.map.labels.length} OCR labels. Review every item.`;
-        else if (created.map.labels.length)
-          uploaded = "OCR labels found, but no proposal. Build the map in the manual editor.";
+        if (isReading(created)) {
+          setEditor(false);
+          uploaded = "Reading your diagram. The review opens by itself when it is ready.";
+        } else {
+          const proposed = created.map.parts.length > 0;
+          setEditor(!proposed);
+          if (proposed)
+            uploaded = `Analysis ready: ${created.map.parts.length} proposed parts from ${created.map.labels.length} OCR labels. Review every item.`;
+          else if (created.map.labels.length)
+            uploaded = "OCR labels found, but no proposal. Build the map in the manual editor.";
+        }
       }, () => uploaded);
     } catch (e) {
       setError((e as Error).message);
@@ -461,6 +493,11 @@ export default function Teacher({
               onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
+                  if (analysing || processing) {
+                    setError("A diagram is still being read. Wait for it to finish before uploading another.");
+                    e.target.value = "";
+                    return;
+                  }
                   if (file.size > 5_000_000) {
                     setError("Choose a PNG or JPEG image smaller than 5 MB.");
                     return;
@@ -484,12 +521,17 @@ export default function Teacher({
                       license: source.licenseName.trim() ? source : null,
                     });
                     onSelect(created.id);
-                    const proposed = created.map.parts.length > 0;
-                    setEditor(!proposed);
-                    if (proposed)
-                      uploaded = `Analysis ready: ${created.map.parts.length} proposed parts from ${created.map.labels.length} OCR labels. Review every item.`;
-                    else if (created.map.labels.length)
-                      uploaded = "OCR labels found, but no proposal. Build the map in the manual editor.";
+                    if (isReading(created)) {
+                      setEditor(false);
+                      uploaded = "Reading your diagram. The review opens by itself when it is ready.";
+                    } else {
+                      const proposed = created.map.parts.length > 0;
+                      setEditor(!proposed);
+                      if (proposed)
+                        uploaded = `Analysis ready: ${created.map.parts.length} proposed parts from ${created.map.labels.length} OCR labels. Review every item.`;
+                      else if (created.map.labels.length)
+                        uploaded = "OCR labels found, but no proposal. Build the map in the manual editor.";
+                    }
                   }, () => uploaded).finally(() => {
                     setAnalysing(false);
                     e.target.value = "";
@@ -560,7 +602,7 @@ export default function Teacher({
                 You can upload now. Add the license before publishing to students.
               </p>
             )}
-            {analysing && <Thinking>Analysing your diagram. Follow it in the main panel.</Thinking>}
+            {(analysing || processing) && <Thinking>Analysing your diagram. Follow it in the main panel.</Thinking>}
             {engine ? (
               <p className="small">
                 Diagram analysis: {engine.ocr} + {engine.model}
@@ -642,9 +684,9 @@ export default function Teacher({
               )}
             </div>
           )}
-          {analysing || reanalysing ? (
+          {analysing || reanalysing || processing ? (
             <DiagramWorking
-              image={analysingImage}
+              image={analysing || reanalysing ? analysingImage : lesson?.image ? `/api/images/${lesson.image}` : null}
               title={reanalysing ? "Reading your diagram again" : "Reading your diagram"}
               stages={[
                 "Reading the labels on the picture",
@@ -653,7 +695,7 @@ export default function Teacher({
                 "Writing each explanation at three lengths",
                 "Checking every claim against the labels",
               ]}
-              typical={[15, 40]}
+              typical={[15, 30]}
             />
           ) : !lesson ? (
             <Empty title="Your first shared lesson starts here">

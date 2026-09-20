@@ -86,7 +86,7 @@ async function mockIdentity(page: Page, confirmEmail = false, failBridge = false
       expires_in: 3600, user,
     } });
   });
-  await page.route("**/api/session", async (route) => {
+  await page.route(/\/api\/session(\?.*)?$/, async (route) => {
     const method = route.request().method();
     if (method === "POST") {
       expect(route.request().headers().authorization).toBe("Bearer test-token");
@@ -100,6 +100,11 @@ async function mockIdentity(page: Page, confirmEmail = false, failBridge = false
       signedIn = true;
     }
     if (method === "DELETE") signedIn = false;
+    // Like the server: the page's first check (?probe=1) is answered 200 + null when signed out.
+    if (!signedIn && method === "GET" && new URL(route.request().url()).searchParams.get("probe") === "1") {
+      await route.fulfill({ json: null });
+      return;
+    }
     await route.fulfill({ status: signedIn ? 200 : 401, json: signedIn ? session : { error: "Sign in first." } });
   });
   await page.route("**/api/published", (route) => route.fulfill({ json: [] }));

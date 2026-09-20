@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Mic, MicOff, Square, Keyboard, PlayCircle, Download } from "lucide-react";
 import { poll } from "./lib/poll";
+import { MicWorking, type MicPhase } from "./Working";
 import { startLiveTranscription } from "./lib/liveTranscribe";
 import { requestMicrophone, quietSpeechErrors, speechErrorMessage } from "./lib/microphone";
 import { api } from "./api";
@@ -73,6 +74,10 @@ export default function LiveCaptions({
   const [listening, setListening] = useState(false);
   const recognition = useRef<Recognition | null>(null);
   const stopAi = useRef<(() => Promise<void>) | null>(null);
+  // What the microphone is doing right now, for the loading panel. "off" hides it.
+  const [aiPhase, setAiPhase] = useState<"off" | "starting" | "on" | "transcribing" | "posting">("off");
+  const [level, setLevel] = useState(0);
+  const inFlight = useRef(0);
   const lastInterim = useRef(0);
   const teacher = session.role === "teacher";
   const isLive = live?.session.status === "live";
@@ -122,11 +127,13 @@ export default function LiveCaptions({
     setBusy(true);
     setError("");
     setMicError("");
+    if (source === "ai_speech") setAiPhase("starting");
     try {
       if (source === "browser_speech" || source === "ai_speech") {
         const problem = await requestMicrophone();
         if (problem) {
           setMicError(problem);
+          setAiPhase("off");
           return;
         }
       }
@@ -139,6 +146,7 @@ export default function LiveCaptions({
       if (source === "demo_script") await playSample(s.id);
     } catch (e) {
       setError((e as Error).message);
+      setAiPhase("off");
     } finally {
       setBusy(false);
     }
@@ -199,30 +207,47 @@ export default function LiveCaptions({
     setListening(true);
   }
   async function listenAi(sessionId: string) {
+    setAiPhase("starting");
     const problem = await requestMicrophone();
     if (problem) {
       setMicError(problem);
+      setAiPhase("off");
       return;
     }
     setMicError("");
     try {
       stopAi.current = await startLiveTranscription({
+        onLevel: setLevel,
         onChunk: async (base64, offsetMs) => {
-          const t = await api("/ai/transcribe", aiTranscriptSchema, "POST", { mime: "audio/wav", base64, offsetMs });
-          for (const seg of t.segments) await post(sessionId, seg.text, true);
-          await load();
+          // After Stop, the last part still finishes in the background; it must not bring the panel back.
+          const listeningNow = () => stopAi.current !== null;
+          inFlight.current++;
+          if (listeningNow()) setAiPhase("transcribing");
+          try {
+            const t = await api("/ai/transcribe", aiTranscriptSchema, "POST", { mime: "audio/wav", base64, offsetMs });
+            if (listeningNow()) setAiPhase("posting");
+            for (const seg of t.segments) await post(sessionId, seg.text, true);
+            await load();
+          } finally {
+            // Back to listening only when nothing else is still being turned into text.
+            if (--inFlight.current === 0 && listeningNow()) setAiPhase("on");
+          }
         },
         onError: (message) => setMicError(`Live captions paused: ${message}`),
       });
       setListening(true);
+      setAiPhase("on");
     } catch (e) {
       setMicError((e as Error).message || "The microphone could not be opened. Type captions instead.");
+      setAiPhase("off");
     }
   }
   function stopListening() {
     const stop = stopAi.current;
     stopAi.current = null;
     void stop?.();
+    setAiPhase("off");
+    setLevel(0);
     const rec = recognition.current;
     recognition.current = null;
     rec?.stop();
@@ -265,6 +290,9 @@ export default function LiveCaptions({
         <p className="error" role="alert">
           {micError || error}
         </p>
+      )}
+      {aiPhase !== "off" && (
+        <MicWorking phase={aiPhase === "on" ? (level > 0.02 ? "hearing" : "listening") : aiPhase} level={level} />
       )}
       {!live ? (
         <p>{teacher ? "No caption session yet for this version." : "Captions appear here when your teacher starts them."}</p>

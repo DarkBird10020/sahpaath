@@ -110,6 +110,72 @@ export function CaptionsWorking({ progress }: { progress: string }) {
   );
 }
 
+export type MicPhase = "starting" | "listening" | "hearing" | "transcribing" | "posting";
+const micSteps = ["Listening to your voice", "Turning your speech into words", "Adding the lines to the class captions"];
+const micHeading: Record<MicPhase, string> = {
+  starting: "Starting the microphone",
+  listening: "Listening",
+  hearing: "Hearing you",
+  transcribing: "Turning your speech into captions",
+  posting: "Adding your words to the captions",
+};
+const micHint: Record<MicPhase, string> = {
+  starting: "Allow the microphone if your browser asks.",
+  listening: "Speak normally. Each line appears a few seconds after you pause.",
+  hearing: "Keep going. Captions start a few seconds after you pause.",
+  transcribing: "Usually 3 to 8 seconds. You can keep talking; the next part is already being recorded.",
+  posting: "Nearly there.",
+};
+
+/**
+ * Speech becoming captions. The steps follow what is really happening (recording, sending
+ * for transcription, adding the lines) and the bars follow the microphone's actual level,
+ * so a quiet room or a dead microphone is visible at once.
+ */
+export function MicWorking({ phase, level }: { phase: MicPhase; level: number }) {
+  const busy = phase === "transcribing" || phase === "posting";
+  const now = phase === "transcribing" ? 1 : phase === "posting" ? 2 : 0;
+  const heard = Math.min(1, level * 14);
+  return (
+    <section className={`working working-captions working-mic${busy ? " is-busy" : ""}`} aria-label="Microphone captions">
+      <div className="working-wave" aria-hidden="true">
+        {Array.from({ length: 28 }, (_, i) => (
+          <i
+            key={i}
+            style={
+              busy
+                ? { animationDelay: `${(i % 7) * 0.11}s` }
+                : ({ "--s": phase === "starting" ? 0.12 : 0.12 + heard * (0.4 + 0.6 * Math.abs(Math.sin(i * 1.7))) } as React.CSSProperties)
+            }
+          />
+        ))}
+      </div>
+      <p className="working-kicker">
+        <span className="working-dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+        {micHeading[phase]}
+      </p>
+      {/* One steady announcement per change; the meter is for eyes only. */}
+      <p className="sr-only" role="status">
+        {micHeading[phase]}. {micHint[phase]}
+      </p>
+      <ol className="working-stages" aria-hidden="true">
+        {micSteps.map((step, i) => (
+          <li key={step} className={i === now ? "is-now" : i < now ? "is-before" : ""}>
+            {step}
+          </li>
+        ))}
+      </ol>
+      <p className="working-time" aria-hidden="true">
+        {micHint[phase]}
+      </p>
+    </section>
+  );
+}
+
 /** A short wait for an answer: three dots and what is happening. */
 export function Thinking({ children }: { children: string }) {
   return (

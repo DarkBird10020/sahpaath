@@ -14,6 +14,7 @@ test("recording the microphone turns spoken audio into caption lines", async ({ 
     expect(sent.mime).toBe("audio/wav");
     expect(Buffer.from(sent.base64, "base64").subarray(0, 4).toString()).toBe("RIFF");
     uploads++;
+    await new Promise((resolve) => setTimeout(resolve, 2500)); // a real transcription is not instant
     await route.fulfill({ json: { segments: [{ startMs: 0, endMs: 1500, text: "blood reaches the lungs" }], hardWords: [], model: "test" } });
   });
 
@@ -34,7 +35,15 @@ test("recording the microphone turns spoken audio into caption lines", async ({ 
   await page.goto("about:blank");
   await page.goto("/#/captions");
   await page.getByRole("button", { name: "Start with microphone" }).click();
+  const panel = page.getByRole("region", { name: "Microphone captions" });
+  await expect(panel).toBeVisible(); // there is always something on screen once you press the button
   await expect(page.getByRole("button", { name: "Stop microphone" })).toBeVisible();
+  // While the audio is being turned into text the panel says so, instead of leaving a blank wait.
+  await expect(panel.getByText("Turning your speech into captions").first()).toBeVisible({ timeout: 20000 });
   await expect(page.getByRole("log", { name: "Caption lines" }).getByText("blood reaches the lungs").first()).toBeVisible({ timeout: 20000 });
   expect(uploads).toBeGreaterThan(0);
+  // Back to listening, and gone once the microphone is stopped.
+  await expect(panel.getByText(/^(Listening|Hearing you)$/).first()).toBeVisible({ timeout: 20000 });
+  await page.getByRole("button", { name: "Stop microphone" }).click();
+  await expect(panel).toBeHidden();
 });
